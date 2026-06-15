@@ -162,6 +162,10 @@ cd GreenchClaw
 
 pnpm install
 
+# NPM-12 migration (2026-06): bundled plugin postinstall work moved to
+# opt-in scripts. Run once after install and after every `pnpm install`.
+pnpm run setup
+
 # First run only (or after resetting local GreenchClaw config/workspace)
 pnpm GreenchClaw setup
 

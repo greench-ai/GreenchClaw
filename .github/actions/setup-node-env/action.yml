@@ -101,6 +101,25 @@ runs:
         fi
         pnpm "${install_args[@]}" || pnpm "${install_args[@]}"
 
+        # NPM-12 migration (2026-06): bundled plugin postinstall work moved
+        # to an opt-in script (see package.json `setup:plugins`). The
+        # postinstall lifecycle slot is empty, so we invoke the script
+        # explicitly. Skip with GREENCHCLAW_SKIP_SETUP_PLUGINS=1 for jobs
+        # that don't need the bundled plugins (validation, format-only).
+        if [ "${GREENCHCLAW_SKIP_SETUP_PLUGINS:-0}" != "1" ]; then
+          pnpm run setup:plugins
+        fi
+
+        # NPM-12 migration: warn if the bundled npm is >= 12. The npm-12
+        # release blocks install scripts in dependencies by default, which
+        # breaks transitive native modules. Our own scripts are already
+        # opt-in, so this is a warning, not a hard error — but surfaces
+        # the issue early in CI logs.
+        NPM_MAJOR="$(npm -v | cut -d. -f1)"
+        if [ "$NPM_MAJOR" -ge 12 ]; then
+          echo "::warning::npm $(npm -v) is npm-12-or-later; install scripts in dependencies will be blocked by default. Pin a Node.js version that bundles npm < 12, or use pnpm (which is unaffected by npm-12)."
+        fi
+
     - name: Save pnpm store cache
       if: inputs.install-deps == 'true' && steps.pnpm-cache.outputs.cache-enabled == 'true' && steps.pnpm-cache.outputs.cache-hit != 'true'
       uses: actions/cache/save@v5

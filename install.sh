@@ -197,6 +197,15 @@ install_deps() {
     exit 1
   fi
   success "Node dependencies installed"
+
+  # NPM-12 migration (2026-06): bundled plugin postinstall work moved
+  # to opt-in scripts (see package.json `setup:plugins`). The `postinstall`
+  # lifecycle slot is empty now, so we invoke the script explicitly.
+  info "Running post-install setup (bundled plugins + git hooks)..."
+  if ! pnpm run setup 2>&1; then
+    warn "pnpm run setup reported issues — continuing. See logs above."
+  fi
+  success "Post-install setup complete"
 }
 
 # ── Build ─────────────────────────────────────────────────────
