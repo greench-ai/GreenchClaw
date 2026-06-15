@@ -1,0 +1,14 @@
+{
+  "name": "@GreenchClaw/greench-focus",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GreenchClaw focus modes — behavioral presets that adjust agent system prompts for different tasks",
+  "type": "module",
+  "exports": {
+    "./index": "./index.ts",
+    "./package.json": "./package.json"
+  },
+  "GreenchClaw": {
+    "extensions": ["./index.ts"]
+  }
+}

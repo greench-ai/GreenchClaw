@@ -1,0 +1,12 @@
+{
+  "id": "greench-prompts",
+  "name": "GreenchPrompts",
+  "enabledByDefault": false,
+  "activation": { "onStartup": false },
+  "contracts": { "tools": ["prompts_list", "prompts_get", "prompts_create", "prompts_delete"] },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

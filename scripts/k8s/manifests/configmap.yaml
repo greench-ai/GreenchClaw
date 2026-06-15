@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: GreenchClaw-config
+  labels:
+    app: GreenchClaw
+data:
+  GreenchClaw.json: |
+    {
+      "gateway": {
+        "mode": "local",
+        "bind": "loopback",
+        "port": 18789,
+        "auth": {
+          "mode": "token"
+        },
+        "controlUi": {
+          "enabled": true
+        }
+      },
+      "agents": {
+        "defaults": {
+          "workspace": "~/.GreenchClaw/workspace"
+        },
+        "list": [
+          {
+            "id": "default",
+            "name": "GreenchClaw Assistant",
+            "workspace": "~/.GreenchClaw/workspace"
+          }
+        ]
+      },
+      "cron": { "enabled": false }
+    }
+  AGENTS.md: |
+    # GreenchClaw Assistant
+
+    You are a helpful AI assistant running in Kubernetes.

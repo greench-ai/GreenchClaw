@@ -1,0 +1,34 @@
+{
+  "name": "@GreenchClaw/diagnostics-prometheus",
+  "version": "2026.5.12-beta.1",
+  "description": "GreenchClaw diagnostics Prometheus exporter",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GreenchClaw/GreenchClaw"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@GreenchClaw/plugin-sdk": "workspace:*"
+  },
+  "GreenchClaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "install": {
+      "clawhubSpec": "clawhub:@GreenchClaw/diagnostics-prometheus",
+      "npmSpec": "@GreenchClaw/diagnostics-prometheus",
+      "defaultChoice": "npm",
+      "minHostVersion": ">=2026.4.25"
+    },
+    "compat": {
+      "pluginApi": ">=2026.5.12-beta.1"
+    },
+    "build": {
+      "GreenchClawVersion": "2026.5.12-beta.1"
+    },
+    "release": {
+      "publishToClawHub": true,
+      "publishToNpm": true
+    }
+  }
+}

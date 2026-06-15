@@ -1,0 +1,14 @@
+{
+  "name": "@GreenchClaw/greench-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GreenchClaw Autonomous Agent — streaming thought/action/final loop with tool execution",
+  "type": "module",
+  "exports": {
+    "./index": "./index.ts",
+    "./package.json": "./package.json"
+  },
+  "GreenchClaw": {
+    "extensions": ["./index.ts"]
+  }
+}

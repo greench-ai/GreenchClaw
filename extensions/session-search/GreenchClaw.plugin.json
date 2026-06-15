@@ -1,0 +1,24 @@
+{
+  "id": "session-search",
+  "name": "Session Search",
+  "version": "1.0.0",
+  "description": "FTS5 full-text search over GreenchClaw session history.",
+  "homepage": "https://github.com/greench-ai/GreenchClaw",
+  "activation": {
+    "onStartup": false
+  },
+  "contracts": {
+    "tools": ["session_search", "session_index", "session_preview", "session_stats"]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  },
+  "install": {
+    "primary": {
+      "kind": "git",
+      "url": "https://github.com/greench-ai/GreenchClaw"
+    }
+  }
+}

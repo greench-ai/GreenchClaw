@@ -1,0 +1,63 @@
+{
+  "name": "@GreenchClaw/qqbot",
+  "version": "2026.5.12-beta.1",
+  "private": false,
+  "description": "GreenchClaw QQ Bot channel plugin",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GreenchClaw/GreenchClaw"
+  },
+  "type": "module",
+  "dependencies": {
+    "@tencent-connect/qqbot-connector": "1.1.0",
+    "mpg123-decoder": "1.0.3",
+    "silk-wasm": "3.7.1",
+    "ws": "8.20.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@GreenchClaw/plugin-sdk": "workspace:*",
+    "@types/ws": "8.18.1",
+    "GreenchClaw": "workspace:*"
+  },
+  "peerDependencies": {
+    "GreenchClaw": ">=2026.5.12-beta.1"
+  },
+  "peerDependenciesMeta": {
+    "GreenchClaw": {
+      "optional": true
+    }
+  },
+  "GreenchClaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "setupEntry": "./setup-entry.ts",
+    "channel": {
+      "id": "qqbot",
+      "label": "QQ Bot",
+      "selectionLabel": "QQ Bot (Official API)",
+      "detailLabel": "QQ Bot",
+      "docsPath": "/channels/qqbot",
+      "docsLabel": "qqbot",
+      "blurb": "connect to QQ via official QQ Bot API with group chat and direct message support.",
+      "systemImage": "bubble.left.and.bubble.right"
+    },
+    "install": {
+      "npmSpec": "@GreenchClaw/qqbot",
+      "localPath": "extensions/qqbot",
+      "defaultChoice": "npm",
+      "minHostVersion": ">=2026.4.10"
+    },
+    "compat": {
+      "pluginApi": ">=2026.5.12-beta.1"
+    },
+    "build": {
+      "GreenchClawVersion": "2026.5.12-beta.1"
+    },
+    "release": {
+      "publishToClawHub": true,
+      "publishToNpm": true
+    }
+  }
+}

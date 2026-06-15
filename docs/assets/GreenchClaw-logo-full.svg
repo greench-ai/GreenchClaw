@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 120" width="300" height="120">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00ff88"/>
+      <stop offset="45%" stop-color="#a855f7"/>
+      <stop offset="100%" stop-color="#ff6b35"/>
+    </linearGradient>
+    <linearGradient id="gH" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00ff88"/>
+      <stop offset="50%" stop-color="#a855f7"/>
+      <stop offset="100%" stop-color="#ff6b35"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="glowText">
+      <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background (optional - remove for transparent) -->
+  <rect width="300" height="120" fill="none"/>
+
+  <!-- NEXIS mark - left side -->
+  <g transform="translate(10, 10)">
+    <!-- Angular N -->
+    <path d="M8 90 L8 10 L28 10 L46 62 L46 10 L66 10 L66 90 L46 90 L28 36 L28 90 Z"
+          fill="none"
+          stroke="url(#g)"
+          stroke-width="6"
+          stroke-linejoin="round"
+          stroke-linecap="round"
+          filter="url(#glow)"/>
+
+    <!-- Small claw pincer accent -->
+    <path d="M70 72 Q80 66 86 56 Q90 48 87 43 Q83 38 76 43 Q71 47 74 54 Q76 60 71 68 Q70 71 70 72 Z"
+          fill="url(#g)"
+          opacity="0.9"/>
+  </g>
+
+  <!-- NEXIS word - right side -->
+  <g transform="translate(100, 30)">
+    <!-- NEXIS text -->
+    <text y="40"
+          font-family="'SF Pro Display', 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif"
+          font-size="42"
+          font-weight="800"
+          fill="url(#gH)"
+          filter="url(#glowText)"
+          letter-spacing="-1">Nexis</text>
+
+    <!-- CLAW subtitle -->
+    <text y="72"
+          font-family="'SF Pro Display', 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif"
+          font-size="18"
+          font-weight="500"
+          fill="#a855f7"
+          opacity="0.9"
+          letter-spacing="8">CLAW</text>
+  </g>
+</svg>

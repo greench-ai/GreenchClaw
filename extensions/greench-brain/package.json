@@ -1,0 +1,15 @@
+{
+  "name": "@GreenchClaw/greench-brain",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GreenchClaw Brain — semantic memory storage and retrieval using Qdrant",
+  "type": "module",
+  "exports": {
+    "./index": "./index.ts",
+    "./package.json": "./package.json"
+  },
+  "GreenchClaw": {
+    "extensions": ["./index.ts"]
+  },
+  "dependencies": {}
+}

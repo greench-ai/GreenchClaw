@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: GreenchClaw
+    runtime: docker
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: GREENCHCLAW_GATEWAY_PORT
+        value: "8080"
+      - key: GREENCHCLAW_STATE_DIR
+        value: /data/.GreenchClaw
+      - key: GREENCHCLAW_WORKSPACE_DIR
+        value: /data/workspace
+      - key: GREENCHCLAW_GATEWAY_TOKEN
+        generateValue: true
+    disk:
+      name: GreenchClaw-data
+      mountPath: /data
+      sizeGB: 1

@@ -1,0 +1,46 @@
+{
+  "name": "@GreenchClaw/synology-chat",
+  "version": "2026.5.12-beta.1",
+  "description": "Synology Chat channel plugin for GreenchClaw",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GreenchClaw/GreenchClaw"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@GreenchClaw/plugin-sdk": "workspace:*"
+  },
+  "GreenchClaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "setupEntry": "./setup-entry.ts",
+    "channel": {
+      "id": "synology-chat",
+      "label": "Synology Chat",
+      "selectionLabel": "Synology Chat (Webhook)",
+      "docsPath": "/channels/synology-chat",
+      "docsLabel": "synology-chat",
+      "blurb": "Connect your Synology NAS Chat to GreenchClaw with full agent capabilities.",
+      "order": 90
+    },
+    "install": {
+      "npmSpec": "@GreenchClaw/synology-chat",
+      "defaultChoice": "npm",
+      "minHostVersion": ">=2026.4.10"
+    },
+    "compat": {
+      "pluginApi": ">=2026.5.12-beta.1"
+    },
+    "build": {
+      "GreenchClawVersion": "2026.5.12-beta.1"
+    },
+    "release": {
+      "publishToClawHub": true,
+      "publishToNpm": true
+    }
+  },
+  "dependencies": {
+    "zod": "4.4.3"
+  }
+}

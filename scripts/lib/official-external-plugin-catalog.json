@@ -1,0 +1,174 @@
+{
+  "entries": [
+    {
+      "name": "@GreenchClaw/acpx",
+      "description": "GreenchClaw ACP runtime backend",
+      "source": "official",
+      "kind": "plugin",
+      "GreenchClaw": {
+        "plugin": {
+          "id": "acpx",
+          "label": "ACPX Runtime"
+        },
+        "install": {
+          "npmSpec": "@GreenchClaw/acpx",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.25"
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/brave-plugin",
+      "description": "GreenchClaw Brave plugin",
+      "source": "official",
+      "kind": "plugin",
+      "GreenchClaw": {
+        "plugin": {
+          "id": "brave",
+          "label": "Brave"
+        },
+        "webSearchProviders": [
+          {
+            "id": "brave",
+            "label": "Brave Search",
+            "hint": "Brave Search web results.",
+            "onboardingScopes": ["text-inference"],
+            "credentialLabel": "Brave Search API key",
+            "envVars": ["BRAVE_API_KEY"],
+            "placeholder": "BSA...",
+            "signupUrl": "https://api-dashboard.search.brave.com/app/keys",
+            "docsUrl": "https://docs.GreenchClaw.ai/tools/brave-search",
+            "credentialPath": "plugins.entries.brave.config.webSearch.apiKey",
+            "autoDetectOrder": 10
+          }
+        ],
+        "install": {
+          "npmSpec": "@GreenchClaw/brave-plugin",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.10"
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/diagnostics-otel",
+      "description": "GreenchClaw diagnostics OpenTelemetry exporter",
+      "source": "official",
+      "kind": "plugin",
+      "GreenchClaw": {
+        "plugin": {
+          "id": "diagnostics-otel",
+          "label": "Diagnostics OpenTelemetry"
+        },
+        "install": {
+          "clawhubSpec": "clawhub:@GreenchClaw/diagnostics-otel",
+          "npmSpec": "@GreenchClaw/diagnostics-otel",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.25"
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/diagnostics-prometheus",
+      "description": "GreenchClaw diagnostics Prometheus exporter",
+      "source": "official",
+      "kind": "plugin",
+      "GreenchClaw": {
+        "plugin": {
+          "id": "diagnostics-prometheus",
+          "label": "Diagnostics Prometheus"
+        },
+        "install": {
+          "clawhubSpec": "clawhub:@GreenchClaw/diagnostics-prometheus",
+          "npmSpec": "@GreenchClaw/diagnostics-prometheus",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.25"
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/diffs",
+      "description": "GreenchClaw diff viewer plugin",
+      "source": "official",
+      "kind": "plugin",
+      "GreenchClaw": {
+        "plugin": {
+          "id": "diffs",
+          "label": "Diffs"
+        },
+        "install": {
+          "npmSpec": "@GreenchClaw/diffs",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.30"
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/google-meet",
+      "description": "GreenchClaw Google Meet participant plugin",
+      "source": "official",
+      "kind": "plugin",
+      "GreenchClaw": {
+        "plugin": {
+          "id": "google-meet",
+          "label": "Google Meet"
+        },
+        "install": {
+          "npmSpec": "@GreenchClaw/google-meet",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.20"
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/lobster",
+      "description": "Lobster workflow tool plugin (typed pipelines + resumable approvals)",
+      "source": "official",
+      "kind": "plugin",
+      "GreenchClaw": {
+        "plugin": {
+          "id": "lobster",
+          "label": "Lobster"
+        },
+        "install": {
+          "npmSpec": "@GreenchClaw/lobster",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.25"
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/memory-lancedb",
+      "description": "GreenchClaw LanceDB-backed long-term memory plugin with auto-recall/capture",
+      "source": "official",
+      "kind": "plugin",
+      "GreenchClaw": {
+        "plugin": {
+          "id": "memory-lancedb",
+          "label": "Memory LanceDB"
+        },
+        "install": {
+          "npmSpec": "@GreenchClaw/memory-lancedb",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.10"
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/voice-call",
+      "description": "GreenchClaw voice-call plugin",
+      "source": "official",
+      "kind": "plugin",
+      "GreenchClaw": {
+        "plugin": {
+          "id": "voice-call",
+          "label": "Voice Call"
+        },
+        "install": {
+          "npmSpec": "@GreenchClaw/voice-call",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.10"
+        }
+      }
+    }
+  ]
+}

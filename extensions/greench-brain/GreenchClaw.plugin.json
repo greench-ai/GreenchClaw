@@ -1,0 +1,18 @@
+{
+  "id": "greench-brain",
+  "name": "GreenchBrain",
+  "enabledByDefault": false,
+  "activation": { "onStartup": false },
+  "contracts": { "tools": ["brain_add", "brain_search", "brain_list", "brain_delete"] },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "qdrantHost": { "type": "string", "default": "localhost" },
+      "qdrantPort": { "type": "number", "default": 6333 },
+      "ollamaUrl": { "type": "string", "default": "http://localhost:11434" },
+      "embeddingModel": { "type": "string", "default": "nomic-embed-text:v1.5" },
+      "collection": { "type": "string", "default": "greench_brain" }
+    }
+  }
+}

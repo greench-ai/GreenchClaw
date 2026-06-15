@@ -1,0 +1,20 @@
+{
+  "name": "@GreenchClaw/xai-plugin",
+  "version": "2026.5.12-beta.1",
+  "private": true,
+  "description": "GreenchClaw xAI plugin",
+  "type": "module",
+  "dependencies": {
+    "@earendil-works/pi-ai": "0.74.0",
+    "typebox": "1.1.38"
+  },
+  "devDependencies": {
+    "@GreenchClaw/plugin-sdk": "workspace:*",
+    "ws": "8.20.0"
+  },
+  "GreenchClaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "greench-focus",
+  "name": "GreenchFocus",
+  "enabledByDefault": false,
+  "activation": { "onStartup": false },
+  "contracts": { "tools": ["focus_mode", "focus_modes_list"] },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

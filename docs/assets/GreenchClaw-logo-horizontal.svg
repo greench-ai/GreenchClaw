@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 80" width="300" height="80">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00ff88"/>
+      <stop offset="50%" stop-color="#a855f7"/>
+      <stop offset="100%" stop-color="#ff6b35"/>
+    </linearGradient>
+    <linearGradient id="gV" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00ff88"/>
+      <stop offset="50%" stop-color="#a855f7"/>
+      <stop offset="100%" stop-color="#ff6b35"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- N mark: angular futuristic, like circuit traces -->
+  <g transform="translate(5, 5)">
+    <!-- N left stem -->
+    <path d="M10 70 L10 10 L22 10 L22 70 Z" fill="url(#g)" opacity="0.9"/>
+    <!-- N diagonal -->
+    <path d="M22 10 L34 10 L50 70 L38 70 Z" fill="url(#g)" opacity="0.7"/>
+    <!-- N right stem -->
+    <path d="M50 10 L50 70 L38 70 L38 10 Z" fill="url(#g)" opacity="0.9"/>
+    <!-- Claw pincer: stylized pincer at bottom right -->
+    <path d="M54 72 Q64 66 70 58 Q74 50 71 45 Q67 40 60 45 Q55 49 58 56 Q60 62 55 68 Q54 71 54 72 Z" fill="url(#g)"/>
+    <path d="M60 76 Q70 72 75 64 Q78 57 75 52 Q71 47 64 52 Q59 56 62 63 Q64 68 60 74 Z" fill="#ff6b35"/>
+  </g>
+
+  <!-- Nexis text -->
+  <text x="82" y="52"
+        font-family="'SF Pro Display', 'Inter', system-ui, -apple-system, sans-serif"
+        font-size="38"
+        font-weight="800"
+        fill="url(#g)"
+        filter="url(#glow)"
+        letter-spacing="-1.5">Nexis</text>
+
+  <!-- Claw text, smaller, purple -->
+  <text x="83" y="72"
+        font-family="'SF Pro Display', 'Inter', system-ui, -apple-system, sans-serif"
+        font-size="14"
+        font-weight="600"
+        fill="#a855f7"
+        letter-spacing="6">CLAW</text>
+</svg>

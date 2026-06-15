@@ -1,0 +1,10 @@
+{
+  "name": "@GreenchClaw/image-generation-core",
+  "version": "2026.5.12-beta.1",
+  "private": true,
+  "description": "GreenchClaw image generation runtime package",
+  "type": "module",
+  "devDependencies": {
+    "@GreenchClaw/plugin-sdk": "workspace:*"
+  }
+}

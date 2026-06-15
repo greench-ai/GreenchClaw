@@ -1,0 +1,18 @@
+{
+  "name": "@GreenchClaw/file-transfer",
+  "version": "2026.5.12-beta.1",
+  "description": "GreenchClaw file transfer plugin (file_fetch, dir_list, dir_fetch, file_write)",
+  "type": "module",
+  "dependencies": {
+    "minimatch": "10.2.5",
+    "typebox": "1.1.38"
+  },
+  "devDependencies": {
+    "@GreenchClaw/plugin-sdk": "workspace:*"
+  },
+  "GreenchClaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

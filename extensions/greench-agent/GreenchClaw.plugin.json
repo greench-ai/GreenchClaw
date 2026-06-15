@@ -1,0 +1,12 @@
+{
+  "id": "greench-agent",
+  "name": "GreenchAgent",
+  "enabledByDefault": false,
+  "activation": { "onStartup": false },
+  "contracts": { "tools": ["agent_run"] },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

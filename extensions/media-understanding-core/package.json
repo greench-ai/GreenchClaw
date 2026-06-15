@@ -1,0 +1,14 @@
+{
+  "name": "@GreenchClaw/media-understanding-core",
+  "version": "2026.5.12-beta.1",
+  "private": true,
+  "description": "GreenchClaw media understanding runtime package",
+  "type": "module",
+  "dependencies": {
+    "sharp": "0.34.5"
+  },
+  "devDependencies": {
+    "@GreenchClaw/plugin-sdk": "workspace:*"
+  },
+  "GreenchClaw": {}
+}

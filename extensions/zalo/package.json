@@ -1,0 +1,59 @@
+{
+  "name": "@GreenchClaw/zalo",
+  "version": "2026.5.12-beta.1",
+  "description": "GreenchClaw Zalo channel plugin",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GreenchClaw/GreenchClaw"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@GreenchClaw/plugin-sdk": "workspace:*",
+    "GreenchClaw": "workspace:*"
+  },
+  "peerDependencies": {
+    "GreenchClaw": ">=2026.5.12-beta.1"
+  },
+  "peerDependenciesMeta": {
+    "GreenchClaw": {
+      "optional": true
+    }
+  },
+  "GreenchClaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "setupEntry": "./setup-entry.ts",
+    "channel": {
+      "id": "zalo",
+      "label": "Zalo",
+      "selectionLabel": "Zalo (Bot API)",
+      "docsPath": "/channels/zalo",
+      "docsLabel": "zalo",
+      "blurb": "Vietnam-focused messaging platform with Bot API.",
+      "aliases": [
+        "zl"
+      ],
+      "order": 80,
+      "quickstartAllowFrom": true
+    },
+    "install": {
+      "npmSpec": "@GreenchClaw/zalo",
+      "defaultChoice": "npm",
+      "minHostVersion": ">=2026.4.10"
+    },
+    "compat": {
+      "pluginApi": ">=2026.5.12-beta.1"
+    },
+    "build": {
+      "GreenchClawVersion": "2026.5.12-beta.1"
+    },
+    "release": {
+      "publishToClawHub": true,
+      "publishToNpm": true
+    }
+  },
+  "dependencies": {
+    "zod": "4.4.3"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "greench-host-tools",
+  "name": "GreenchHostTools",
+  "enabledByDefault": true,
+  "activation": { "onStartup": true },
+  "contracts": { "tools": ["host_bash"] },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

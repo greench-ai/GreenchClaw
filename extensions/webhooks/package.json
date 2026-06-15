@@ -1,0 +1,18 @@
+{
+  "name": "@GreenchClaw/webhooks",
+  "version": "2026.5.12-beta.1",
+  "private": true,
+  "description": "GreenchClaw webhook bridge plugin",
+  "type": "module",
+  "devDependencies": {
+    "@GreenchClaw/plugin-sdk": "workspace:*"
+  },
+  "GreenchClaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "dependencies": {
+    "zod": "4.4.3"
+  }
+}

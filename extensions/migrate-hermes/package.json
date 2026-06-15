@@ -1,0 +1,27 @@
+{
+  "name": "@GreenchClaw/migrate-hermes",
+  "version": "2026.5.12-beta.1",
+  "private": true,
+  "description": "Hermes to GreenchClaw migration provider",
+  "type": "module",
+  "dependencies": {
+    "yaml": "2.9.0"
+  },
+  "devDependencies": {
+    "@GreenchClaw/plugin-sdk": "workspace:*",
+    "GreenchClaw": "workspace:*"
+  },
+  "peerDependencies": {
+    "GreenchClaw": ">=2026.5.12-beta.1"
+  },
+  "peerDependenciesMeta": {
+    "GreenchClaw": {
+      "optional": true
+    }
+  },
+  "GreenchClaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

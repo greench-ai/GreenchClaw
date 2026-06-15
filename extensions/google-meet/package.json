@@ -1,0 +1,46 @@
+{
+  "name": "@GreenchClaw/google-meet",
+  "version": "2026.5.12-beta.1",
+  "description": "GreenchClaw Google Meet participant plugin",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GreenchClaw/GreenchClaw"
+  },
+  "type": "module",
+  "dependencies": {
+    "commander": "14.0.3",
+    "typebox": "1.1.38"
+  },
+  "devDependencies": {
+    "@GreenchClaw/plugin-sdk": "workspace:*",
+    "GreenchClaw": "workspace:*"
+  },
+  "peerDependencies": {
+    "GreenchClaw": ">=2026.5.12-beta.1"
+  },
+  "peerDependenciesMeta": {
+    "GreenchClaw": {
+      "optional": true
+    }
+  },
+  "GreenchClaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "install": {
+      "npmSpec": "@GreenchClaw/google-meet",
+      "defaultChoice": "npm",
+      "minHostVersion": ">=2026.4.20"
+    },
+    "compat": {
+      "pluginApi": ">=2026.5.12-beta.1"
+    },
+    "build": {
+      "GreenchClawVersion": "2026.5.12-beta.1"
+    },
+    "release": {
+      "publishToClawHub": true,
+      "publishToNpm": true
+    }
+  }
+}

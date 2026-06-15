@@ -1,0 +1,56 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import { listGreenchClawPluginManifestMetadata } from "./manifest-metadata-scan.js";
+
+const tempRoots: string[] = [];
+
+function createTempRoot(): string {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "GreenchClaw-manifest-metadata-"));
+  tempRoots.push(root);
+  return root;
+}
+
+function writeJson(filePath: string, value: unknown): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, JSON.stringify(value, null, 2), "utf8");
+}
+
+describe("listGreenchClawPluginManifestMetadata", () => {
+  afterEach(() => {
+    for (const root of tempRoots.splice(0)) {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("prefers the active bundled manifest over stale persisted bundled installs", () => {
+    const root = createTempRoot();
+    const home = path.join(root, "home");
+    const bundledRoot = path.join(root, "extensions");
+    const staleBundledRoot = path.join(root, "stale", "extensions");
+
+    writeJson(path.join(bundledRoot, "openai", "GreenchClaw.plugin.json"), {
+      id: "openai",
+      providerEndpoints: [{ endpointClass: "openai-public", hosts: ["api.openai.com"] }],
+    });
+    writeJson(path.join(staleBundledRoot, "openai", "GreenchClaw.plugin.json"), {
+      id: "openai",
+      providers: ["openai"],
+    });
+    writeJson(path.join(home, ".GreenchClaw", "plugins", "installs.json"), {
+      plugins: [{ rootDir: path.join(staleBundledRoot, "openai"), origin: "bundled" }],
+    });
+
+    const records = listGreenchClawPluginManifestMetadata({
+      GREENCHCLAW_HOME: home,
+      GREENCHCLAW_BUNDLED_PLUGINS_DIR: bundledRoot,
+    });
+
+    const openai = records.find((record) => record.manifest.id === "openai");
+    expect(openai?.pluginDir).toBe(path.join(bundledRoot, "openai"));
+    expect(openai?.manifest.providerEndpoints).toEqual([
+      { endpointClass: "openai-public", hosts: ["api.openai.com"] },
+    ]);
+  });
+});

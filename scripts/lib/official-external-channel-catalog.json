@@ -1,0 +1,533 @@
+{
+  "entries": [
+    {
+      "name": "@wecom/wecom-GreenchClaw-plugin",
+      "description": "GreenchClaw WeCom channel plugin by the Tencent WeCom team.",
+      "source": "external",
+      "kind": "channel",
+      "GreenchClaw": {
+        "plugin": {
+          "id": "wecom-GreenchClaw-plugin",
+          "label": "WeCom"
+        },
+        "contracts": {
+          "tools": ["wecom_mcp"]
+        },
+        "channel": {
+          "id": "wecom",
+          "label": "WeCom",
+          "selectionLabel": "WeCom（企业微信）",
+          "detailLabel": "WeCom",
+          "docsPath": "/plugins/community#wecom",
+          "docsLabel": "wecom",
+          "blurb": "Enterprise messaging and documents, scheduling, task tools.",
+          "aliases": ["qywx", "wework", "enterprise-wechat"],
+          "order": 45
+        },
+        "channelConfigs": {
+          "wecom": {
+            "label": "WeCom",
+            "description": "Enterprise WeChat conversation channel.",
+            "schema": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        "install": {
+          "npmSpec": "@wecom/wecom-GreenchClaw-plugin@2026.4.23",
+          "defaultChoice": "npm",
+          "expectedIntegrity": "sha512-bnzfdIEEu1/LFvcdyjaTkyxt27w6c7dqhkPezU62OWaqmcdFsUGR3T55USK/O9pIKsNcnL1Tnu1pqKYCWHFgWQ=="
+        }
+      }
+    },
+    {
+      "name": "GreenchClaw-plugin-yuanbao",
+      "description": "GreenchClaw Yuanbao channel plugin by the Tencent Yuanbao team.",
+      "source": "external",
+      "kind": "channel",
+      "GreenchClaw": {
+        "plugin": {
+          "id": "GreenchClaw-plugin-yuanbao",
+          "label": "Yuanbao"
+        },
+        "contracts": {
+          "tools": ["query_group_info", "query_session_members", "yuanbao_remind"]
+        },
+        "channel": {
+          "id": "yuanbao",
+          "label": "Yuanbao",
+          "selectionLabel": "Yuanbao (元宝)",
+          "detailLabel": "Yuanbao",
+          "docsPath": "/plugins/community#yuanbao",
+          "docsLabel": "yuanbao",
+          "blurb": "Tencent Yuanbao AI assistant conversation channel.",
+          "aliases": ["yuanbao", "yb", "tencent-yuanbao", "元宝"],
+          "order": 85
+        },
+        "channelConfigs": {
+          "yuanbao": {
+            "label": "Yuanbao",
+            "description": "Tencent Yuanbao AI assistant channel.",
+            "schema": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        "install": {
+          "npmSpec": "GreenchClaw-plugin-yuanbao@2.13.1",
+          "defaultChoice": "npm",
+          "expectedIntegrity": "sha512-lH2I9/nsmrg7l0YJJSQhOSpWMEFBAa6FwKbZcRLDFHDT2+mOZkHa44XE+8KYN4VmorlUdAxHzpZQmVr7C98IuA=="
+        }
+      }
+    },
+    {
+      "name": "@tencent-weixin/GreenchClaw-weixin",
+      "description": "GreenchClaw Weixin channel plugin by the Tencent Weixin team.",
+      "source": "external",
+      "kind": "channel",
+      "GreenchClaw": {
+        "plugin": {
+          "id": "GreenchClaw-weixin",
+          "label": "Weixin"
+        },
+        "channel": {
+          "id": "GreenchClaw-weixin",
+          "label": "Weixin",
+          "selectionLabel": "Weixin（微信）",
+          "detailLabel": "Weixin",
+          "docsPath": "/channels/wechat",
+          "docsLabel": "weixin",
+          "blurb": "Personal WeChat messaging via QR-code login.",
+          "aliases": ["weixin", "wechat", "微信"],
+          "order": 75
+        },
+        "channelConfigs": {
+          "GreenchClaw-weixin": {
+            "label": "Weixin",
+            "description": "Personal WeChat conversation channel.",
+            "schema": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        "install": {
+          "npmSpec": "@tencent-weixin/GreenchClaw-weixin@2.4.1",
+          "defaultChoice": "npm",
+          "expectedIntegrity": "sha512-FZnUVMQRpKGTKezeplr/DYal+5RSif2tXE51pljIFrO8rn7bVnnvpbj81/i9UMrYbuGiom1sl8OeSDzWRDKGhQ==",
+          "minHostVersion": ">=2026.3.22"
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/discord",
+      "description": "GreenchClaw Discord channel plugin",
+      "source": "official",
+      "kind": "channel",
+      "GreenchClaw": {
+        "channel": {
+          "id": "discord",
+          "label": "Discord",
+          "selectionLabel": "Discord (Bot API)",
+          "detailLabel": "Discord Bot",
+          "docsPath": "/channels/discord",
+          "docsLabel": "discord",
+          "blurb": "very well supported right now.",
+          "systemImage": "bubble.left.and.bubble.right",
+          "markdownCapable": true,
+          "preferSessionLookupForAnnounceTarget": true
+        },
+        "install": {
+          "npmSpec": "@GreenchClaw/discord",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.10",
+          "allowInvalidConfigRecovery": true
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/feishu",
+      "description": "GreenchClaw Feishu/Lark channel plugin",
+      "source": "official",
+      "kind": "channel",
+      "GreenchClaw": {
+        "channel": {
+          "id": "feishu",
+          "label": "Feishu",
+          "selectionLabel": "Feishu/Lark (飞书)",
+          "docsPath": "/channels/feishu",
+          "docsLabel": "feishu",
+          "blurb": "飞书/Lark enterprise messaging with doc/wiki/drive tools.",
+          "aliases": ["lark"],
+          "order": 35,
+          "quickstartAllowFrom": true
+        },
+        "install": {
+          "npmSpec": "@GreenchClaw/feishu",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.25"
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/googlechat",
+      "description": "GreenchClaw Google Chat channel plugin",
+      "source": "official",
+      "kind": "channel",
+      "GreenchClaw": {
+        "channel": {
+          "id": "googlechat",
+          "label": "Google Chat",
+          "selectionLabel": "Google Chat (Chat API)",
+          "detailLabel": "Google Chat",
+          "docsPath": "/channels/googlechat",
+          "docsLabel": "googlechat",
+          "blurb": "Google Workspace Chat app with HTTP webhook.",
+          "aliases": ["gchat", "google-chat"],
+          "order": 55,
+          "systemImage": "message.badge",
+          "markdownCapable": true,
+          "doctorCapabilities": {
+            "dmAllowFromMode": "nestedOnly",
+            "groupModel": "route",
+            "groupAllowFromFallbackToAllowFrom": false,
+            "warnOnEmptyGroupSenderAllowlist": false
+          },
+          "cliAddOptions": [
+            {
+              "flags": "--webhook-path <path>",
+              "description": "Google Chat webhook path"
+            },
+            {
+              "flags": "--webhook-url <url>",
+              "description": "Google Chat webhook URL"
+            },
+            {
+              "flags": "--audience-type <type>",
+              "description": "Google Chat audience type (app-url|project-number)"
+            },
+            {
+              "flags": "--audience <value>",
+              "description": "Google Chat audience value (app URL or project number)"
+            }
+          ]
+        },
+        "install": {
+          "npmSpec": "@GreenchClaw/googlechat",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.10"
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/line",
+      "description": "GreenchClaw LINE channel plugin",
+      "source": "official",
+      "kind": "channel",
+      "GreenchClaw": {
+        "channel": {
+          "id": "line",
+          "label": "LINE",
+          "selectionLabel": "LINE (Messaging API)",
+          "detailLabel": "LINE Bot",
+          "docsPath": "/channels/line",
+          "docsLabel": "line",
+          "blurb": "LINE Messaging API webhook bot.",
+          "systemImage": "message",
+          "order": 75,
+          "quickstartAllowFrom": true
+        },
+        "install": {
+          "npmSpec": "@GreenchClaw/line",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.10"
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/matrix",
+      "description": "GreenchClaw Matrix channel plugin",
+      "source": "official",
+      "kind": "channel",
+      "GreenchClaw": {
+        "channel": {
+          "id": "matrix",
+          "label": "Matrix",
+          "selectionLabel": "Matrix (plugin)",
+          "docsPath": "/channels/matrix",
+          "docsLabel": "matrix",
+          "blurb": "open protocol; install the plugin to enable.",
+          "order": 70,
+          "quickstartAllowFrom": true,
+          "doctorCapabilities": {
+            "dmAllowFromMode": "nestedOnly",
+            "groupModel": "sender",
+            "groupAllowFromFallbackToAllowFrom": false,
+            "warnOnEmptyGroupSenderAllowlist": true
+          },
+          "cliAddOptions": [
+            {
+              "flags": "--homeserver <url>",
+              "description": "Matrix homeserver URL"
+            },
+            {
+              "flags": "--user-id <id>",
+              "description": "Matrix user ID"
+            },
+            {
+              "flags": "--access-token <token>",
+              "description": "Matrix access token"
+            },
+            {
+              "flags": "--device-name <name>",
+              "description": "Matrix device name"
+            },
+            {
+              "flags": "--initial-sync-limit <n>",
+              "description": "Matrix initial sync limit"
+            }
+          ]
+        },
+        "install": {
+          "clawhubSpec": "clawhub:@GreenchClaw/matrix",
+          "npmSpec": "@GreenchClaw/matrix",
+          "defaultChoice": "clawhub",
+          "minHostVersion": ">=2026.4.10",
+          "allowInvalidConfigRecovery": true
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/msteams",
+      "description": "GreenchClaw Microsoft Teams channel plugin",
+      "source": "official",
+      "kind": "channel",
+      "GreenchClaw": {
+        "channel": {
+          "id": "msteams",
+          "label": "Microsoft Teams",
+          "selectionLabel": "Microsoft Teams (Teams SDK)",
+          "docsPath": "/channels/msteams",
+          "docsLabel": "msteams",
+          "blurb": "Teams SDK; enterprise support.",
+          "aliases": ["teams"],
+          "order": 60
+        },
+        "install": {
+          "npmSpec": "@GreenchClaw/msteams",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.10"
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/nextcloud-talk",
+      "description": "GreenchClaw Nextcloud Talk channel plugin",
+      "source": "official",
+      "kind": "channel",
+      "GreenchClaw": {
+        "channel": {
+          "id": "nextcloud-talk",
+          "label": "Nextcloud Talk",
+          "selectionLabel": "Nextcloud Talk (self-hosted)",
+          "docsPath": "/channels/nextcloud-talk",
+          "docsLabel": "nextcloud-talk",
+          "blurb": "Self-hosted chat via Nextcloud Talk webhook bots.",
+          "aliases": ["nc-talk", "nc"],
+          "order": 65,
+          "quickstartAllowFrom": true
+        },
+        "install": {
+          "npmSpec": "@GreenchClaw/nextcloud-talk",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.10"
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/nostr",
+      "description": "GreenchClaw Nostr channel plugin for NIP-04 encrypted DMs",
+      "source": "official",
+      "kind": "channel",
+      "GreenchClaw": {
+        "channel": {
+          "id": "nostr",
+          "label": "Nostr",
+          "selectionLabel": "Nostr (NIP-04 DMs)",
+          "docsPath": "/channels/nostr",
+          "docsLabel": "nostr",
+          "blurb": "Decentralized protocol; encrypted DMs via NIP-04.",
+          "order": 55,
+          "quickstartAllowFrom": true
+        },
+        "install": {
+          "npmSpec": "@GreenchClaw/nostr",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.10"
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/qqbot",
+      "description": "GreenchClaw QQ Bot channel plugin",
+      "source": "official",
+      "kind": "channel",
+      "GreenchClaw": {
+        "channel": {
+          "id": "qqbot",
+          "label": "QQ Bot",
+          "selectionLabel": "QQ Bot (Official API)",
+          "detailLabel": "QQ Bot",
+          "docsPath": "/channels/qqbot",
+          "docsLabel": "qqbot",
+          "blurb": "connect to QQ via official QQ Bot API with group chat and direct message support.",
+          "systemImage": "bubble.left.and.bubble.right"
+        },
+        "install": {
+          "npmSpec": "@GreenchClaw/qqbot",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.10"
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/synology-chat",
+      "description": "Synology Chat channel plugin for GreenchClaw",
+      "source": "official",
+      "kind": "channel",
+      "GreenchClaw": {
+        "channel": {
+          "id": "synology-chat",
+          "label": "Synology Chat",
+          "selectionLabel": "Synology Chat (Webhook)",
+          "docsPath": "/channels/synology-chat",
+          "docsLabel": "synology-chat",
+          "blurb": "Connect your Synology NAS Chat to GreenchClaw with full agent capabilities.",
+          "order": 90
+        },
+        "install": {
+          "npmSpec": "@GreenchClaw/synology-chat",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.10"
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/tlon",
+      "description": "GreenchClaw Tlon/Urbit channel plugin",
+      "source": "official",
+      "kind": "channel",
+      "GreenchClaw": {
+        "channel": {
+          "id": "tlon",
+          "label": "Tlon",
+          "selectionLabel": "Tlon (Urbit)",
+          "docsPath": "/channels/tlon",
+          "docsLabel": "tlon",
+          "blurb": "decentralized messaging on Urbit; install the plugin to enable.",
+          "order": 90,
+          "quickstartAllowFrom": true
+        },
+        "install": {
+          "npmSpec": "@GreenchClaw/tlon",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.10"
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/twitch",
+      "description": "GreenchClaw Twitch channel plugin",
+      "source": "official",
+      "kind": "channel",
+      "GreenchClaw": {
+        "channel": {
+          "id": "twitch",
+          "label": "Twitch",
+          "selectionLabel": "Twitch (Chat)",
+          "docsPath": "/channels/twitch",
+          "blurb": "Twitch chat integration",
+          "aliases": ["twitch-chat"]
+        },
+        "install": {
+          "npmSpec": "@GreenchClaw/twitch",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.10"
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/whatsapp",
+      "description": "GreenchClaw WhatsApp channel plugin",
+      "source": "official",
+      "kind": "channel",
+      "GreenchClaw": {
+        "channel": {
+          "id": "whatsapp",
+          "label": "WhatsApp",
+          "selectionLabel": "WhatsApp (QR link)",
+          "detailLabel": "WhatsApp Web",
+          "docsPath": "/channels/whatsapp",
+          "docsLabel": "whatsapp",
+          "blurb": "works with your own number; recommend a separate phone + eSIM.",
+          "systemImage": "message"
+        },
+        "install": {
+          "npmSpec": "@GreenchClaw/whatsapp",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.25"
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/zalo",
+      "description": "GreenchClaw Zalo channel plugin",
+      "source": "official",
+      "kind": "channel",
+      "GreenchClaw": {
+        "channel": {
+          "id": "zalo",
+          "label": "Zalo",
+          "selectionLabel": "Zalo (Bot API)",
+          "docsPath": "/channels/zalo",
+          "docsLabel": "zalo",
+          "blurb": "Vietnam-focused messaging platform with Bot API.",
+          "aliases": ["zl"],
+          "order": 80,
+          "quickstartAllowFrom": true
+        },
+        "install": {
+          "npmSpec": "@GreenchClaw/zalo",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.10"
+        }
+      }
+    },
+    {
+      "name": "@GreenchClaw/zalouser",
+      "description": "GreenchClaw Zalo Personal Account plugin via native zca-js integration",
+      "source": "official",
+      "kind": "channel",
+      "GreenchClaw": {
+        "channel": {
+          "id": "zalouser",
+          "label": "Zalo Personal",
+          "selectionLabel": "Zalo (Personal Account)",
+          "docsPath": "/channels/zalouser",
+          "docsLabel": "zalouser",
+          "blurb": "Zalo personal account via QR code login.",
+          "aliases": ["zlu"],
+          "order": 85,
+          "quickstartAllowFrom": false
+        },
+        "install": {
+          "npmSpec": "@GreenchClaw/zalouser",
+          "defaultChoice": "npm",
+          "minHostVersion": ">=2026.4.10"
+        }
+      }
+    }
+  ]
+}

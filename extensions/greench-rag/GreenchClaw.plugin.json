@@ -1,0 +1,39 @@
+{
+  "id": "greench-rag",
+  "name": "GreenchRAG",
+  "enabledByDefault": false,
+  "activation": {
+    "onStartup": false
+  },
+  "contracts": {
+    "tools": ["rag_search", "rag_list", "rag_delete"]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "qdrant": {
+        "type": "object",
+        "properties": {
+          "host": { "type": "string", "default": "localhost" },
+          "port": { "type": "number", "default": 6333 },
+          "collection": { "type": "string", "default": "greench_documents" }
+        }
+      },
+      "ollama": {
+        "type": "object",
+        "properties": {
+          "baseUrl": { "type": "string", "default": "http://localhost:11434" },
+          "embeddingModel": { "type": "string", "default": "nomic-embed-text:v1.5" }
+        }
+      },
+      "chunking": {
+        "type": "object",
+        "properties": {
+          "chunkSize": { "type": "number", "default": 500 },
+          "chunkOverlap": { "type": "number", "default": 100 }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@GreenchClaw/greench-prompts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GreenchClaw prompt templates — JSON file-backed CRUD for named prompt templates with variable interpolation",
+  "type": "module",
+  "exports": {
+    "./index": "./index.ts",
+    "./package.json": "./package.json"
+  },
+  "GreenchClaw": {
+    "extensions": ["./index.ts"]
+  }
+}

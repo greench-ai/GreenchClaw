@@ -1,0 +1,29 @@
+{
+  "name": "@GreenchClaw/memory-wiki",
+  "version": "2026.5.12-beta.1",
+  "private": true,
+  "description": "GreenchClaw persistent wiki plugin",
+  "type": "module",
+  "dependencies": {
+    "typebox": "1.1.38",
+    "yaml": "2.9.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@GreenchClaw/plugin-sdk": "workspace:*",
+    "GreenchClaw": "workspace:*"
+  },
+  "peerDependencies": {
+    "GreenchClaw": ">=2026.5.12-beta.1"
+  },
+  "peerDependenciesMeta": {
+    "GreenchClaw": {
+      "optional": true
+    }
+  },
+  "GreenchClaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

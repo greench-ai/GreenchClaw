@@ -1,0 +1,32 @@
+export type { AuthProfileStore } from "GreenchClaw/plugin-sdk/video-generation-core";
+export {
+  buildNoCapabilityModelConfiguredMessage,
+  createSubsystemLogger,
+  describeFailoverError,
+  getProviderEnvVars,
+  getVideoGenerationProvider,
+  isFailoverError,
+  listVideoGenerationProviders,
+  parseVideoGenerationModelRef,
+  resolveAgentModelFallbackValues,
+  resolveAgentModelPrimaryValue,
+  resolveCapabilityModelCandidates,
+  throwCapabilityGenerationFailure,
+} from "GreenchClaw/plugin-sdk/video-generation-core";
+export type {
+  FallbackAttempt,
+  GeneratedVideoAsset,
+  GreenchClawConfig,
+  VideoGenerationIgnoredOverride,
+  VideoGenerationMode,
+  VideoGenerationModeCapabilities,
+  VideoGenerationProvider,
+  VideoGenerationProviderCapabilities,
+  VideoGenerationProviderConfiguredContext,
+  VideoGenerationProviderPlugin,
+  VideoGenerationRequest,
+  VideoGenerationResolution,
+  VideoGenerationResult,
+  VideoGenerationSourceAsset,
+  VideoGenerationTransformCapabilities,
+} from "GreenchClaw/plugin-sdk/video-generation-core";

@@ -1,0 +1,47 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "GreenchClaw/extension-api": ["../src/extensionAPI.ts"],
+      "GreenchClaw/plugin-sdk": ["../dist/plugin-sdk/src/plugin-sdk/index.d.ts"],
+      "GreenchClaw/plugin-sdk/*": ["../dist/plugin-sdk/src/plugin-sdk/*.d.ts"],
+      "GreenchClaw/plugin-sdk/account-id": ["../dist/plugin-sdk/src/plugin-sdk/account-id.d.ts"],
+      "GreenchClaw/plugin-sdk/channel-entry-contract": [
+        "../packages/plugin-sdk/dist/src/plugin-sdk/channel-entry-contract.d.ts"
+      ],
+      "GreenchClaw/plugin-sdk/browser-maintenance": [
+        "../packages/plugin-sdk/dist/extensions/browser/browser-maintenance.d.ts"
+      ],
+      "GreenchClaw/plugin-sdk/channel-secret-basic-runtime": [
+        "../packages/plugin-sdk/dist/src/plugin-sdk/channel-secret-basic-runtime.d.ts"
+      ],
+      "GreenchClaw/plugin-sdk/channel-secret-runtime": [
+        "../dist/plugin-sdk/src/plugin-sdk/channel-secret-runtime.d.ts"
+      ],
+      "GreenchClaw/plugin-sdk/channel-secret-tts-runtime": [
+        "../packages/plugin-sdk/dist/src/plugin-sdk/channel-secret-tts-runtime.d.ts"
+      ],
+      "GreenchClaw/plugin-sdk/channel-streaming": [
+        "../dist/plugin-sdk/src/plugin-sdk/channel-streaming.d.ts"
+      ],
+      "GreenchClaw/plugin-sdk/error-runtime": ["../dist/plugin-sdk/src/plugin-sdk/error-runtime.d.ts"],
+      "GreenchClaw/plugin-sdk/provider-catalog-shared": [
+        "../packages/plugin-sdk/dist/src/plugin-sdk/provider-catalog-shared.d.ts"
+      ],
+      "GreenchClaw/plugin-sdk/provider-entry": [
+        "../packages/plugin-sdk/dist/src/plugin-sdk/provider-entry.d.ts"
+      ],
+      "GreenchClaw/plugin-sdk/secret-ref-runtime": [
+        "../dist/plugin-sdk/src/plugin-sdk/secret-ref-runtime.d.ts"
+      ],
+      "GreenchClaw/plugin-sdk/ssrf-runtime": ["../dist/plugin-sdk/src/plugin-sdk/ssrf-runtime.d.ts"],
+      "@GreenchClaw/qa-channel/api.js": ["../dist/plugin-sdk/extensions/qa-channel/api.d.ts"],
+      "@GreenchClaw/discord/api.js": ["../dist/plugin-sdk/extensions/discord/api.d.ts"],
+      "@GreenchClaw/slack/api.js": ["../dist/plugin-sdk/extensions/slack/api.d.ts"],
+      "@GreenchClaw/whatsapp/api.js": ["../dist/plugin-sdk/extensions/whatsapp/api.d.ts"],
+      "@GreenchClaw/*.js": ["../packages/plugin-sdk/dist/extensions/*.d.ts", "../extensions/*"],
+      "@GreenchClaw/*": ["../packages/plugin-sdk/dist/extensions/*", "../extensions/*"],
+      "@GreenchClaw/plugin-sdk/*": ["../dist/plugin-sdk/src/plugin-sdk/*.d.ts"]
+    }
+  }
+}
