@@ -93,10 +93,12 @@ const NARRATIVE_SYSTEM_PROMPT = [
 // many minutes after the reports have already been written. The previous 15 s
 // limit was empirically too tight for warm-gateway runs across light, REM, and
 // deep phases — even unblocked LLM calls hit it on the first sweep after a
-// restart. 60 s gives realistic latency headroom while still capping the
-// worst case at one minute, well below the multi-minute stall the original
-// comment warned against.
-const NARRATIVE_TIMEOUT_MS = 60_000;
+// restart. 60 s was still too tight under load (12+ candidates × 3 phases
+// × cold model path); 180 s gives realistic latency headroom across all three
+// phases while still capping the worst case at 3 minutes per phase. The
+// wrapping 60-min cron execution constraint (cron-597dea7b) is unaffected:
+// 3 phases × 180 s = 540 s ≪ 3600 s. Filed REF-20260614-001.
+const NARRATIVE_TIMEOUT_MS = 180_000;
 const DREAMING_SESSION_KEY_PREFIX = "dreaming-narrative-";
 const DREAMING_TRANSCRIPT_RUN_MARKER = '"runId":"dreaming-narrative-';
 const DREAMING_ORPHAN_MIN_AGE_MS = 300_000;
