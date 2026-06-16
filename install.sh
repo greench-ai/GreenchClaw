@@ -184,6 +184,25 @@ setup_repo() {
     cd "$INSTALL_DIR"
     success "Repo cloned"
   fi
+
+  # Sanity check: production workspace templates must be present.
+  # The runtime hardcodes lookup for IDENTITY.md / USER.md (no .dev suffix).
+  # If the repo was checked out before the .gitignore fix, these may be missing
+  # and the gateway will throw "Missing workspace template" on every message.
+  MISSING_TEMPLATES=()
+  for tmpl in IDENTITY.md USER.md; do
+    if [ ! -f "$INSTALL_DIR/docs/reference/templates/$tmpl" ]; then
+      MISSING_TEMPLATES+=("$tmpl")
+    fi
+  done
+  if [ ${#MISSING_TEMPLATES[@]} -gt 0 ]; then
+    error "Production workspace templates missing: ${MISSING_TEMPLATES[*]}
+  These files are required for agent bootstrap. Re-run with a fresh clone:
+    rm -rf $INSTALL_DIR && bash install.sh
+  Or restore them from origin/main:
+    git checkout origin/main -- docs/reference/templates/"
+  fi
+  success "Workspace templates present (IDENTITY.md, USER.md)"
 }
 
 # ── Install npm deps ──────────────────────────────────────────
