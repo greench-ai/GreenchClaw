@@ -6,7 +6,7 @@
 
 **Severity:** High — breaks TUI/CLI after every restart
 **Date found:** 2026-07-25
-**Status:** FIX READY (manual workaround, needs code fix)
+**Status:** ✅ FIXED — commit a40430be, pushed to origin/main
 
 **Symptom:** After `GreenchClaw gateway restart`, TUI fails with:
 
@@ -29,15 +29,13 @@ send failed: GatewayClientRequestError: missing scope: operator.write
 
 ---
 
-### BUG-002: Config file (GreenchClaw.json) instability
+### BUG-002: Config file (GreenchClaw.json) backup rotation (NOT A BUG)
 
-**Severity:** Medium — 5 backup copies created, suggests frequent rewrites
+**Severity:** N/A — working as designed
 **Date found:** 2026-07-25
-**Status:** INVESTIGATING
+**Status:** ✅ RESOLVED — not a bug, working as designed
 
-**Symptom:** `~/.GreenchClaw/GreenchClaw.json` has 5 `.bak` files, meaning the config is being rewritten frequently. Each rewrite risks corruption.
-
-**Root cause:** Unknown — needs investigation of what's triggering config rewrites.
+**Finding:** `CONFIG_BACKUP_COUNT = 5` in `src/config/backup-rotation.ts` creates a 5-slot rotation ring: `.bak` (newest) → `.bak.1` → `.bak.2` → `.bak.3` → `.bak.4` (oldest). On every config write, the ring rotates (oldest deleted, rest shift down, new `.bak` created). This is a safety feature, not instability. The rotation also includes permission hardening (chmod 0o600) and orphan cleanup.
 
 ---
 
@@ -45,12 +43,30 @@ send failed: GatewayClientRequestError: missing scope: operator.write
 
 **Severity:** Low — wasted compute cycles
 **Date found:** 2026-07-25
-**Status:** DESIGN
+**Status:** ✅ FIXED — disabled stale jobs, RSS delivery fixed
 
-**Symptom:** Heartbeat runs every 15 minutes regardless of activity. On a quiet day, 96 heartbeats run, most logging "steady state, nothing happened."
+**Changes:**
 
-**Proposed fix:** Adaptive heartbeat — 15min when active (recent comms/experiences), 1hr when quiet (3+ consecutive steady-state heartbeats).
+1. Disabled Canna v5 Training Monitor (67 consecutive errors, pod stopped)
+2. Disabled Canna v5 completion watcher (training complete)
+3. Fixed RSS Feed Poll delivery (120 errors from announce→none)
+4. Heartbeat stays at 15min — after cleanup, only 3 active cron jobs remain (heartbeat, network monitor, RSS poll)
+
+**Rationale:** The 15-min heartbeat is the EvoClaw heartbeat. Slowing it down risks missing time-sensitive comms. After disabling 2 stale jobs and fixing RSS delivery, the cron load is reasonable.
 
 ## Resolved Issues
 
-(none yet)
+### BUG-001: Device pairing scopes don't survive gateway restart
+
+**Resolved:** 2026-07-25 — commit a40430be
+**Fix:** Changed `message-handler.ts` to allow `allowSilentLocalPairing` for scope-upgrade on local connections
+
+### BUG-002: Config file backup rotation (NOT A BUG)
+
+**Resolved:** 2026-07-25 — working as designed
+**Finding:** `CONFIG_BACKUP_COUNT = 5` in `backup-rotation.ts` is a safety feature, not instability
+
+### BUG-003: Stale cron jobs wasting resources
+
+**Resolved:** 2026-07-25
+**Fix:** Disabled 2 stale Canna v5 jobs (67+120 consecutive errors), fixed RSS delivery mode
