@@ -2504,6 +2504,12 @@ export function startHeartbeatRunner(opts: {
     if (state.stopped) {
       return;
     }
+    // 2026-09-16 outage #4: the runner was STOPPED silently mid-evening — no
+    // interval, no handler, no watchdog, zero journal output, while cron kept
+    // firing. Nothing logged the stop, so the culprit was unidentifiable.
+    // A stopped runner must be LOUD and must record WHO stopped it.
+    const stoppedBy = new Error("runner stop stack").stack ?? "<no stack>";
+    log.error("heartbeat: runner STOPPED — interval disarmed, wake handler released, watchdog cleared. Stack:\n" + stoppedBy, {});
     state.stopped = true;
     disposeWakeHandler();
     if (state.timer) {
