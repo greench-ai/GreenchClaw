@@ -4,6 +4,7 @@
 
 import { channelRouteDedupeKey } from "../plugin-sdk/channel-route.js";
 import { resolveGlobalMap } from "../shared/global-singleton.js";
+import { createSubsystemLogger } from "../logging/subsystem.js";
 import {
   normalizeOptionalLowercaseString,
   normalizeOptionalString,
@@ -23,6 +24,17 @@ export type SystemEvent = {
 };
 
 const MAX_EVENTS = 20;
+
+const log = createSubsystemLogger("gateway/system-events");
+
+/** Total events silently dropped due to queue overflow (2026-09-16 postmortem: the
+ * celtic completion-wake event was lost this way with no trace — drops must be
+ * visible). Exposed for ops/status surfacing. */
+let droppedSystemEventCount = 0;
+
+export function getDroppedSystemEventCount(): number {
+  return droppedSystemEventCount;
+}
 
 type SessionQueue = {
   queue: SystemEvent[];
@@ -143,7 +155,14 @@ export function enqueueSystemEvent(text: string, options: SystemEventOptions) {
     trusted,
   });
   if (entry.queue.length > MAX_EVENTS) {
-    entry.queue.shift();
+    const dropped = entry.queue.shift();
+    if (dropped) {
+      droppedSystemEventCount += 1;
+      log.warn(
+        `system-events: queue full for session — dropped oldest event (${Math.round((Date.now() - dropped.ts) / 1000)}s old, total drops: ${droppedSystemEventCount}): "${dropped.text.slice(0, 120)}"`,
+        { sessionKey: key, droppedCount: droppedSystemEventCount },
+      );
+    }
   }
   return true;
 }

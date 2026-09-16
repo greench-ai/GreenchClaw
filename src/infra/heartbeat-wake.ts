@@ -1,5 +1,8 @@
 import { normalizeOptionalString } from "../shared/string-coerce.js";
+import { createSubsystemLogger } from "../logging/subsystem.js";
 import { normalizeHeartbeatWakeReason } from "./heartbeat-reason.js";
+
+const log = createSubsystemLogger("gateway/heartbeat");
 
 export type HeartbeatRunResult =
   | { status: "ran"; durationMs: number }
@@ -88,6 +91,14 @@ let running = false;
 let timer: NodeJS.Timeout | null = null;
 let timerDueAt: number | null = null;
 let timerKind: WakeTimerKind | null = null;
+
+// 2026-09-16 postmortem: retryable busy skips retried every 1s with zero
+// journal output — an 8h stall was invisible. Log the skip at most once per
+// minute and escalate the wording once a stall looks real.
+let consecutiveBusyRetries = 0;
+let lastBusySkipLogAt = 0;
+const BUSY_SKIP_LOG_INTERVAL_MS = 60_000;
+const BUSY_RETRY_STALL_THRESHOLD = 300; // 5 minutes of 1s retries
 
 const DEFAULT_COALESCE_MS = 250;
 const DEFAULT_RETRY_MS = 1_000;
@@ -222,6 +233,7 @@ function schedule(coalesceMs: number, kind: WakeTimerKind = "normal") {
     const pendingBatch = Array.from(pendingWakes.values());
     pendingWakes.clear();
     running = true;
+    let busySeen = false;
     try {
       for (const pendingWake of pendingBatch) {
         const wakeOpts = {
@@ -235,6 +247,17 @@ function schedule(coalesceMs: number, kind: WakeTimerKind = "normal") {
         const res = await active(wakeOpts);
         if (res.status === "skipped" && isRetryableHeartbeatBusySkipReason(res.reason)) {
           // The target runtime is busy; retry this wake target soon.
+          busySeen = true;
+          consecutiveBusyRetries += 1;
+          const nowMs = Date.now();
+          if (nowMs - lastBusySkipLogAt >= BUSY_SKIP_LOG_INTERVAL_MS) {
+            lastBusySkipLogAt = nowMs;
+            const stalled = consecutiveBusyRetries >= BUSY_RETRY_STALL_THRESHOLD;
+            log.warn(
+              `heartbeat: wake skipped (busy: ${res.reason}); retrying in 1s — consecutive busy retries: ${consecutiveBusyRetries}${stalled ? " — STALL SUSPECTED: busy condition has not cleared in 5+ minutes, check main-session/turn lane state" : ""}`,
+              { reason: res.reason, consecutiveBusyRetries, stalled },
+            );
+          }
           queuePendingWakeReason({
             source: pendingWake.source,
             intent: pendingWake.intent,
@@ -261,6 +284,9 @@ function schedule(coalesceMs: number, kind: WakeTimerKind = "normal") {
       schedule(DEFAULT_RETRY_MS, "retry");
     } finally {
       running = false;
+      if (!busySeen) {
+        consecutiveBusyRetries = 0;
+      }
       if (pendingWakes.size > 0 || scheduled) {
         schedule(delay, "normal");
       }
@@ -295,6 +321,8 @@ export function setHeartbeatWakeHandler(next: HeartbeatWakeHandler | null): () =
     // `scheduled === true` can cause spurious immediate re-runs.
     running = false;
     scheduled = false;
+    consecutiveBusyRetries = 0;
+    lastBusySkipLogAt = 0;
   }
   if (handler && pendingWakes.size > 0) {
     schedule(DEFAULT_COALESCE_MS, "normal");

@@ -158,6 +158,15 @@ function loadHeartbeatRunnerRuntime() {
 const HEARTBEAT_ALWAYS_BUSY_LANES = [CommandLane.Cron, CommandLane.CronNested] as const;
 const HEARTBEAT_OPT_IN_BUSY_LANES = [CommandLane.Subagent, CommandLane.Nested] as const;
 
+// 2026-09-16 stall postmortem: retryable busy skips leave the runner timer
+// disarmed and rely on the wake layer's 1s-retry chain. If that chain breaks
+// (or the busy condition never clears), heartbeats die silently. After this
+// many consecutive busy skips, self-heal by re-arming the runner's own timer.
+const HEARTBEAT_BUSY_SELF_HEAL_SKIPS = 30;
+const HEARTBEAT_BUSY_POLL_MS = 60_000;
+// Stall watchdog period (2026-09-16: an 8h silent stall must never be invisible again).
+const HEARTBEAT_WATCHDOG_CHECK_MS = 5 * 60_000;
+
 function hasQueuedWorkInLanes(
   lanes: readonly string[],
   getSize: (lane?: string) => number,
@@ -224,6 +233,8 @@ type HeartbeatAgentState = {
   recentRunStarts: number[];
   /** Set true after a flood-defer is logged to avoid log spam. Reset when a run actually fires. */
   floodLoggedSinceLastRun: boolean;
+  /** Consecutive retryable busy skips since the last real run attempt (self-heal counter). */
+  consecutiveBusySkips?: number;
 };
 
 type ActiveHoursSchedule = {
@@ -2168,6 +2179,7 @@ export function startHeartbeatRunner(opts: {
         lastRunStartedAtMs: prevState?.lastRunStartedAtMs,
         recentRunStarts: prevState?.recentRunStarts ?? [],
         floodLoggedSinceLastRun: prevState?.floodLoggedSinceLastRun ?? false,
+        consecutiveBusySkips: prevState?.consecutiveBusySkips,
       });
     }
 
@@ -2259,7 +2271,20 @@ export function startHeartbeatRunner(opts: {
             // retries the same reason shortly; if we recorded `lastRunStartedAtMs`
             // here, the retry would falsely defer with `not-due`/`min-spacing`
             // because the cooldown would treat this skipped attempt as a real run.
-            retryableBusySkip = true;
+            targetAgent.consecutiveBusySkips = (targetAgent.consecutiveBusySkips ?? 0) + 1;
+            if (targetAgent.consecutiveBusySkips >= HEARTBEAT_BUSY_SELF_HEAL_SKIPS) {
+              // Self-heal (2026-09-16): the busy condition persisted through a
+              // full retry window — re-arm the runner's own timer so the
+              // schedule can never stay dead if the wake layer's chain breaks.
+              targetAgent.consecutiveBusySkips = 0;
+              targetAgent.nextDueMs = now + HEARTBEAT_BUSY_POLL_MS;
+              log.warn(
+                "heartbeat: busy condition persisted across retry window — re-arming runner timer as busy-poll (self-heal)",
+                { agentId: targetAgent.agentId, reason: res.reason },
+              );
+            } else {
+              retryableBusySkip = true;
+            }
             return res;
           }
           // Non-retryable outcome (ran, disabled, failed-but-not-busy). Record
@@ -2314,7 +2339,20 @@ export function startHeartbeatRunner(opts: {
           // lane is busy and the wake layer will retry the same reason shortly
           // (DEFAULT_RETRY_MS = 1 s). Recording here would convert the retry
           // into a false `not-due`/`min-spacing` defer.
-          retryableBusySkip = true;
+          agent.consecutiveBusySkips = (agent.consecutiveBusySkips ?? 0) + 1;
+          if (agent.consecutiveBusySkips >= HEARTBEAT_BUSY_SELF_HEAL_SKIPS) {
+            // Self-heal (2026-09-16): the busy condition persisted through a
+            // full retry window — re-arm the runner's own timer so the
+            // schedule can never stay dead if the wake layer's chain breaks.
+            agent.consecutiveBusySkips = 0;
+            agent.nextDueMs = now + HEARTBEAT_BUSY_POLL_MS;
+            log.warn(
+              "heartbeat: busy condition persisted across retry window — re-arming runner timer as busy-poll (self-heal)",
+              { agentId: agent.agentId, reason: res.reason },
+            );
+          } else {
+            retryableBusySkip = true;
+          }
           return res;
         }
         // Non-retryable outcome — record bookkeeping for cooldown gates.
@@ -2398,6 +2436,34 @@ export function startHeartbeatRunner(opts: {
   const disposeWakeHandler = setHeartbeatWakeHandler(wakeHandler);
   updateConfig(state.cfg);
 
+  // Stall watchdog (2026-09-16 incident): retryable busy skips are silent by
+  // design; if the skip/retry machinery spins (or the chains die), the runner
+  // must still be visible in the journal and keep attempting recovery. When an
+  // agent has not started a real run for > 2x its interval, warn and force a
+  // wake attempt — preflights still guard against interrupting genuine work.
+  const watchdogTimer = setInterval(() => {
+    if (state.stopped) {
+      return;
+    }
+    const nowMs = Date.now();
+    for (const agent of state.agents.values()) {
+      const last = agent.lastRunStartedAtMs;
+      if (last !== undefined && nowMs - last > agent.intervalMs * 2) {
+        log.warn(
+          `heartbeat stall: agent "${agent.agentId}" has not started a heartbeat run in ${Math.round((nowMs - last) / 1000)}s (interval: ${Math.round(agent.intervalMs / 1000)}s) — forcing a wake attempt`,
+          { agentId: agent.agentId, lastRunStartedAtMs: last, intervalMs: agent.intervalMs },
+        );
+        requestHeartbeat({
+          source: "cli-watchdog",
+          intent: "immediate",
+          reason: "stall-watchdog",
+          agentId: agent.agentId,
+        });
+      }
+    }
+  }, HEARTBEAT_WATCHDOG_CHECK_MS);
+  watchdogTimer.unref?.();
+
   const cleanup = () => {
     if (state.stopped) {
       return;
@@ -2408,6 +2474,7 @@ export function startHeartbeatRunner(opts: {
       clearTimeout(state.timer);
     }
     state.timer = null;
+    clearInterval(watchdogTimer);
   };
 
   opts.abortSignal?.addEventListener("abort", cleanup, { once: true });
