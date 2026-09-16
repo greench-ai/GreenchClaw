@@ -359,7 +359,17 @@ async function authorizeControlUiReadRequest(
 }
 
 async function authorizeControlUiDeviceReadToken(token: string): Promise<boolean> {
-  const pairing = await listDevicePairing();
+  let pairing: Awaited<ReturnType<typeof listDevicePairing>>;
+  try {
+    pairing = await listDevicePairing();
+  } catch {
+    // 2026-09-17: a transient pairing-state read failure (concurrent write,
+    // partial file) must not 500 the media request — it only means "cannot
+    // authorize via device tokens right now", which is a deny, not a crash.
+    // (Write paths intentionally stay strict — see the corrupt-state guard in
+    // device-pairing tests.)
+    return false;
+  }
   for (const device of pairing.paired) {
     const operatorToken = device.tokens?.[CONTROL_UI_OPERATOR_ROLE];
     if (!operatorToken || operatorToken.revokedAtMs) {

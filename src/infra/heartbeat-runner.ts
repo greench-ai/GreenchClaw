@@ -2469,6 +2469,36 @@ export function startHeartbeatRunner(opts: {
   const disposeWakeHandler = setHeartbeatWakeHandler(wakeHandler);
   updateConfig(state.cfg);
 
+  // Liveness beacon (2026-09-17, outage #6): the runner has died silently six
+  // times in one day — interval, watchdog, and every instrumentation line all
+  // vanish with zero journal trace. This beacon journals "alive" every 3
+  // minutes with its schedule state. Whatever kills the runner kills the beacon
+  // too — so the LAST beacon line timestamps the exact death window, and the
+  // next diagnosis starts from evidence instead of a silent gap.
+  const HEARTBEAT_BEACON_INTERVAL_MS = 3 * 60_000;
+  const beaconTimer = setInterval(() => {
+    if (state.stopped) {
+      return;
+    }
+    const agent = state.agents.values().next().value as HeartbeatAgentState | undefined;
+    if (agent) {
+      log.info(
+        `heartbeat: alive — nextDue in ${Math.max(0, Math.round((agent.nextDueMs - Date.now()) / 1000))}s, lastRun ${
+          agent.lastRunStartedAtMs ? `${Math.round((Date.now() - agent.lastRunStartedAtMs) / 1000)}s ago` : "never"
+        }, timer=${state.timer ? "armed" : "none"}`,
+        {
+          agentId: agent.agentId,
+          nextDueMs: agent.nextDueMs,
+          lastRunStartedAtMs: agent.lastRunStartedAtMs,
+          runnerTimerArmed: Boolean(state.timer),
+        },
+      );
+    } else {
+      log.warn("heartbeat: beacon — runner has NO agents (schedule disarmed)");
+    }
+  }, HEARTBEAT_BEACON_INTERVAL_MS);
+  beaconTimer.unref?.();
+
   // Stall watchdog (2026-09-16 incident): retryable busy skips are silent by
   // design; if the skip/retry machinery spins (or the chains die), the runner
   // must still be visible in the journal and keep attempting recovery. When an
@@ -2517,6 +2547,7 @@ export function startHeartbeatRunner(opts: {
     }
     state.timer = null;
     clearInterval(watchdogTimer);
+    clearInterval(beaconTimer);
   };
 
   opts.abortSignal?.addEventListener("abort", cleanup, { once: true });
