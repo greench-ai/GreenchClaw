@@ -88,9 +88,17 @@ let handlerGeneration = 0;
 const pendingWakes = new Map<string, PendingWakeReason>();
 let scheduled = false;
 let running = false;
+let runningSince: number | null = null;
 let timer: NodeJS.Timeout | null = null;
 let timerDueAt: number | null = null;
 let timerKind: WakeTimerKind | null = null;
+
+// 2026-09-16 outage #3 (post-restart repro): if a wake-handler invocation
+// never settles (hung promise), `running` sticks true forever and every
+// subsequent wake silently loops — zero runs, zero logs, user messages still
+// work (they bypass this layer). A stuck run older than this limit is
+// abandoned and the layer force-unfreezes.
+const RUNNING_HANG_LIMIT_MS = 10 * 60_000;
 
 // 2026-09-16 postmortem: retryable busy skips retried every 1s with zero
 // journal output — an 8h stall was invisible. Log the skip at most once per
@@ -225,14 +233,29 @@ function schedule(coalesceMs: number, kind: WakeTimerKind = "normal") {
       return;
     }
     if (running) {
-      scheduled = true;
-      schedule(delay, kind);
-      return;
+      // Hang guard (2026-09-16): an unsettled handler would otherwise freeze
+      // the entire wake layer in total silence. Abandon runs older than the
+      // limit and continue with the current batch.
+      if (runningSince !== null && Date.now() - runningSince > RUNNING_HANG_LIMIT_MS) {
+        log.error(
+          `heartbeat: wake handler stuck for ${Math.round((Date.now() - runningSince) / 1000)}s — force-unfreezing wake layer (previous handler abandoned)`,
+          { stuckSinceMs: runningSince },
+        );
+        running = false;
+        runningSince = null;
+        // fall through: process this batch instead of looping forever
+      } else {
+        scheduled = true;
+        schedule(delay, kind);
+        return;
+      }
     }
 
     const pendingBatch = Array.from(pendingWakes.values());
     pendingWakes.clear();
     running = true;
+    runningSince = Date.now();
+    const batchStartedAt = runningSince;
     let busySeen = false;
     try {
       for (const pendingWake of pendingBatch) {
@@ -284,6 +307,13 @@ function schedule(coalesceMs: number, kind: WakeTimerKind = "normal") {
       schedule(DEFAULT_RETRY_MS, "retry");
     } finally {
       running = false;
+      runningSince = null;
+      if (Date.now() - batchStartedAt > 60_000) {
+        log.warn(
+          `heartbeat: wake batch took ${Math.round((Date.now() - batchStartedAt) / 1000)}s to settle`,
+          { batchMs: Date.now() - batchStartedAt },
+        );
+      }
       if (!busySeen) {
         consecutiveBusyRetries = 0;
       }
