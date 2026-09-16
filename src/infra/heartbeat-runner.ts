@@ -235,6 +235,8 @@ type HeartbeatAgentState = {
   floodLoggedSinceLastRun: boolean;
   /** Consecutive retryable busy skips since the last real run attempt (self-heal counter). */
   consecutiveBusySkips?: number;
+  /** When this agent-state entry was created (stall-watchdog anchor when lastRunStartedAtMs is absent). */
+  createdTs?: number;
 };
 
 type ActiveHoursSchedule = {
@@ -2180,7 +2182,38 @@ export function startHeartbeatRunner(opts: {
         recentRunStarts: prevState?.recentRunStarts ?? [],
         floodLoggedSinceLastRun: prevState?.floodLoggedSinceLastRun ?? false,
         consecutiveBusySkips: prevState?.consecutiveBusySkips,
+        createdTs: prevState?.createdTs ?? now,
       });
+    }
+
+    // 2026-09-16 outage #2 postmortem: the runner died silently for 7h — interval
+    // timer disarmed, watchdog anchored to a wiped field, zero journal output.
+    // Config rebuilds must be loud when they disarm or de-anchor the schedule.
+    const prevEnabledForMap = prevAgents.size > 0;
+    const nextEnabledForMap = nextAgents.size > 0;
+    if (prevEnabledForMap && !nextEnabledForMap) {
+      log.warn("heartbeat: agent map became EMPTY on config update — interval timer disarmed and watchdog has nothing to watch (silent stall risk)", {
+        prevAgentCount: prevAgents.size,
+      });
+    }
+    for (const [agentId, next] of nextAgents) {
+      const prev = prevAgents.get(agentId);
+      if (!prev) {
+        continue;
+      }
+      if (next.nextDueMs - prev.nextDueMs > next.intervalMs * 2) {
+        log.warn("heartbeat: nextDueMs jumped >2 intervals into the future on config update — silent stall risk", {
+          agentId,
+          prevNextDueMs: prev.nextDueMs,
+          nextNextDueMs: next.nextDueMs,
+          intervalMs: next.intervalMs,
+        });
+      }
+      if (prev.lastRunStartedAtMs !== undefined && next.lastRunStartedAtMs === undefined) {
+        log.warn("heartbeat: lastRunStartedAtMs dropped on config update — re-anchoring stall watchdog to createdTs", {
+          agentId,
+        });
+      }
     }
 
     state.cfg = cfg;
@@ -2447,7 +2480,10 @@ export function startHeartbeatRunner(opts: {
     }
     const nowMs = Date.now();
     for (const agent of state.agents.values()) {
-      const last = agent.lastRunStartedAtMs;
+      // 2026-09-16 outage #2: lastRunStartedAtMs can be wiped by a config rebuild,
+      // which silently disarmed the watchdog. Anchor to createdTs as fallback so
+      // the watchdog can never be disarmed by losing its anchor.
+      const last = agent.lastRunStartedAtMs ?? agent.createdTs;
       if (last !== undefined && nowMs - last > agent.intervalMs * 2) {
         log.warn(
           `heartbeat stall: agent "${agent.agentId}" has not started a heartbeat run in ${Math.round((nowMs - last) / 1000)}s (interval: ${Math.round(agent.intervalMs / 1000)}s) — forcing a wake attempt`,
