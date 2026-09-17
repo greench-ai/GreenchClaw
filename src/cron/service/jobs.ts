@@ -713,6 +713,9 @@ export function createJob(state: CronServiceState, input: CronJobCreate): CronJo
     payload: input.payload,
     delivery: resolveInitialCronDelivery(input),
     failureAlert: input.failureAlert,
+    // Creator provenance (2026-09-17): threaded in by the gateway cron.add
+    // handler from the RPC client context; server-side only.
+    ...(input.createdBy ? { createdBy: input.createdBy } : {}),
     state: {
       ...input.state,
     },

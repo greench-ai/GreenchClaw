@@ -8,6 +8,7 @@ import {
 } from "../../cron/run-log.js";
 import { applyJobPatch } from "../../cron/service/jobs.js";
 import { isInvalidCronSessionTargetIdError } from "../../cron/session-target.js";
+import type { CronJobCreator, CronJobCreatorKind } from "../../cron/types-shared.js";
 import type { CronDelivery, CronJob, CronJobCreate, CronJobPatch } from "../../cron/types.js";
 import { validateScheduleTimestamp } from "../../cron/validate-timestamp.js";
 import { formatErrorMessage } from "../../infra/errors.js";
@@ -18,6 +19,7 @@ import {
 import { listConfiguredAnnounceChannelIdsForConfig } from "../../plugins/channel-plugin-ids.js";
 import { isSubagentSessionKey } from "../../routing/session-key.js";
 import { normalizeMessageChannel } from "../../utils/message-channel.js";
+import { GATEWAY_CLIENT_IDS } from "../protocol/client-info.js";
 import {
   ErrorCodes,
   errorShape,
@@ -32,6 +34,7 @@ import {
   validateCronUpdateParams,
   validateWakeParams,
 } from "../protocol/index.js";
+import type { GatewayClient } from "./shared-types.js";
 import type { GatewayRequestHandlers } from "./types.js";
 
 function listConfiguredAnnounceChannelIds(cfg: GreenchClawConfig): string[] {
@@ -142,6 +145,55 @@ function assertValidCronCreateDelivery(cfg: GreenchClawConfig, jobCreate: CronJo
     cfg,
     delivery: jobCreate.delivery,
   });
+}
+
+/**
+ * Resolve server-side creator provenance for a cron.add call (2026-09-17
+ * instrumentation). Computed from the RPC client — a client-supplied
+ * `createdBy` never survives: the wire schema (CronAddParamsSchema,
+ * additionalProperties: false) rejects it, and this overwrites anything a
+ * direct service caller may have set.
+ *
+ * Kind mapping:
+ * - "mcp-loopback": agent-tool loopback clients (gateway-client / backend
+ *   mode) — the id is the calling agent's session key when known.
+ * - "ui": webchat / control-ui surfaces.
+ * - "internal": no RPC client (server-internal dispatch).
+ * - "cli": everything else (CLI, TUI, native apps, nodes).
+ */
+function resolveCronJobCreatorProvenance(params: {
+  client: GatewayClient | null;
+  sessionKey?: string;
+}): CronJobCreator {
+  const client = params.client;
+  if (!client) {
+    return { kind: "internal", id: "gateway" };
+  }
+  const clientId = client.connect?.client?.id ?? client.connId ?? "unknown";
+  const mode = client.connect?.client?.mode;
+  if (clientId === GATEWAY_CLIENT_IDS.GATEWAY_CLIENT || mode === "backend") {
+    return {
+      kind: "mcp-loopback",
+      id: params.sessionKey?.trim() || client.connId || clientId,
+    };
+  }
+  if (
+    clientId === GATEWAY_CLIENT_IDS.WEBCHAT_UI ||
+    clientId === GATEWAY_CLIENT_IDS.CONTROL_UI ||
+    mode === "ui" ||
+    mode === "webchat"
+  ) {
+    return { kind: "ui", id: client.connId ?? clientId };
+  }
+  const kind: CronJobCreatorKind = "cli";
+  return { kind, id: clientId };
+}
+
+function formatCronJobCreator(createdBy: CronJobCreator | undefined): string {
+  if (!createdBy) {
+    return "unknown";
+  }
+  return createdBy.id ? `${createdBy.kind}:${createdBy.id}` : createdBy.kind;
 }
 
 function assertValidCronUpdateDelivery(params: {
@@ -285,7 +337,7 @@ export const cronHandlers: GatewayRequestHandlers = {
     }
     respond(true, job, undefined);
   },
-  "cron.add": async ({ params, respond, context }) => {
+  "cron.add": async ({ params, respond, context, client }) => {
     const sessionKey =
       typeof (params as { sessionKey?: unknown } | null)?.sessionKey === "string"
         ? (params as { sessionKey: string }).sessionKey
@@ -343,6 +395,14 @@ export const cronHandlers: GatewayRequestHandlers = {
       return;
     }
     let job: Awaited<ReturnType<typeof context.cron.add>>;
+    // Server-side provenance (2026-09-17): overwrite any client-supplied value
+    // — validation above already rejects the field on the wire; this also
+    // covers direct service callers that may have threaded one through.
+    const createdBy = resolveCronJobCreatorProvenance({
+      client,
+      sessionKey: jobCreate.sessionKey ?? sessionKey,
+    });
+    (jobCreate as { createdBy?: CronJobCreator }).createdBy = createdBy;
     try {
       job = await context.cron.add(jobCreate);
     } catch (err) {
@@ -359,7 +419,13 @@ export const cronHandlers: GatewayRequestHandlers = {
       );
       return;
     }
-    context.logGateway.info("cron: job created", { jobId: job.id, schedule: jobCreate.schedule });
+    context.logGateway.info("cron: job created", {
+      jobId: job.id,
+      schedule: jobCreate.schedule,
+      createdByKind: job.createdBy?.kind,
+      createdById: job.createdBy?.id,
+      createdBy: formatCronJobCreator(job.createdBy),
+    });
     respond(true, job, undefined);
   },
   "cron.update": async ({ params, respond, context }) => {
