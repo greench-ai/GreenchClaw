@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  getRecentHeartbeatWakeClaimsForTest,
   HEARTBEAT_SKIP_CRON_IN_PROGRESS,
   HEARTBEAT_SKIP_LANES_BUSY,
   HEARTBEAT_SKIP_REQUESTS_IN_FLIGHT,
@@ -421,5 +422,94 @@ describe("heartbeat-wake", () => {
         sessionKey: "agent:main:forum:group:-1001",
       },
     ]);
+  });
+
+  it("traces [wake-claim] with claim id, target session and lane busy state on dispatch", async () => {
+    vi.useFakeTimers();
+    const handler = vi.fn().mockResolvedValue({ status: "ran", durationMs: 1 });
+    setHeartbeatWakeHandler(handler as unknown as Parameters<typeof setHeartbeatWakeHandler>[0]);
+    requestHeartbeat(
+      wake("cron:job-x", {
+        source: "cron",
+        intent: "event",
+        reason: "cron:job-x",
+        agentId: "main",
+        sessionKey: "agent:main:main",
+        coalesceMs: 0,
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(handler).toHaveBeenCalledTimes(1);
+    const claims = getRecentHeartbeatWakeClaimsForTest();
+    expect(claims).toHaveLength(1);
+    const claim = claims[0];
+    expect(claim.claimId).toMatch(/^wk-/);
+    expect(claim.source).toBe("cron");
+    expect(claim.reason).toBe("cron:job-x");
+    expect(claim.targetSession).toBe("agent:main:main");
+    expect(claim.agentId).toBe("main");
+    expect(typeof claim.mainLaneBusy).toBe("boolean");
+    expect(typeof claim.sessionLaneBusy).toBe("boolean");
+    expect(claim.claimedByTurnId).toBeUndefined();
+  });
+
+  it("hang-guard force-unfreeze: abandoned batch finally must not clear the replacement batch's running state", async () => {
+    vi.useFakeTimers();
+    // One resolver per handler invocation: batch A (abandoned), batch B
+    // (replacement), and the third dispatch after B settles.
+    const resolvers: Array<
+      (value: { status: string; reason?: string; durationMs?: number }) => void
+    > = [];
+    const handler = vi.fn(
+      () =>
+        new Promise<{ status: string }>((resolve) => {
+          resolvers.push(
+            resolve as (value: { status: string; reason?: string; durationMs?: number }) => void,
+          );
+        }),
+    );
+    setHeartbeatWakeHandler(handler as unknown as Parameters<typeof setHeartbeatWakeHandler>[0]);
+
+    // Batch A: dispatched now, hangs past the 10-minute hang limit.
+    requestHeartbeat(wake("manual", { intent: "manual", coalesceMs: 0 }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(handler).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(10 * 60_000 + 1_000);
+
+    // A new wake arrives while the layer is frozen — the timer force-unfreezes
+    // and dispatches batch B concurrently with the abandoned batch A.
+    requestHeartbeat(
+      wake("stall-watchdog", {
+        source: "cli-watchdog",
+        intent: "immediate",
+        reason: "stall-watchdog",
+        coalesceMs: 0,
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(handler).toHaveBeenCalledTimes(2);
+
+    // Batch A settles late (busy skip). Under the old code its finally cleared
+    // `running` while batch B was still in flight, un-serializing the next
+    // timer. With the generation guard, batch B keeps the layer serialized.
+    resolvers[0]?.({ status: "skipped", reason: HEARTBEAT_SKIP_REQUESTS_IN_FLIGHT });
+    await vi.advanceTimersByTimeAsync(0);
+
+    // A third wake while batch B is still pending must NOT dispatch concurrently.
+    requestHeartbeat(
+      wake("interval", {
+        source: "interval",
+        intent: "scheduled",
+        reason: "interval",
+        coalesceMs: 0,
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(handler).toHaveBeenCalledTimes(2);
+
+    // Resolve batch B; the pending third wake now dispatches.
+    resolvers[1]?.({ status: "ran", durationMs: 1 });
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(handler).toHaveBeenCalledTimes(3);
   });
 });

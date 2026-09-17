@@ -2,9 +2,9 @@
 // prefixed to the next prompt. We intentionally avoid persistence to keep
 // events ephemeral. Events are session-scoped and require an explicit key.
 
+import { createSubsystemLogger } from "../logging/subsystem.js";
 import { channelRouteDedupeKey } from "../plugin-sdk/channel-route.js";
 import { resolveGlobalMap } from "../shared/global-singleton.js";
-import { createSubsystemLogger } from "../logging/subsystem.js";
 import {
   normalizeOptionalLowercaseString,
   normalizeOptionalString,
@@ -18,6 +18,9 @@ import type { DeliveryContext } from "../utils/delivery-context.types.js";
 export type SystemEvent = {
   text: string;
   ts: number;
+  /** Stable per-process id (`evt-<seq>`), journaled at enqueue and claim so a
+   * dropped/claimed event is traceable end-to-end (2026-09-17 instrumentation). */
+  id?: string;
   contextKey?: string | null;
   deliveryContext?: DeliveryContext;
   trusted?: boolean;
@@ -31,6 +34,9 @@ const log = createSubsystemLogger("gateway/system-events");
  * celtic completion-wake event was lost this way with no trace — drops must be
  * visible). Exposed for ops/status surfacing. */
 let droppedSystemEventCount = 0;
+
+/** Monotonic per-process event id sequence for wake/claim correlation. */
+let nextSystemEventSeq = 0;
 
 export function getDroppedSystemEventCount(): number {
   return droppedSystemEventCount;
@@ -147,20 +153,34 @@ export function enqueueSystemEvent(text: string, options: SystemEventOptions) {
     return false;
   }
   applyContextKeyPolicy(entry, normalizedContextKey);
+  const eventId = `evt-${(nextSystemEventSeq += 1)}`;
   entry.queue.push({
     text: cleaned,
     ts: Date.now(),
+    id: eventId,
     contextKey: normalizedContextKey,
     deliveryContext: normalizedDeliveryContext,
     trusted,
   });
+  log.info(
+    `[system-event] queued: eventId=${eventId} sessionKey=${key} contextKey=${
+      normalizedContextKey ?? "(none)"
+    } queueDepth=${entry.queue.length} trusted=${trusted}`,
+    {
+      eventId,
+      sessionKey: key,
+      contextKey: normalizedContextKey,
+      queueDepth: entry.queue.length,
+      trusted,
+    },
+  );
   if (entry.queue.length > MAX_EVENTS) {
     const dropped = entry.queue.shift();
     if (dropped) {
       droppedSystemEventCount += 1;
       log.warn(
         `system-events: queue full for session — dropped oldest event (${Math.round((Date.now() - dropped.ts) / 1000)}s old, total drops: ${droppedSystemEventCount}): "${dropped.text.slice(0, 120)}"`,
-        { sessionKey: key, droppedCount: droppedSystemEventCount },
+        { sessionKey: key, droppedCount: droppedSystemEventCount, droppedEventId: dropped.id },
       );
     }
   }
@@ -300,4 +320,5 @@ export function resolveSystemEventDeliveryContext(
 
 export function resetSystemEventsForTest() {
   queues.clear();
+  nextSystemEventSeq = 0;
 }

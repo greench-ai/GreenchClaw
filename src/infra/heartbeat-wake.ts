@@ -1,5 +1,9 @@
-import { normalizeOptionalString } from "../shared/string-coerce.js";
+import { resolveEmbeddedSessionLane } from "../agents/pi-embedded-runner/lanes.js";
+import { getActiveDiagnosticAgentTurn } from "../logging/diagnostic-turn-tracker.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
+import { getQueueSize } from "../process/command-queue.js";
+import { CommandLane } from "../process/lanes.js";
+import { normalizeOptionalString } from "../shared/string-coerce.js";
 import { normalizeHeartbeatWakeReason } from "./heartbeat-reason.js";
 
 const log = createSubsystemLogger("gateway/heartbeat");
@@ -89,9 +93,94 @@ const pendingWakes = new Map<string, PendingWakeReason>();
 let scheduled = false;
 let running = false;
 let runningSince: number | null = null;
+let runningOwnerGeneration = 0;
 let timer: NodeJS.Timeout | null = null;
 let timerDueAt: number | null = null;
 let timerKind: WakeTimerKind | null = null;
+
+// Wake-claim trace ring (2026-09-17 instrumentation): the last few claims,
+// exposed for tests and ops introspection.
+export type HeartbeatWakeClaimTrace = {
+  claimId: string;
+  source: HeartbeatWakeSource;
+  intent: HeartbeatWakeIntent;
+  reason: string;
+  targetSession: string | undefined;
+  agentId: string | undefined;
+  mainLaneBusy: boolean;
+  sessionLaneBusy: boolean;
+  claimedByTurnId: string | undefined;
+  claimedByTurnKind: string | undefined;
+  claimedAt: number;
+};
+const recentWakeClaims: HeartbeatWakeClaimTrace[] = [];
+const RECENT_WAKE_CLAIM_LIMIT = 16;
+let nextWakeClaimSeq = 0;
+
+function recordWakeClaimForTest(trace: HeartbeatWakeClaimTrace): void {
+  recentWakeClaims.push(trace);
+  if (recentWakeClaims.length > RECENT_WAKE_CLAIM_LIMIT) {
+    recentWakeClaims.shift();
+  }
+}
+
+export function getRecentHeartbeatWakeClaimsForTest(): readonly HeartbeatWakeClaimTrace[] {
+  return [...recentWakeClaims];
+}
+
+/**
+ * Journal the moment a pending wake is claimed for dispatch (2026-09-17
+ * instrumentation): who claimed it, which session it targets, whether the
+ * target session lane / main lane reported busy at claim time, and which turn
+ * (if any) was already active on the target session. If the claim later
+ * results in a second concurrent turn, `[turn-overlap]` (from the turn
+ * tracker) plus this line reconstruct the exact race.
+ */
+function traceWakeClaim(pendingWake: {
+  source: HeartbeatWakeSource;
+  intent: HeartbeatWakeIntent;
+  reason: string;
+  agentId?: string;
+  sessionKey?: string;
+}): void {
+  const claimId = `wk-${Date.now().toString(36)}-${(nextWakeClaimSeq += 1)}`;
+  const targetSession = pendingWake.sessionKey ?? pendingWake.agentId;
+  let mainLaneBusy = false;
+  let sessionLaneBusy = false;
+  try {
+    mainLaneBusy = getQueueSize(CommandLane.Main) > 0;
+    sessionLaneBusy = pendingWake.sessionKey
+      ? getQueueSize(resolveEmbeddedSessionLane(pendingWake.sessionKey)) > 0
+      : false;
+  } catch {
+    // Queue introspection must never break dispatch; trace best-effort busy=false.
+  }
+  const activeTurn = pendingWake.sessionKey
+    ? getActiveDiagnosticAgentTurn({ sessionKey: pendingWake.sessionKey })
+    : undefined;
+  const trace: HeartbeatWakeClaimTrace = {
+    claimId,
+    source: pendingWake.source,
+    intent: pendingWake.intent,
+    reason: pendingWake.reason,
+    targetSession,
+    agentId: pendingWake.agentId,
+    mainLaneBusy,
+    sessionLaneBusy,
+    claimedByTurnId: activeTurn?.turnId,
+    claimedByTurnKind: activeTurn?.kind,
+    claimedAt: Date.now(),
+  };
+  recordWakeClaimForTest(trace);
+  log.info(
+    `[wake-claim] claimId=${claimId} source=${pendingWake.source} intent=${pendingWake.intent} reason="${pendingWake.reason}" targetSession=${
+      targetSession ?? "(broadcast)"
+    }${pendingWake.agentId ? ` agentId=${pendingWake.agentId}` : ""} mainLaneBusy=${mainLaneBusy} sessionLaneBusy=${sessionLaneBusy}${
+      activeTurn ? ` claimedByTurnId=${activeTurn.turnId} claimedByTurnKind=${activeTurn.kind}` : ""
+    }`,
+    { ...trace },
+  );
+}
 
 // 2026-09-16 outage #3 (post-restart repro): if a wake-handler invocation
 // never settles (hung promise), `running` sticks true forever and every
@@ -243,7 +332,14 @@ function schedule(coalesceMs: number, kind: WakeTimerKind = "normal") {
         );
         running = false;
         runningSince = null;
-        // fall through: process this batch instead of looping forever
+        // fall through: process this batch instead of looping forever.
+        // NOTE (2026-09-17 race audit): the abandoned invocation is still in
+        // flight. Its `finally` must not clobber the NEW batch's `running`
+        // flag — that un-serialization let a third timer dispatch while the
+        // replacement batch was mid-flight (two concurrent handlers → two
+        // concurrent turns on one session). The runningOwnerGeneration
+        // guard below closes that hole; the abandoned invocation's cleanup is
+        // a no-op once a newer batch has taken ownership.
       } else {
         scheduled = true;
         schedule(delay, kind);
@@ -255,6 +351,8 @@ function schedule(coalesceMs: number, kind: WakeTimerKind = "normal") {
     pendingWakes.clear();
     running = true;
     runningSince = Date.now();
+    runningOwnerGeneration += 1;
+    const batchGeneration = runningOwnerGeneration;
     const batchStartedAt = runningSince;
     let busySeen = false;
     try {
@@ -267,12 +365,24 @@ function schedule(coalesceMs: number, kind: WakeTimerKind = "normal") {
           ...(pendingWake.sessionKey ? { sessionKey: pendingWake.sessionKey } : {}),
           ...(pendingWake.heartbeat ? { heartbeat: pendingWake.heartbeat } : {}),
         };
+        traceWakeClaim(pendingWake);
         const res = await active(wakeOpts);
         if (res.status === "skipped" && isRetryableHeartbeatBusySkipReason(res.reason)) {
           // The target runtime is busy; retry this wake target soon.
           busySeen = true;
           consecutiveBusyRetries += 1;
           const nowMs = Date.now();
+          log.debug(
+            `[wake-retry] re-queueing wake after busy skip: reason="${res.reason}" targetSession=${
+              pendingWake.sessionKey ?? pendingWake.agentId ?? "(broadcast)"
+            } retryInMs=${DEFAULT_RETRY_MS} consecutiveBusyRetries=${consecutiveBusyRetries}`,
+            {
+              reason: res.reason,
+              sessionKey: pendingWake.sessionKey,
+              agentId: pendingWake.agentId,
+              consecutiveBusyRetries,
+            },
+          );
           if (nowMs - lastBusySkipLogAt >= BUSY_SKIP_LOG_INTERVAL_MS) {
             lastBusySkipLogAt = nowMs;
             const stalled = consecutiveBusyRetries >= BUSY_RETRY_STALL_THRESHOLD;
@@ -306,19 +416,26 @@ function schedule(coalesceMs: number, kind: WakeTimerKind = "normal") {
       }
       schedule(DEFAULT_RETRY_MS, "retry");
     } finally {
-      running = false;
-      runningSince = null;
-      if (Date.now() - batchStartedAt > 60_000) {
-        log.warn(
-          `heartbeat: wake batch took ${Math.round((Date.now() - batchStartedAt) / 1000)}s to settle`,
-          { batchMs: Date.now() - batchStartedAt },
-        );
-      }
-      if (!busySeen) {
-        consecutiveBusyRetries = 0;
-      }
-      if (pendingWakes.size > 0 || scheduled) {
-        schedule(delay, "normal");
+      if (batchGeneration === runningOwnerGeneration) {
+        running = false;
+        runningSince = null;
+        if (Date.now() - batchStartedAt > 60_000) {
+          log.warn(
+            `heartbeat: wake batch took ${Math.round((Date.now() - batchStartedAt) / 1000)}s to settle`,
+            { batchMs: Date.now() - batchStartedAt },
+          );
+        }
+        if (!busySeen) {
+          consecutiveBusyRetries = 0;
+        }
+        if (pendingWakes.size > 0 || scheduled) {
+          schedule(delay, "normal");
+        }
+      } else {
+        // Abandoned batch (hang-guard force-unfreeze): a newer batch owns the
+        // running state. Do NOT clear `running`, reset counters, or re-arm
+        // timers from here — that would un-serialize the wake layer and let
+        // another timer dispatch concurrently with the active batch.
       }
     }
   }, delay);
@@ -351,6 +468,7 @@ export function setHeartbeatWakeHandler(next: HeartbeatWakeHandler | null): () =
     // `scheduled === true` can cause spurious immediate re-runs.
     running = false;
     scheduled = false;
+    runningOwnerGeneration = 0;
     consecutiveBusyRetries = 0;
     lastBusySkipLogAt = 0;
   }
@@ -407,6 +525,9 @@ export function resetHeartbeatWakeStateForTests() {
   pendingWakes.clear();
   scheduled = false;
   running = false;
+  runningOwnerGeneration = 0;
+  recentWakeClaims.length = 0;
+  nextWakeClaimSeq = 0;
   handlerGeneration += 1;
   handler = null;
 }
