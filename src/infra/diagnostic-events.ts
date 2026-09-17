@@ -327,6 +327,23 @@ export type DiagnosticToolLoopEvent = DiagnosticBaseEvent & {
   pairedToolName?: string;
 };
 
+/**
+ * A second agent turn started on a session that already has an active turn
+ * (2026-09-17 wake/turn concurrency visibility). Same-session turns must be
+ * serialized by the session lane; this event is the loud alarm when they are
+ * not.
+ */
+export type DiagnosticAgentTurnOverlapEvent = DiagnosticBaseEvent & {
+  type: "agentTurn.overlap";
+  sessionKey?: string;
+  sessionId?: string;
+  newTurnId: string;
+  newTurnKind: string;
+  activeTurnId: string;
+  activeTurnKind: string;
+  activeStartedAt: number;
+};
+
 export type DiagnosticToolParamsSummary =
   | { kind: "object" }
   | { kind: "array"; length: number }
@@ -594,6 +611,7 @@ export type DiagnosticEventPayload =
   | DiagnosticLivenessWarningEvent
   | DiagnosticPhaseCompletedEvent
   | DiagnosticToolLoopEvent
+  | DiagnosticAgentTurnOverlapEvent
   | DiagnosticToolExecutionStartedEvent
   | DiagnosticToolExecutionCompletedEvent
   | DiagnosticToolExecutionErrorEvent

@@ -12,6 +12,11 @@ import { emitAgentPlanEvent } from "../../infra/agent-events.js";
 import { sleepWithAbort } from "../../infra/backoff.js";
 import { freezeDiagnosticTraceContext } from "../../infra/diagnostic-trace-context.js";
 import { formatErrorMessage } from "../../infra/errors.js";
+import {
+  beginDiagnosticAgentTurn,
+  endDiagnosticAgentTurn,
+  type TrackedDiagnosticTurnRef,
+} from "../../logging/diagnostic-turn-tracker.js";
 import { buildAgentHookContextChannelFields } from "../../plugins/hook-agent-context.js";
 import { getGlobalHookRunner } from "../../plugins/hook-runner-global.js";
 import { resolveProviderAuthProfileId } from "../../plugins/provider-runtime.js";
@@ -416,10 +421,26 @@ export async function runEmbeddedPiAgent(
 
   throwIfAborted();
 
-  return enqueueSession(() => {
+  // Turn-level visibility (2026-09-17 wake/turn concurrency instrumentation):
+  // every embedded run is a tracked agent turn. The turn begins when the
+  // global-lane task actually starts executing (model-call level) and ends
+  // when the whole chained promise settles. Start/end are journaled with turn
+  // id + kind + queueDepth, and `beginDiagnosticAgentTurn` raises a loud
+  // `[turn-overlap]` ERROR if another turn is still active on the same session
+  // (base session; isolated `:heartbeat` sessions fold onto their base).
+  // See logging/diagnostic-turn-tracker.ts.
+  let trackedTurnToken: TrackedDiagnosticTurnRef | undefined;
+  const trackedTurnResult: Promise<EmbeddedPiRunResult> = enqueueSession(() => {
     throwIfAborted();
     return enqueueGlobal(async () => {
       throwIfAborted();
+      trackedTurnToken = beginDiagnosticAgentTurn({
+        sessionId: params.sessionId,
+        sessionKey: params.sessionKey,
+        turnId: params.runId,
+        trigger: params.trigger,
+        jobId: params.jobId,
+      });
       const started = Date.now();
       const startupStages = createEmbeddedRunStageTracker();
       let startupStagesEmitted = false;
@@ -3108,6 +3129,11 @@ export async function runEmbeddedPiAgent(
         }
       }
     });
+  });
+  return trackedTurnResult.finally(() => {
+    if (trackedTurnToken) {
+      endDiagnosticAgentTurn(trackedTurnToken);
+    }
   });
 }
 
