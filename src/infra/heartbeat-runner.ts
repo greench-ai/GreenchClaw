@@ -66,6 +66,10 @@ import type { AgentDefaultsConfig } from "../config/types.agent-defaults.js";
 import type { GreenchClawConfig } from "../config/types.GreenchClaw.js";
 import { hasActiveCronJobs } from "../cron/active-jobs.js";
 import { resolveCronSession } from "../cron/isolated-agent/session.js";
+import {
+  getActiveDiagnosticAgentTurn,
+  getLastDiagnosticAgentTurnStartedAt,
+} from "../logging/diagnostic-turn-tracker.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { getActivePluginChannelRegistry } from "../plugins/runtime.js";
 import {
@@ -190,6 +194,42 @@ function hasOptInBusyLaneWork(
   return (
     hasQueuedWorkInLanes(HEARTBEAT_OPT_IN_BUSY_LANES, getSize) ||
     hasQueuedWorkInLaneSnapshots(getSnapshots(), isNestedAgentLane)
+  );
+}
+
+/**
+ * Journal the moment queued system events are claimed for consumption by a
+ * heartbeat run (2026-09-17 wake/turn instrumentation): event ids, target
+ * session, the wake source/reason that drove the claim, and the turn (if any)
+ * active on the session at claim time. Pairs with `[system-event] queued`
+ * lines (system-events.ts) and `[wake-claim]` lines (heartbeat-wake.ts) to
+ * reconstruct the full wake → claim → turn chain.
+ */
+function traceSystemEventClaims(
+  events: readonly SystemEvent[],
+  params: {
+    sessionKey: string;
+    source?: string;
+    reason?: string;
+    claimPath: string;
+  },
+): void {
+  const eventIds = events.map((event) => event.id ?? `ts:${event.ts}`).join(",");
+  const activeTurn = getActiveDiagnosticAgentTurn({ sessionKey: params.sessionKey });
+  log.info(
+    `[system-event-claim] claimPath=${params.claimPath} sessionKey=${params.sessionKey} eventIds=${eventIds} count=${events.length} source=${
+      params.source ?? "unknown"
+    } reason="${params.reason ?? ""}"${
+      activeTurn ? ` claimedByTurnId=${activeTurn.turnId} claimedByTurnKind=${activeTurn.kind}` : ""
+    }`,
+    {
+      sessionKey: params.sessionKey,
+      eventIds: events.map((event) => event.id),
+      source: params.source,
+      reason: params.reason,
+      claimPath: params.claimPath,
+      activeTurnId: activeTurn?.turnId,
+    },
   );
 }
 
@@ -1316,6 +1356,18 @@ export async function runHeartbeatOnce(opts: {
   // Check the resolved session lane — if it is busy, skip to avoid interrupting
   // an active streaming turn.  The wake-layer retry (heartbeat-wake.ts) will
   // re-schedule this wake automatically.  See #14396 (closed without merge).
+  //
+  // RACE AUDIT (2026-09-17): this is a check-then-act gate, not a claim.
+  // Between this check and the actual turn dispatch (getReplyFromConfig below)
+  // lie multiple awaits (isolated-session store update, markCommitmentsAttempted,
+  // get-reply session init) — a turn starting inside that window is invisible
+  // to this check. For the SAME sessionKey the session lane still serializes
+  // the turns (the heartbeat turn queues behind); for ISOLATED heartbeat
+  // sessions (`<base>:heartbeat`) the busy check only samples the isolated
+  // lane, so a base-session turn starting in the window results in two
+  // concurrently executing sibling turns. That concurrency is now visible:
+  // `[wake-claim]` (claim-time busy state) + `[turn-start]`/`[turn-overlap]`
+  // (folded onto the base session by the turn tracker).
   const sessionLaneKey = resolveEmbeddedSessionLane(sessionKey);
   if (getSize(sessionLaneKey) > 0) {
     emitHeartbeatEvent({
@@ -1437,6 +1489,12 @@ export async function runHeartbeatOnce(opts: {
     const shouldConsumeInspectedEvents =
       !preflight.isWakePayload && preflight.shouldInspectPendingEvents;
     if (shouldConsumeInspectedEvents && inspectedSystemEventsToConsume.length > 0) {
+      traceSystemEventClaims(inspectedSystemEventsToConsume, {
+        sessionKey,
+        source: opts.source,
+        reason: opts.reason,
+        claimPath: "no-tasks-due",
+      });
       consumeSelectedSystemEventEntries(sessionKey, inspectedSystemEventsToConsume);
     }
     return { status: "skipped", reason: "no-tasks-due" };
@@ -1552,6 +1610,12 @@ export async function runHeartbeatOnce(opts: {
     if (!preflight.shouldInspectPendingEvents || inspectedSystemEventsToConsume.length === 0) {
       return;
     }
+    traceSystemEventClaims(inspectedSystemEventsToConsume, {
+      sessionKey,
+      source: opts.source,
+      reason: opts.reason,
+      claimPath: "run",
+    });
     consumeSelectedSystemEventEntries(sessionKey, inspectedSystemEventsToConsume);
   };
 
@@ -2192,9 +2256,12 @@ export function startHeartbeatRunner(opts: {
     const prevEnabledForMap = prevAgents.size > 0;
     const nextEnabledForMap = nextAgents.size > 0;
     if (prevEnabledForMap && !nextEnabledForMap) {
-      log.warn("heartbeat: agent map became EMPTY on config update — interval timer disarmed and watchdog has nothing to watch (silent stall risk)", {
-        prevAgentCount: prevAgents.size,
-      });
+      log.warn(
+        "heartbeat: agent map became EMPTY on config update — interval timer disarmed and watchdog has nothing to watch (silent stall risk)",
+        {
+          prevAgentCount: prevAgents.size,
+        },
+      );
     }
     for (const [agentId, next] of nextAgents) {
       const prev = prevAgents.get(agentId);
@@ -2202,17 +2269,23 @@ export function startHeartbeatRunner(opts: {
         continue;
       }
       if (next.nextDueMs - prev.nextDueMs > next.intervalMs * 2) {
-        log.warn("heartbeat: nextDueMs jumped >2 intervals into the future on config update — silent stall risk", {
-          agentId,
-          prevNextDueMs: prev.nextDueMs,
-          nextNextDueMs: next.nextDueMs,
-          intervalMs: next.intervalMs,
-        });
+        log.warn(
+          "heartbeat: nextDueMs jumped >2 intervals into the future on config update — silent stall risk",
+          {
+            agentId,
+            prevNextDueMs: prev.nextDueMs,
+            nextNextDueMs: next.nextDueMs,
+            intervalMs: next.intervalMs,
+          },
+        );
       }
       if (prev.lastRunStartedAtMs !== undefined && next.lastRunStartedAtMs === undefined) {
-        log.warn("heartbeat: lastRunStartedAtMs dropped on config update — re-anchoring stall watchdog to createdTs", {
-          agentId,
-        });
+        log.warn(
+          "heartbeat: lastRunStartedAtMs dropped on config update — re-anchoring stall watchdog to createdTs",
+          {
+            agentId,
+          },
+        );
       }
     }
 
@@ -2309,6 +2382,20 @@ export function startHeartbeatRunner(opts: {
               // Self-heal (2026-09-16): the busy condition persisted through a
               // full retry window — re-arm the runner's own timer so the
               // schedule can never stay dead if the wake layer's chain breaks.
+              //
+              // TODO(race-audit 2026-09-17): after this re-arm, BOTH the wake
+              // layer's 1s-retry chain (heartbeat-wake.ts schedule(retry)) and
+              // the runner's busy-poll timer are armed for the same agent.
+              // When the busy condition clears, the wake-layer retry dispatches
+              // the run; the busy-poll timer then fires a second wake 60s later
+              // that normally defers as not-due. These dispatches are
+              // serialized by the wake layer's `running` flag EXCEPT when the
+              // hang-guard force-unfreeze abandoned a batch (see
+              // heartbeat-wake.ts runningOwnerGeneration). A true fix needs an
+              // atomic in-flight claim per session (wake claim → turn start)
+              // shared by both chains; until then, the `[wake-claim]` /
+              // `[turn-start]` / `[turn-overlap]` traces make any double
+              // dispatch observable instead of silent.
               targetAgent.consecutiveBusySkips = 0;
               targetAgent.nextDueMs = now + HEARTBEAT_BUSY_POLL_MS;
               log.warn(
@@ -2377,6 +2464,10 @@ export function startHeartbeatRunner(opts: {
             // Self-heal (2026-09-16): the busy condition persisted through a
             // full retry window — re-arm the runner's own timer so the
             // schedule can never stay dead if the wake layer's chain breaks.
+            // TODO(race-audit 2026-09-17): see targeted-branch comment above —
+            // this re-arm leaves both the wake-layer retry chain and this
+            // busy-poll timer armed; serialization relies on the wake layer's
+            // `running` flag + the runningOwnerGeneration guard.
             agent.consecutiveBusySkips = 0;
             agent.nextDueMs = now + HEARTBEAT_BUSY_POLL_MS;
             log.warn(
@@ -2484,7 +2575,9 @@ export function startHeartbeatRunner(opts: {
     if (agent) {
       log.info(
         `heartbeat: alive — nextDue in ${Math.max(0, Math.round((agent.nextDueMs - Date.now()) / 1000))}s, lastRun ${
-          agent.lastRunStartedAtMs ? `${Math.round((Date.now() - agent.lastRunStartedAtMs) / 1000)}s ago` : "never"
+          agent.lastRunStartedAtMs
+            ? `${Math.round((Date.now() - agent.lastRunStartedAtMs) / 1000)}s ago`
+            : "never"
         }, timer=${state.timer ? "armed" : "none"}`,
         {
           agentId: agent.agentId,
@@ -2504,20 +2597,52 @@ export function startHeartbeatRunner(opts: {
   // must still be visible in the journal and keep attempting recovery. When an
   // agent has not started a real run for > 2x its interval, warn and force a
   // wake attempt — preflights still guard against interrupting genuine work.
+  //
+  // 2026-09-17 blind-spot fix: the old check anchored on
+  // `lastRunStartedAtMs` (scheduler bookkeeping), which is refreshed by ANY
+  // non-busy wake outcome — including 3ms deferral skips ("not-due",
+  // "min-spacing") from recurring cron enqueue wakes. During a real 7-hour
+  // stall, cron enqueue wakes kept refreshing the anchor and the watchdog
+  // never fired. The watchdog now anchors on REAL agent-turn activity
+  // (model-call level) for the agent's heartbeat target session — isolated
+  // heartbeat turns (`<base>:heartbeat`) count as activity for the base
+  // session. Bookkeeping/createdTs remain the fallback for sessions that have
+  // never observed a turn (e.g. empty HEARTBEAT.md setups).
   const watchdogTimer = setInterval(() => {
     if (state.stopped) {
       return;
     }
     const nowMs = Date.now();
     for (const agent of state.agents.values()) {
-      // 2026-09-16 outage #2: lastRunStartedAtMs can be wiped by a config rebuild,
-      // which silently disarmed the watchdog. Anchor to createdTs as fallback so
-      // the watchdog can never be disarmed by losing its anchor.
-      const last = agent.lastRunStartedAtMs ?? agent.createdTs;
+      // Anchor on REAL agent-turn activity (model-call level) for the agent's
+      // heartbeat target session when it has ever observed a turn; otherwise
+      // fall back to scheduler bookkeeping / the agent-state creation time.
+      let lastRealTurnAtMs: number | undefined;
+      try {
+        const watchdogSession = resolveHeartbeatSession(state.cfg, agent.agentId, agent.heartbeat);
+        lastRealTurnAtMs = getLastDiagnosticAgentTurnStartedAt({
+          sessionKey: watchdogSession.sessionKey,
+        });
+      } catch {
+        // Session resolution must never disarm the watchdog — fall through to
+        // the bookkeeping anchors below.
+      }
+      const last = lastRealTurnAtMs ?? agent.lastRunStartedAtMs ?? agent.createdTs;
+      const anchor: "agent-turn" | "bookkeeping" | "createdTs" =
+        lastRealTurnAtMs !== undefined
+          ? "agent-turn"
+          : agent.lastRunStartedAtMs !== undefined
+            ? "bookkeeping"
+            : "createdTs";
       if (last !== undefined && nowMs - last > agent.intervalMs * 2) {
         log.warn(
-          `heartbeat stall: agent "${agent.agentId}" has not started a heartbeat run in ${Math.round((nowMs - last) / 1000)}s (interval: ${Math.round(agent.intervalMs / 1000)}s) — forcing a wake attempt`,
-          { agentId: agent.agentId, lastRunStartedAtMs: last, intervalMs: agent.intervalMs },
+          `heartbeat stall: agent "${agent.agentId}" has not started an agent turn in ${Math.round((nowMs - last) / 1000)}s (interval: ${Math.round(agent.intervalMs / 1000)}s, anchor: ${anchor}) — forcing a wake attempt`,
+          {
+            agentId: agent.agentId,
+            lastActivityAtMs: last,
+            anchor,
+            intervalMs: agent.intervalMs,
+          },
         );
         requestHeartbeat({
           source: "cli-watchdog",
@@ -2539,7 +2664,11 @@ export function startHeartbeatRunner(opts: {
     // firing. Nothing logged the stop, so the culprit was unidentifiable.
     // A stopped runner must be LOUD and must record WHO stopped it.
     const stoppedBy = new Error("runner stop stack").stack ?? "<no stack>";
-    log.error("heartbeat: runner STOPPED — interval disarmed, wake handler released, watchdog cleared. Stack:\n" + stoppedBy, {});
+    log.error(
+      "heartbeat: runner STOPPED — interval disarmed, wake handler released, watchdog cleared. Stack:\n" +
+        stoppedBy,
+      {},
+    );
     state.stopped = true;
     disposeWakeHandler();
     if (state.timer) {

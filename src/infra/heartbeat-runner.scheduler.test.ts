@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GreenchClawConfig } from "../config/config.js";
+import {
+  beginDiagnosticAgentTurn,
+  endDiagnosticAgentTurn,
+  resetDiagnosticTurnTrackerForTest,
+} from "../logging/diagnostic-turn-tracker.js";
 import { startHeartbeatRunner } from "./heartbeat-runner.js";
 import { computeNextHeartbeatPhaseDueMs, resolveHeartbeatPhaseMs } from "./heartbeat-schedule.js";
 import {
@@ -832,5 +837,98 @@ describe("startHeartbeatRunner", () => {
     });
 
     runner.stop();
+  });
+
+  it("stall watchdog anchors on real agent-turn activity — recurring enqueue runs cannot satisfy it", async () => {
+    useFakeHeartbeatTime();
+    resetDiagnosticTurnTrackerForTest();
+
+    // Global session scope → deterministic heartbeat target session key
+    // ("global") for the watchdog's per-session turn-activity lookup.
+    const cfg = {
+      agents: { defaults: { heartbeat: { every: "30m" } } },
+      session: { scope: "global" },
+    } as GreenchClawConfig;
+
+    // runOnce always "succeeds" in 3ms without starting any real agent turn —
+    // the exact shape of recurring cron-enqueue dispatches.
+    const runSpy = vi.fn().mockResolvedValue({ status: "ran", durationMs: 3 } as const);
+    const runner = startHeartbeatRunner({
+      cfg,
+      runOnce: runSpy,
+      stableSchedulerSeed: TEST_SCHEDULER_SEED,
+    });
+
+    try {
+      // A real agent turn ran once on the heartbeat target session, then ended.
+      const turnToken = beginDiagnosticAgentTurn({
+        turnId: "turn-real-1",
+        trigger: "heartbeat",
+        sessionKey: "global",
+      });
+      endDiagnosticAgentTurn(turnToken);
+
+      // Advance past 2x the interval (60m). Scheduled interval wakes keep
+      // "running" (bookkeeping refreshes each time), but no real agent turn
+      // starts again. The watchdog (5m cadence) must fire on the turn-age
+      // anchor — the 2026-09-16 version anchored on bookkeeping and stayed
+      // silent through a real 7h stall fed by cron enqueue wakes. The extra
+      // 5s covers the wake-layer coalesce delay after the watchdog fires.
+      await vi.advanceTimersByTimeAsync(65 * 60_000 + 5_000);
+
+      const stallWakeCalls = runSpy.mock.calls
+        .map((call) => call[0] as Record<string, unknown>)
+        .filter((options) => options.reason === "stall-watchdog");
+      expect(stallWakeCalls.length).toBeGreaterThan(0);
+      expect(stallWakeCalls[0]?.source).toBe("cli-watchdog");
+
+      // Sanity: the ordinary interval wakes did run (bookkeeping was
+      // refreshed) — the stall alarm fires IN SPITE of them.
+      const intervalCalls = runSpy.mock.calls
+        .map((call) => call[0] as Record<string, unknown>)
+        .filter((options) => options.reason === "interval");
+      expect(intervalCalls.length).toBeGreaterThan(0);
+    } finally {
+      runner.stop();
+      resetDiagnosticTurnTrackerForTest();
+    }
+  });
+
+  it("stall watchdog stays quiet while real agent turns keep happening", async () => {
+    useFakeHeartbeatTime();
+    resetDiagnosticTurnTrackerForTest();
+
+    const cfg = {
+      agents: { defaults: { heartbeat: { every: "30m" } } },
+      session: { scope: "global" },
+    } as GreenchClawConfig;
+    const runSpy = vi.fn().mockImplementation(async () => {
+      // Every heartbeat run corresponds to a real agent turn on the target
+      // session — the tracker sees it via the same call the embedded runner
+      // would make.
+      const token = beginDiagnosticAgentTurn({
+        turnId: `turn-${runSpy.mock.calls.length}`,
+        trigger: "heartbeat",
+        sessionKey: "global",
+      });
+      endDiagnosticAgentTurn(token);
+      return { status: "ran", durationMs: 3 } as const;
+    });
+    const runner = startHeartbeatRunner({
+      cfg,
+      runOnce: runSpy,
+      stableSchedulerSeed: TEST_SCHEDULER_SEED,
+    });
+
+    try {
+      await vi.advanceTimersByTimeAsync(120 * 60_000);
+      const stallWakeCalls = runSpy.mock.calls
+        .map((call) => call[0] as Record<string, unknown>)
+        .filter((options) => options.reason === "stall-watchdog");
+      expect(stallWakeCalls).toEqual([]);
+    } finally {
+      runner.stop();
+      resetDiagnosticTurnTrackerForTest();
+    }
   });
 });
