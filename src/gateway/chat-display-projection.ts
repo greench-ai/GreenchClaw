@@ -69,30 +69,26 @@ function sanitizeChatHistoryContentBlock(
   }
   const entry = { ...(block as Record<string, unknown>) };
   let changed = false;
+  const isToolBlock = isToolHistoryBlockType(entry.type);
   const preserveExactToolPayload =
-    opts?.preserveExactToolPayload === true || isToolHistoryBlockType(entry.type);
+    opts?.preserveExactToolPayload === true || isToolBlock;
   const maxChars = opts?.maxChars ?? DEFAULT_CHAT_HISTORY_TEXT_MAX_CHARS;
+  // Tool payloads are preserved structurally but still capped for display:
+  // the chat view needs a snippet, not the full 50 KB command output. Keeps
+  // reconnect history payloads bounded so slow clients don't stall the WS.
+  const toolDisplayCap = 2_000;
+  const blockTextCap = preserveExactToolPayload ? toolDisplayCap : maxChars;
   if (typeof entry.text === "string") {
     const stripped = stripInlineDirectiveTagsForDisplay(entry.text);
-    if (preserveExactToolPayload) {
-      entry.text = stripped.text;
-      changed ||= stripped.changed;
-    } else {
-      const res = truncateChatHistoryText(stripped.text, maxChars);
-      entry.text = res.text;
-      changed ||= stripped.changed || res.truncated;
-    }
+    const res = truncateChatHistoryText(stripped.text, blockTextCap);
+    entry.text = res.text;
+    changed ||= stripped.changed || res.truncated;
   }
   if (typeof entry.content === "string") {
     const stripped = stripInlineDirectiveTagsForDisplay(entry.content);
-    if (preserveExactToolPayload) {
-      entry.content = stripped.text;
-      changed ||= stripped.changed;
-    } else {
-      const res = truncateChatHistoryText(stripped.text, maxChars);
-      entry.content = res.text;
-      changed ||= stripped.changed || res.truncated;
-    }
+    const res = truncateChatHistoryText(stripped.text, blockTextCap);
+    entry.content = res.text;
+    changed ||= stripped.changed || res.truncated;
   }
   if (typeof entry.partialJson === "string" && !preserveExactToolPayload) {
     const res = truncateChatHistoryText(entry.partialJson, maxChars);
