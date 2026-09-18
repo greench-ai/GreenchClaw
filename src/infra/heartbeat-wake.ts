@@ -155,9 +155,17 @@ function traceWakeClaim(pendingWake: {
   } catch {
     // Queue introspection must never break dispatch; trace best-effort busy=false.
   }
-  const activeTurn = pendingWake.sessionKey
-    ? getActiveDiagnosticAgentTurn({ sessionKey: pendingWake.sessionKey })
-    : undefined;
+  const activeTurn = (() => {
+    // 2026-09-18 (item-17, ocr finding): wake claims are a dispatch-path
+    // read; a tracker throw must never break the claim/turn chain.
+    try {
+      return pendingWake.sessionKey
+        ? getActiveDiagnosticAgentTurn({ sessionKey: pendingWake.sessionKey })
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  })();
   const trace: HeartbeatWakeClaimTrace = {
     claimId,
     source: pendingWake.source,
@@ -516,6 +524,17 @@ export function hasPendingHeartbeatWake() {
 }
 
 export function resetHeartbeatWakeStateForTests() {
+  // 2026-09-18 (item-17, ocr finding): verified test-only at review time (no
+  // production importers). This reset clears runningOwnerGeneration to 0,
+  // which would defeat the wake-layer ownership guard while a batch flies if
+  // it ever ran in production — make accidental production misuse loud
+  // instead of silent.
+  if (!process.env.VITEST && !process.env.GREENCHCLAW_TEST) {
+    log.warn(
+      "heartbeat-wake: resetHeartbeatWakeStateForTests invoked outside a test context — this clears the runningOwnerGeneration ownership guard; if this is production code, remove the call immediately",
+      { stack: new Error().stack },
+    );
+  }
   if (timer) {
     clearTimeout(timer);
   }

@@ -313,6 +313,24 @@ const CronJobStatePatchSchema = Type.Object(
   { additionalProperties: false },
 );
 
+/**
+ * Who created a cron job (2026-09-17 provenance). Server-stamped only:
+ * CronAddParamsSchema/CronUpdateParamsSchema keep rejecting the field so a
+ * client can never forge provenance; jobs returned on the wire carry it.
+ */
+export const CronJobCreatorSchema = Type.Object(
+  {
+    kind: Type.Union([
+      Type.Literal("cli"),
+      Type.Literal("ui"),
+      Type.Literal("mcp-loopback"),
+      Type.Literal("internal"),
+    ]),
+    id: Type.Optional(Type.String()),
+  },
+  { additionalProperties: false },
+);
+
 export const CronJobSchema = Type.Object(
   {
     id: NonEmptyString,
@@ -331,6 +349,7 @@ export const CronJobSchema = Type.Object(
     delivery: Type.Optional(CronDeliverySchema),
     failureAlert: Type.Optional(Type.Union([Type.Literal(false), CronFailureAlertSchema])),
     state: CronJobStateSchema,
+    createdBy: Type.Optional(CronJobCreatorSchema),
   },
   { additionalProperties: false },
 );

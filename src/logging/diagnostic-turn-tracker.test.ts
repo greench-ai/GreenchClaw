@@ -243,4 +243,103 @@ describe("diagnostic turn tracker", () => {
       vi.useRealTimers();
     }
   });
+
+  it("evicts a stale active turn instead of flagging overlap forever (item-17)", () => {
+    vi.useFakeTimers();
+    try {
+      const errorSpy = vi.spyOn(diag, "error").mockImplementation(() => {});
+      const warnSpy = vi.spyOn(diag, "warn").mockImplementation(() => {});
+      // A turn begins but never ends (crashed/hung run).
+      vi.setSystemTime(1_000_000);
+      beginTurn({ turnId: "ghost-turn", kind: "heartbeat" });
+      // A fresh turn starts after the staleness limit: the ghost is evicted
+      // with a warn, not treated as a live overlap.
+      vi.setSystemTime(1_000_000 + 61 * 60_000);
+      const token = beginTurn({ turnId: "fresh-turn", kind: "heartbeat" });
+      expect(warnSpy.mock.calls.some((call) => (call[0] ?? "").includes("[turn-stale-evicted]")))
+        .toBe(true);
+      expect(
+        errorSpy.mock.calls.some((call) => (call[0] ?? "").includes("[turn-overlap]")),
+      ).toBe(false);
+      expect(getActiveDiagnosticAgentTurn({ sessionKey: SESSION_KEY })?.turnId).toBe(
+        "fresh-turn",
+      );
+      endDiagnosticAgentTurn(token);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("still flags overlap for a turn that is genuinely live (within staleness limit)", () => {
+    vi.useFakeTimers();
+    try {
+      const errorSpy = vi.spyOn(diag, "error").mockImplementation(() => {});
+      vi.setSystemTime(1_000_000);
+      beginTurn({ turnId: "live-turn", kind: "user" });
+      vi.setSystemTime(1_000_000 + 5 * 60_000);
+      const token = beginTurn({ turnId: "racing-turn", kind: "heartbeat" });
+      expect(
+        errorSpy.mock.calls.some((call) => (call[0] ?? "").includes("[turn-overlap]")),
+      ).toBe(true);
+      endDiagnosticAgentTurn(token);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("filters last-turn-started lookups by kind so user turns cannot mask a dead wake path (item-17)", () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(1_000_000);
+      const userToken = beginTurn({ turnId: "user-1", kind: "user" });
+      vi.setSystemTime(1_000_000 + 60_000);
+      const heartbeatToken = beginTurn({ turnId: "hb-1", kind: "heartbeat" });
+      endDiagnosticAgentTurn(userToken);
+      endDiagnosticAgentTurn(heartbeatToken);
+      const anyKind = getLastDiagnosticAgentTurnStartedAt({ sessionKey: SESSION_KEY });
+      const heartbeatOnly = getLastDiagnosticAgentTurnStartedAt(
+        { sessionKey: SESSION_KEY },
+        ["heartbeat"],
+      );
+      expect(anyKind).toBe(1_000_000 + 60_000);
+      expect(heartbeatOnly).toBe(1_000_000 + 60_000);
+      // Now a user turn refreshes the unfiltered anchor but not the wake-path
+      // anchor — the watchdog filter keeps seeing the stale heartbeat.
+      vi.setSystemTime(1_000_000 + 120_000);
+      const userToken2 = beginTurn({ turnId: "user-2", kind: "user" });
+      endDiagnosticAgentTurn(userToken2);
+      expect(getLastDiagnosticAgentTurnStartedAt({ sessionKey: SESSION_KEY })).toBe(
+        1_000_000 + 120_000,
+      );
+      expect(
+        getLastDiagnosticAgentTurnStartedAt({ sessionKey: SESSION_KEY }, ["heartbeat"]),
+      ).toBe(1_000_000 + 60_000);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("detects overlap through sibling identities via the symmetric begin() resolution (item-17)", () => {
+    const errorSpy = vi.spyOn(diag, "error").mockImplementation(() => {});
+    // Registered under a session id identity (no sessionKey)...
+    beginDiagnosticAgentTurn({
+      turnId: "id-turn",
+      kind: "user",
+      sessionId: "session-shared",
+    });
+    // ...looked up by sessionKey: begin() must still see it as the active turn
+    // for the same session and raise the overlap alarm.
+    const token = beginDiagnosticAgentTurn({
+      turnId: "key-turn",
+      kind: "heartbeat",
+      sessionKey: SESSION_KEY,
+      sessionId: "session-shared",
+    });
+    expect(
+      errorSpy.mock.calls.some(
+        (call) => (call[0] ?? "").includes("[turn-overlap]") && (call[0] ?? "").includes("id-turn"),
+      ),
+    ).toBe(true);
+    endDiagnosticAgentTurn(token);
+  });
 });

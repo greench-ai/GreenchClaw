@@ -216,7 +216,16 @@ function traceSystemEventClaims(
   },
 ): void {
   const eventIds = events.map((event) => event.id ?? `ts:${event.ts}`).join(",");
-  const activeTurn = getActiveDiagnosticAgentTurn({ sessionKey: params.sessionKey });
+  // 2026-09-18 (item-17, ocr finding): this trace runs immediately before
+  // consumeSelectedSystemEventEntries on every consumption path — a tracker
+  // throw here must never break event consumption. The tracker getter is
+  // hardened internally, but keep the call site defensive too.
+  let activeTurn: ReturnType<typeof getActiveDiagnosticAgentTurn>;
+  try {
+    activeTurn = getActiveDiagnosticAgentTurn({ sessionKey: params.sessionKey });
+  } catch {
+    activeTurn = undefined;
+  }
   log.info(
     `[system-event-claim] claimPath=${params.claimPath} sessionKey=${params.sessionKey} eventIds=${eventIds} count=${events.length} source=${
       params.source ?? "unknown"
@@ -2659,12 +2668,17 @@ export function startHeartbeatRunner(opts: {
       // Anchor on REAL agent-turn activity (model-call level) for the agent's
       // heartbeat target session when it has ever observed a turn; otherwise
       // fall back to scheduler bookkeeping / the agent-state creation time.
+      // 2026-09-18 (item-17, ocr finding): filter to wake-path turn kinds —
+      // without the filter, active user/cron/memory conversations refresh the
+      // anchor and can mask a dead wake path for as long as the user keeps
+      // chatting.
       let lastRealTurnAtMs: number | undefined;
       try {
         const watchdogSession = resolveHeartbeatSession(state.cfg, agent.agentId, agent.heartbeat);
-        lastRealTurnAtMs = getLastDiagnosticAgentTurnStartedAt({
-          sessionKey: watchdogSession.sessionKey,
-        });
+        lastRealTurnAtMs = getLastDiagnosticAgentTurnStartedAt(
+          { sessionKey: watchdogSession.sessionKey },
+          ["heartbeat"],
+        );
       } catch {
         // Session resolution must never disarm the watchdog — fall through to
         // the bookkeeping anchors below.
