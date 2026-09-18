@@ -83,6 +83,7 @@ import { resolveOriginMessageProvider, resolveOriginMessageTo } from "./origin-r
 import { drainPendingToolTasks } from "./pending-tool-task-drain.js";
 import { readPostCompactionContext } from "./post-compaction-context.js";
 import { resolveActiveRunQueueAction } from "./queue-policy.js";
+import { recordReplyEngineNoop } from "./reply-engine-verdict.js";
 import {
   enqueueFollowupRun,
   refreshQueuedFollowupSession,
@@ -1147,6 +1148,13 @@ export async function runReplyAgent(params: {
     if (steerOutcome.queued && !effectiveShouldFollowup) {
       await touchActiveSessionEntry();
       typing.cleanup();
+      recordReplyEngineNoop({
+        sessionKey,
+        kind: "queue-steer",
+        verdict: "intentional",
+        reason: "turn steered into active streaming run",
+        isHeartbeat,
+      });
       return undefined;
     }
     if (!steerOutcome.queued) {
@@ -1179,6 +1187,24 @@ export async function runReplyAgent(params: {
 
   if (activeRunQueueAction === "drop") {
     typing.cleanup();
+    // 2026-09-18 (item-17): heartbeats are hard-dropped while a run is
+    // active on the session. If the active-run state leaks (turn-end
+    // bookkeeping failure), every heartbeat dies here with ZERO traces and
+    // the runner eats the wake/system events as `ok-empty` — the Sep 16/17
+    // stall class. Record the drop as a pre-model death so the runner can
+    // preserve the payload and surface the stall.
+    recordReplyEngineNoop({
+      sessionKey,
+      kind: "queue-drop",
+      verdict: "pre-model-death",
+      reason: "active run on session caused turn drop",
+      isHeartbeat,
+      detail: {
+        isStreaming,
+        queueMode: activeRunQueueMode,
+        shouldFollowup: effectiveShouldFollowup,
+      },
+    });
     return undefined;
   }
 
@@ -1203,6 +1229,13 @@ export async function runReplyAgent(params: {
     } else {
       typing.cleanup();
     }
+    recordReplyEngineNoop({
+      sessionKey,
+      kind: "queue-followup",
+      verdict: "intentional",
+      reason: "turn enqueued as followup behind active run",
+      isHeartbeat,
+    });
     return undefined;
   }
 

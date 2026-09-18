@@ -19,6 +19,7 @@ import { resolveEmbeddedSessionLane } from "../agents/pi-embedded-runner/lanes.j
 import { formatReasoningMessage } from "../agents/pi-embedded-utils.js";
 import { DEFAULT_HEARTBEAT_FILENAME } from "../agents/workspace.js";
 import { resolveHeartbeatReplyPayload } from "../auto-reply/heartbeat-reply-payload.js";
+import { resolveRecentReplyEngineNoop } from "../auto-reply/reply/reply-engine-verdict.js";
 import {
   getHeartbeatToolNotificationText,
   resolveHeartbeatToolResponseFromReplyResult,
@@ -1751,6 +1752,47 @@ export async function runHeartbeatOnce(opts: {
     const replyResult = await getReplyFromConfig(ctx, replyOpts, cfg);
     const heartbeatToolResponse = resolveHeartbeatToolResponseFromReplyResult(replyResult);
     const replyPayload = resolveHeartbeatReplyPayload(replyResult);
+    // 2026-09-18 (item-17 stall fix): the reply engine used to be able to
+    // return pre-model no-ops with zero diagnostics, and this runner
+    // misclassified them as ok-empty/ok-token — consuming the wake/system
+    // events and reporting `ran` while the agent never actually turned.
+    // Consult the recorded turn verdict: intentional noops (commands, hooks,
+    // queued turns) keep the legacy behavior; pre-model deaths must NOT
+    // consume events so the payload survives for the next run.
+    const replyEngineNoop = resolveRecentReplyEngineNoop({
+      sessionKey: runSessionKey,
+      sinceMs: startedAt,
+    });
+    if (replyEngineNoop?.verdict === "pre-model-death") {
+      await restoreHeartbeatUpdatedAt({
+        storePath,
+        sessionKey,
+        updatedAt: previousUpdatedAt,
+      });
+      const noopReason = `reply-engine-died-pre-model:${replyEngineNoop.kind}`;
+      log.error(
+        `[heartbeat] reply engine died pre-model (kind=${replyEngineNoop.kind} reason="${replyEngineNoop.reason}") — no events consumed, run failed; payload stays retryable`,
+        {
+          sessionKey: runSessionKey,
+          kind: replyEngineNoop.kind,
+          noopReason: replyEngineNoop.reason,
+          isHeartbeat: replyEngineNoop.isHeartbeat,
+          ...(replyEngineNoop.detail ?? {}),
+          replyHadText: Boolean(replyPayload?.text),
+          source: opts.source,
+          reason: opts.reason,
+        },
+      );
+      emitHeartbeatEvent({
+        status: "failed",
+        reason: noopReason,
+        durationMs: Date.now() - startedAt,
+        channel: delivery.channel !== "none" ? delivery.channel : undefined,
+        accountId: delivery.accountId,
+        indicatorType: visibility.useIndicator ? "error" : undefined,
+      });
+      return { status: "failed", reason: noopReason };
+    }
     const includeReasoning = heartbeat?.includeReasoning === true;
     const reasoningPayloads = includeReasoning
       ? resolveHeartbeatReasoningPayloads(replyResult).filter((payload) => payload !== replyPayload)

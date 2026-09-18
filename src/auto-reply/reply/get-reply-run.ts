@@ -69,6 +69,7 @@ import { buildReplyPromptEnvelope, buildReplyPromptEnvelopeBase } from "./prompt
 import { resolveActiveRunQueueAction } from "./queue-policy.js";
 import { resolveQueueSettings } from "./queue/settings-runtime.js";
 import { isSteeringQueueMode } from "./queue/steering.js";
+import { recordReplyEngineNoop } from "./reply-engine-verdict.js";
 import { resolveRuntimePolicySessionKey } from "./runtime-policy-session-key.js";
 import { resolveBareSessionResetPromptState } from "./session-reset-prompt.js";
 import { resolveBareResetBootstrapFileAccess } from "./session-reset-prompt.js";
@@ -564,6 +565,13 @@ export async function runPreparedReply(
     (hasControlCommand(rawBodyTrimmed, cfg) || isResetOrNewCommand)
   ) {
     typing.cleanup();
+    recordReplyEngineNoop({
+      sessionKey,
+      kind: "unauthorized-command",
+      verdict: "pre-model-death",
+      reason: "whole-message command from unauthorized sender dropped",
+      isHeartbeat,
+    });
     return undefined;
   }
   const isBareNewOrReset = /^\/(new|reset)$/.test(normalizedCommandBody);
@@ -633,7 +641,38 @@ export async function runPreparedReply(
     if (!suppressTyping) {
       await typing.onReplyStart();
     }
-    logVerbose("Inbound body empty after normalization; skipping agent run");
+    // 2026-09-18 (item-17): this path was production-invisible (logVerbose)
+    // and is the prime suspect of the heartbeat stall — the body pipeline
+    // silently normalized to empty, the model was never called, and the
+    // heartbeat runner ate the wake/system events as `ok-empty`. Promote to
+    // a loud noop verdict carrying the exact body-pipeline state so the
+    // next occurrence is diagnosable from the journal alone.
+    recordReplyEngineNoop({
+      sessionKey,
+      kind: "body-empty",
+      verdict: "pre-model-death",
+      reason: "inbound body empty after normalization; skipping agent run",
+      isHeartbeat,
+      detail: {
+        baseBodyLen: baseBodyFinal.length,
+        baseBodySource: sessionCtx.BodyStripped != null ? "BodyStripped" : sessionCtx.Body != null ? "Body" : "(none)",
+        bodyStrippedLen: sessionCtx.BodyStripped?.length ?? 0,
+        bodyLen: sessionCtx.Body?.length ?? 0,
+        bodyForAgentLen: sessionCtx.BodyForAgent?.length ?? 0,
+        commandBodyLen: sessionCtx.CommandBody?.length ?? 0,
+        rawBodyLen: sessionCtx.RawBody?.length ?? 0,
+        rawBodyTrimmedLen: rawBodyTrimmed.length,
+        softResetTriggered,
+        softResetTailLen: softResetTail.length,
+        isBareSessionReset,
+        isNewSession,
+        resetTriggered,
+        hasThreadHistory: hasInboundHistoryBody(sessionCtx),
+        bareResetPromptLen: bareResetPromptState?.prompt?.length ?? 0,
+        provider,
+        model,
+      },
+    });
     typing.cleanup();
     return {
       text: "I didn't receive any text in your message. Please resend or add a caption.",
@@ -767,6 +806,13 @@ export async function runPreparedReply(
     const explicitThink = directives.hasThinkDirective && directives.thinkLevel !== undefined;
     if (explicitThink) {
       typing.cleanup();
+      recordReplyEngineNoop({
+        sessionKey,
+        kind: "think-level-unsupported",
+        verdict: "intentional",
+        reason: `thinking level "${resolvedThinkLevel}" not supported for ${provider}/${model}`,
+        isHeartbeat,
+      });
       return {
         text: `Thinking level "${resolvedThinkLevel}" is not supported for ${provider}/${model}. Use one of: ${formatThinkingLevels(provider, model, ", ", thinkingCatalog)}.`,
       };
@@ -955,6 +1001,13 @@ export async function runPreparedReply(
     });
     if (queueState.kind === "reply") {
       typing.cleanup();
+      recordReplyEngineNoop({
+        sessionKey,
+        kind: "queue-busy",
+        verdict: "intentional",
+        reason: "active run still shutting down; queued turn rejected",
+        isHeartbeat,
+      });
       return queueState.reply;
     }
     ({ activeSessionId, isActive, isStreaming } = queueState.busyState);

@@ -44,6 +44,7 @@ import { finalizeInboundContext } from "./inbound-context.js";
 import { hasInboundMedia } from "./inbound-media.js";
 import { emitPreAgentMessageHooks } from "./message-preprocess-hooks.js";
 import { createFastTestModelSelectionState } from "./model-selection.js";
+import { recordReplyEngineNoop } from "./reply-engine-verdict.js";
 import { initSessionState } from "./session.js";
 import {
   isStaleHeartbeatAutoFallbackOverride,
@@ -314,6 +315,13 @@ export async function getReplyFromConfig(
       }),
   );
   if (nativeSlashCommandFastReply.handled) {
+    recordReplyEngineNoop({
+      sessionKey: agentSessionKey,
+      kind: "native-slash-command",
+      verdict: "intentional",
+      reason: "native slash command handled on fast path",
+      isHeartbeat: opts?.isHeartbeat === true,
+    });
     return nativeSlashCommandFastReply.reply;
   }
 
@@ -450,6 +458,13 @@ export async function getReplyFromConfig(
             }),
           });
         }
+        recordReplyEngineNoop({
+          sessionKey: agentSessionKey,
+          kind: "pending-final-delivery",
+          verdict: "intentional",
+          reason: "replayed pending final delivery from previous turn",
+          isHeartbeat: true,
+        });
         return { text: heartbeatPending.replayText };
       }
     }
@@ -656,6 +671,13 @@ export async function getReplyFromConfig(
     }),
   );
   if (directiveResult.kind === "reply") {
+    recordReplyEngineNoop({
+      sessionKey: agentSessionKey,
+      kind: "directive-reply",
+      verdict: "intentional",
+      reason: "reply directive resolved the turn without the model",
+      isHeartbeat: opts?.isHeartbeat === true,
+    });
     return directiveResult.reply;
   }
 
@@ -756,6 +778,13 @@ export async function getReplyFromConfig(
   );
   if (inlineActionResult.kind === "reply") {
     await maybeEmitMissingResetHooks();
+    recordReplyEngineNoop({
+      sessionKey: agentSessionKey,
+      kind: "inline-action-reply",
+      verdict: "intentional",
+      reason: "inline action resolved the turn without the model",
+      isHeartbeat: opts?.isHeartbeat === true,
+    });
     return inlineActionResult.reply;
   }
   await maybeEmitMissingResetHooks();
@@ -791,6 +820,13 @@ export async function getReplyFromConfig(
         ),
       );
       if (hookResult?.handled) {
+        recordReplyEngineNoop({
+          sessionKey: agentSessionKey,
+          kind: "before-agent-reply-hook",
+          verdict: "intentional",
+          reason: "before_agent_reply hook handled the turn",
+          isHeartbeat: opts?.isHeartbeat === true,
+        });
         return hookResult.reply ?? { text: SILENT_REPLY_TOKEN };
       }
     }
