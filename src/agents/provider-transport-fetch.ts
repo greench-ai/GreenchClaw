@@ -26,6 +26,101 @@ import {
 const DEFAULT_MAX_SDK_RETRY_WAIT_SECONDS = 60;
 const log = createSubsystemLogger("provider-transport-fetch");
 
+/**
+ * Pre-flight payload guard (2026-09-18, item-17 / Gohan's diagnosis):
+ * subagent turns were inlining huge media (a 43MB wav → 100–150MB JSON
+ * bodies) and the transport kept uploading until the 120s idle watchdog
+ * killed the socket mid-upload, then the SDK retried on the same dead
+ * socket — turning a bad payload into a stall. Fail fast instead: requests
+ * larger than this limit are rejected before the upload starts, with an
+ * error naming the oversized attachment. Override with
+ * GREENCHCLAW_MAX_MODEL_REQUEST_BODY_MB (0 disables the guard).
+ */
+const DEFAULT_MAX_MODEL_REQUEST_BODY_BYTES = 10 * 1024 * 1024;
+const MODEL_REQUEST_BODY_GUARD_DISABLED = Symbol.for(
+  "GreenchClaw.modelRequestBodyGuard.disabledForTest",
+);
+
+function resolveMaxModelRequestBodyBytes(): number {
+  if ((globalThis as Record<symbol, unknown>)[MODEL_REQUEST_BODY_GUARD_DISABLED] === true) {
+    return Number.POSITIVE_INFINITY;
+  }
+  const raw = process.env.GREENCHCLAW_MAX_MODEL_REQUEST_BODY_MB?.trim();
+  if (!raw) {
+    return DEFAULT_MAX_MODEL_REQUEST_BODY_BYTES;
+  }
+  const mb = Number.parseFloat(raw);
+  if (!Number.isFinite(mb)) {
+    return DEFAULT_MAX_MODEL_REQUEST_BODY_BYTES;
+  }
+  if (mb <= 0) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return Math.floor(mb * 1024 * 1024);
+}
+
+/** Best-effort pointer at the oversized attachment inside a JSON body. */
+function describeLargestBodyField(bodyText: string): string {
+  try {
+    const parsed: unknown = JSON.parse(bodyText);
+    let largest: { keyPath: string; bytes: number } | undefined;
+    const walk = (value: unknown, keyPath: string): void => {
+      if (typeof value === "string") {
+        const bytes = Buffer.byteLength(value, "utf8");
+        if (!largest || bytes > largest.bytes) {
+          largest = { keyPath, bytes };
+        }
+        return;
+      }
+      if (Array.isArray(value)) {
+        value.forEach((entry, idx) => walk(entry, `${keyPath}[${idx}]`));
+        return;
+      }
+      if (value && typeof value === "object") {
+        for (const [key, entry] of Object.entries(value)) {
+          walk(entry, keyPath ? `${keyPath}.${key}` : key);
+        }
+      }
+    };
+    walk(parsed, "");
+    if (!largest) {
+      return "";
+    }
+    return ` — largest field ${largest.keyPath} (~${Math.round(
+      largest.bytes / 1024,
+    )}KB) is the likely oversized attachment`;
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Upload-aware idle timeout (item-17): the guarded-fetch timeout only
+ * refreshes on response bytes, so a slow upload looks identical to a silent
+ * server. Scale the timeout by body size (floor 256KB/s) so an in-progress
+ * upload cannot be killed mid-flight, while genuinely silent servers keep
+ * the configured timeout for small bodies.
+ */
+const UPLOAD_FLOOR_BYTES_PER_SECOND = 256 * 1024;
+// Bodies at or under one second of floor-rate upload time are negligible
+// against any configured timeout — they keep the exact configured timeout.
+const UPLOAD_ALLOWANCE_MIN_BYTES = UPLOAD_FLOOR_BYTES_PER_SECOND;
+
+function resolveUploadAwareTimeoutMs(params: {
+  requestTimeoutMs: number | undefined;
+  bodyBytes: number | undefined;
+}): number | undefined {
+  const { requestTimeoutMs, bodyBytes } = params;
+  if (requestTimeoutMs === undefined || bodyBytes === undefined) {
+    return requestTimeoutMs;
+  }
+  if (bodyBytes <= UPLOAD_ALLOWANCE_MIN_BYTES) {
+    return requestTimeoutMs;
+  }
+  const uploadExtraMs = Math.ceil(bodyBytes / UPLOAD_FLOOR_BYTES_PER_SECOND) * 1000;
+  return requestTimeoutMs + uploadExtraMs;
+}
+
 function hasReadableSseData(block: string): boolean {
   const dataLines = block
     .split(/\r\n|\n|\r/)
@@ -472,6 +567,38 @@ export function buildGuardedModelFetch(
         ...(request.body ? ({ duplex: "half" } as const) : {}),
       } satisfies RequestInit & { duplex?: "half" });
     const synthesizeJsonAsSse = await requestBodyHasStreamTrue(request, requestInit ?? init);
+    // 2026-09-18 (item-17): pre-flight payload-size guard + upload-aware
+    // timeout. String JSON bodies (the OpenAI-compat SDK path) are measured
+    // before dispatch; Request objects with streamed bodies skip measurement
+    // (the body cannot be re-read safely).
+    const bodyText =
+      typeof (requestInit ?? init)?.body === "string"
+        ? ((requestInit ?? init)?.body as string)
+        : undefined;
+    const bodyBytes = bodyText !== undefined ? Buffer.byteLength(bodyText, "utf8") : undefined;
+    const maxBodyBytes = resolveMaxModelRequestBodyBytes();
+    if (bodyBytes !== undefined && bodyBytes > maxBodyBytes) {
+      const hint = describeLargestBodyField(bodyText ?? "");
+      const message = `Model request payload too large: ${(
+        bodyBytes /
+        (1024 * 1024)
+      ).toFixed(1)}MB exceeds the ${Math.round(maxBodyBytes / (1024 * 1024))}MB limit${hint}. Attach smaller media or reference files by path instead of inlining them.`;
+      log.error(
+        `[model-fetch-payload-guard] blocked oversized request provider=${model.provider} api=${model.api} model=${model.id} bodyBytes=${bodyBytes} limitBytes=${maxBodyBytes}${hint}`,
+        {
+          provider: model.provider,
+          api: model.api,
+          model: model.id,
+          bodyBytes,
+          limitBytes: maxBodyBytes,
+        },
+      );
+      throw new Error(message);
+    }
+    const uploadAwareTimeoutMs = resolveUploadAwareTimeoutMs({
+      requestTimeoutMs,
+      bodyBytes,
+    });
     const guardedFetchOptions = {
       url,
       init: requestInit ?? init,
@@ -483,7 +610,7 @@ export function buildGuardedModelFetch(
         },
       },
       dispatcherPolicy,
-      timeoutMs: requestTimeoutMs,
+      timeoutMs: uploadAwareTimeoutMs,
       // Provider transport intentionally keeps the secure default and never
       // replays unsafe request bodies across cross-origin redirects.
       allowCrossOriginUnsafeRedirectReplay: false,
@@ -495,7 +622,8 @@ export function buildGuardedModelFetch(
     emitModelTransportDebug(
       log,
       `[model-fetch] start provider=${model.provider} api=${model.api} model=${model.id} ` +
-        `method=${(requestInit ?? init)?.method ?? "GET"} url=${formatModelTransportDebugUrl(url)} timeoutMs=${requestTimeoutMs} ` +
+        `method=${(requestInit ?? init)?.method ?? "GET"} url=${formatModelTransportDebugUrl(url)} timeoutMs=${uploadAwareTimeoutMs} ` +
+        `bodyBytes=${bodyBytes ?? "unknown"} ` +
         `proxy=${dispatcherPolicy ? "configured" : useEnvProxy ? "env" : "none"} ` +
         `policy=${policy ? "custom" : "default"}`,
     );

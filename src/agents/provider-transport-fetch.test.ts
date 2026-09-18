@@ -792,4 +792,78 @@ describe("buildGuardedModelFetch", () => {
       expect(response.headers.get("x-should-retry")).toBeNull();
     });
   });
+
+  describe("pre-flight payload-size guard (item-17)", () => {
+    const guardTestModel = {
+      id: "glm-5.3-flash",
+      provider: "ollama",
+      api: "openai-completions",
+      baseUrl: "http://localhost:11434/v1",
+    } as unknown as Model<"openai-completions">;
+
+    it("fails fast with a clear error when the request body exceeds the limit", async () => {
+      const fetcher = buildGuardedModelFetch(guardTestModel);
+      const hugeBody = JSON.stringify({
+        model: "glm-5.3-flash",
+        messages: [
+          { role: "user", content: [{ type: "text", text: "x".repeat(11 * 1024 * 1024) }] },
+        ],
+      });
+      await expect(
+        fetcher("http://localhost:11434/v1/chat/completions", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: hugeBody,
+        }),
+      ).rejects.toThrow(/payload too large.*messages\[0\].content\[0\].text/);
+      expect(fetchWithSsrFGuardMock).not.toHaveBeenCalled();
+    });
+
+    it("allows bodies under the limit and passes body metadata to the guarded fetch", async () => {
+      const fetcher = buildGuardedModelFetch(guardTestModel);
+      const smallBody = JSON.stringify({ model: "glm-5.3-flash", messages: [] });
+      await fetcher("http://localhost:11434/v1/chat/completions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: smallBody,
+      });
+      expect(fetchWithSsrFGuardMock).toHaveBeenCalled();
+    });
+
+    it("scales the idle timeout for large uploads so slow uploads are not killed mid-flight", async () => {
+      const model = {
+        ...guardTestModel,
+        requestTimeoutMs: 120_000,
+      } as unknown as Model<"openai-completions">;
+      const fetcher = buildGuardedModelFetch(model);
+      // ~4MB body: expect timeout >= 120s base + 16s upload allowance (256KB/s floor).
+      const body = JSON.stringify({
+        model: "glm-5.3-flash",
+        messages: [{ role: "user", content: "y".repeat(4 * 1024 * 1024) }],
+      });
+      await fetcher("http://localhost:11434/v1/chat/completions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body,
+      });
+      const params = latestGuardedFetchParams();
+      const timeoutMs = params.timeoutMs as number;
+      expect(timeoutMs).toBeGreaterThanOrEqual(120_000 + 16_000);
+    });
+
+    it("keeps the configured timeout for small bodies", async () => {
+      const model = {
+        ...guardTestModel,
+        requestTimeoutMs: 120_000,
+      } as unknown as Model<"openai-completions">;
+      const fetcher = buildGuardedModelFetch(model);
+      await fetcher("http://localhost:11434/v1/chat/completions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ hi: true }),
+      });
+      const params = latestGuardedFetchParams();
+      expect(params.timeoutMs).toBe(120_000);
+    });
+  });
 });
