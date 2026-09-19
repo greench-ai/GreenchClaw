@@ -59,12 +59,30 @@ function resolveMaxModelRequestBodyBytes(): number {
   return Math.floor(mb * 1024 * 1024);
 }
 
+/**
+ * Bounds for the failure-path hint (item-17b, ocr finding): the guard used to
+ * JSON.parse the entire oversized body to name the offending field — a
+ * 100–150MB parse doubles peak memory on the failure path and the walk had
+ * unbounded recursion. Bodies beyond LARGEST_FIELD_HINT_MAX_BYTES skip the
+ * parse entirely (constant note instead); the walk is depth-bounded.
+ */
+const LARGEST_FIELD_HINT_MAX_BYTES = 64 * 1024 * 1024;
+const LARGEST_FIELD_HINT_MAX_DEPTH = 10;
+/** Smallest field the hint will blame — naming a ~0KB field for an 11MB body is noise. */
+const LARGEST_FIELD_HINT_MIN_BYTES = 64 * 1024;
+
 /** Best-effort pointer at the oversized attachment inside a JSON body. */
 function describeLargestBodyField(bodyText: string): string {
+  if (Buffer.byteLength(bodyText, "utf8") > LARGEST_FIELD_HINT_MAX_BYTES) {
+    return " — body too large to analyze for the offending field";
+  }
   try {
     const parsed: unknown = JSON.parse(bodyText);
     let largest: { keyPath: string; bytes: number } | undefined;
-    const walk = (value: unknown, keyPath: string): void => {
+    const walk = (value: unknown, keyPath: string, depth: number): void => {
+      if (depth > LARGEST_FIELD_HINT_MAX_DEPTH) {
+        return;
+      }
       if (typeof value === "string") {
         const bytes = Buffer.byteLength(value, "utf8");
         if (!largest || bytes > largest.bytes) {
@@ -73,17 +91,17 @@ function describeLargestBodyField(bodyText: string): string {
         return;
       }
       if (Array.isArray(value)) {
-        value.forEach((entry, idx) => walk(entry, `${keyPath}[${idx}]`));
+        value.forEach((entry, idx) => walk(entry, `${keyPath}[${idx}]`, depth + 1));
         return;
       }
       if (value && typeof value === "object") {
         for (const [key, entry] of Object.entries(value)) {
-          walk(entry, keyPath ? `${keyPath}.${key}` : key);
+          walk(entry, keyPath ? `${keyPath}.${key}` : key, depth + 1);
         }
       }
     };
-    walk(parsed, "");
-    if (!largest) {
+    walk(parsed, "", 0);
+    if (!largest || largest.bytes < LARGEST_FIELD_HINT_MIN_BYTES) {
       return "";
     }
     return ` — largest field ${largest.keyPath} (~${Math.round(

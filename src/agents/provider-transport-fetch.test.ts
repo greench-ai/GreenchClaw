@@ -918,5 +918,60 @@ describe("buildGuardedModelFetch", () => {
       const params = latestGuardedFetchParams();
       expect(params.timeoutMs).toBe(120_000);
     });
+
+    it("honors the disabledForTest symbol escape hatch (item-17b: previously read but never written)", async () => {
+      const fetcher = buildGuardedModelFetch(guardTestModel);
+      const symbol = Symbol.for("GreenchClaw.modelRequestBodyGuard.disabledForTest");
+      (globalThis as Record<symbol, unknown>)[symbol] = true;
+      try {
+        await fetcher("http://localhost:11434/v1/chat/completions", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: "x".repeat(11 * 1024 * 1024),
+        });
+        expect(fetchWithSsrFGuardMock).toHaveBeenCalled();
+      } finally {
+        delete (globalThis as Record<symbol, unknown>)[symbol];
+      }
+    });
+
+    it("bounds the failure-path hint walk at max depth — deep oversized fields produce no bogus hint (item-17b)", async () => {
+      const fetcher = buildGuardedModelFetch(guardTestModel);
+      // 60 levels deep: far past LARGEST_FIELD_HINT_MAX_DEPTH (10).
+      let deep: unknown = { text: "d".repeat(11 * 1024 * 1024) };
+      for (let level = 0; level < 60; level += 1) {
+        deep = { nest: deep };
+      }
+      const response = await fetcher("http://localhost:11434/v1/chat/completions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ model: "glm-5.3-flash", messages: deep }),
+      });
+      expect(response.status).toBe(413);
+      const errorBody = JSON.parse(await response.text()) as {
+        error: { message: string };
+      };
+      expect(errorBody.error.message).toMatch(/payload too large/);
+      expect(errorBody.error.message).not.toMatch(/largest field/);
+    });
+
+    it("skips the hint parse entirely for pathological bodies instead of doubling peak memory (item-17b)", async () => {
+      const fetcher = buildGuardedModelFetch(guardTestModel);
+      const response = await fetcher("http://localhost:11434/v1/chat/completions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          model: "glm-5.3-flash",
+          messages: [{ role: "user", content: "x".repeat(70 * 1024 * 1024) }],
+        }),
+      });
+      expect(response.status).toBe(413);
+      const errorBody = JSON.parse(await response.text()) as {
+        error: { message: string };
+      };
+      expect(errorBody.error.message).toMatch(
+        /body too large to analyze for the offending field/,
+      );
+    });
   });
 });

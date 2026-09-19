@@ -757,26 +757,36 @@ async function restoreHeartbeatUpdatedAt(params: {
   if (typeof updatedAt !== "number") {
     return;
   }
-  const store = loadSessionStore(storePath);
-  const entry = store[sessionKey];
-  if (!entry) {
-    return;
-  }
-  const nextUpdatedAt = Math.max(entry.updatedAt ?? 0, updatedAt);
-  if (entry.updatedAt === nextUpdatedAt) {
-    return;
-  }
-  await updateSessionStore(storePath, (nextStore) => {
-    const nextEntry = nextStore[sessionKey] ?? entry;
-    if (!nextEntry) {
+  try {
+    const store = loadSessionStore(storePath);
+    const entry = store[sessionKey];
+    if (!entry) {
       return;
     }
-    const resolvedUpdatedAt = Math.max(nextEntry.updatedAt ?? 0, updatedAt);
-    if (nextEntry.updatedAt === resolvedUpdatedAt) {
+    const nextUpdatedAt = Math.max(entry.updatedAt ?? 0, updatedAt);
+    if (entry.updatedAt === nextUpdatedAt) {
       return;
     }
-    nextStore[sessionKey] = { ...nextEntry, updatedAt: resolvedUpdatedAt };
-  });
+    await updateSessionStore(storePath, (nextStore) => {
+      const nextEntry = nextStore[sessionKey] ?? entry;
+      if (!nextEntry) {
+        return;
+      }
+      const resolvedUpdatedAt = Math.max(nextEntry.updatedAt ?? 0, updatedAt);
+      if (nextEntry.updatedAt === resolvedUpdatedAt) {
+        return;
+      }
+      nextStore[sessionKey] = { ...nextEntry, updatedAt: resolvedUpdatedAt };
+    });
+  } catch (error) {
+    // item-17b (ocr finding): this restore runs inside stall-class failure
+    // paths — a thrown store error here would replace the stall-specific
+    // noopReason with a generic store failure. Restoring the previous
+    // updatedAt is best-effort bookkeeping; log and never propagate.
+    log.warn(
+      `[heartbeat] restoreHeartbeatUpdatedAt failed — bookkeeping only, original failure preserved sessionKey=${sessionKey} updatedAt=${updatedAt}: ${formatErrorMessage(error)}`,
+    );
+  }
 }
 
 function stripLeadingHeartbeatResponsePrefix(

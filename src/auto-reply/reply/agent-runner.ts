@@ -1188,15 +1188,18 @@ export async function runReplyAgent(params: {
   if (activeRunQueueAction === "drop") {
     typing.cleanup();
     // 2026-09-18 (item-17): heartbeats are hard-dropped while a run is
-    // active on the session. If the active-run state leaks (turn-end
-    // bookkeeping failure), every heartbeat dies here with ZERO traces and
-    // the runner eats the wake/system events as `ok-empty` — the Sep 16/17
-    // stall class. Record the drop as a pre-model death so the runner can
-    // preserve the payload and surface the stall.
+    // active on the session — a DESIGNED queue policy (the active run owns
+    // the lane; a live user turn refreshes the stall-watchdog anchor by
+    // itself). 2026-09-19 (item-17b, ocr finding #3): this was first recorded
+    // as a pre-model death, which turned intended behavior into a retry
+    // storm — error-level logs, failed run, updatedAt restored, immediate
+    // re-dispatch, dropped again. The leaked-active-run stall class this
+    // verdict tried to surface is now caught by the stall-watchdog + turn
+    // tracker instead. Record the drop as intentional.
     recordReplyEngineNoop({
       sessionKey,
       kind: "queue-drop",
-      verdict: "pre-model-death",
+      verdict: "intentional",
       reason: "active run on session caused turn drop",
       isHeartbeat,
       detail: {

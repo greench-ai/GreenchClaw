@@ -565,10 +565,14 @@ export async function runPreparedReply(
     (hasControlCommand(rawBodyTrimmed, cfg) || isResetOrNewCommand)
   ) {
     typing.cleanup();
+    // 2026-09-19 (item-17b, ocr finding): designed security policy — a
+    // whole-message control command from an unauthorized sender is dropped
+    // before the model. Recorded as intentional (was pre-model-death, which
+    // mislabeled a designed drop as a stall-class failure at ERROR level).
     recordReplyEngineNoop({
       sessionKey,
       kind: "unauthorized-command",
-      verdict: "pre-model-death",
+      verdict: "intentional",
       reason: "whole-message command from unauthorized sender dropped",
       isHeartbeat,
     });
