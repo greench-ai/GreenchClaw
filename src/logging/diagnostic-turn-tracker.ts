@@ -250,17 +250,23 @@ function recordLastTurnStartedAt(params: {
   const now = Date.now();
   for (const refKey of turnStartedAtRefs(params)) {
     let byKind = state.lastTurnStartedAtByRef.get(refKey);
-    if (!byKind) {
+    if (byKind) {
+      // item-17b (Map insertion-order LRU fix): Map keeps an existing key's
+      // original position on set(), so the prune below used to evict the
+      // longest-lived continuously-updated refs first — including the
+      // heartbeat ref the stall watchdog anchors on. Delete+re-set refreshes
+      // insertion order on update, making the prune true LRU.
+      state.lastTurnStartedAtByRef.delete(refKey);
+    } else {
       byKind = new Map();
-      state.lastTurnStartedAtByRef.set(refKey, byKind);
     }
+    state.lastTurnStartedAtByRef.set(refKey, byKind);
     byKind.set(params.kind, now);
   }
   if (state.lastTurnStartedAtByRef.size > LAST_TURN_STARTED_REF_LIMIT) {
-    // Insertion-order prune: drop the oldest-inserted entries. Updated keys
-    // keep their original insertion position, so this is approximate FIFO —
-    // good enough for a bounded diagnostic ring that previously grew
-    // without any limit.
+    // Insertion-order prune — true LRU after the delete+re-set fix above:
+    // drops the least-recently-updated entries, so continuously-active refs
+    // (the heartbeat session) survive while dormant ones age out.
     const excess = state.lastTurnStartedAtByRef.size - LAST_TURN_STARTED_REF_LIMIT;
     const iterator = state.lastTurnStartedAtByRef.keys();
     for (let idx = 0; idx < excess; idx += 1) {
@@ -329,51 +335,73 @@ export function beginDiagnosticAgentTurn(params: DiagnosticAgentTurn): TrackedDi
     // (canonical identity + sibling-ref scan).
     const activeEntry = resolveActiveTurn(state, { sessionId, sessionKey });
     const active = activeEntry?.turn;
+    // Capture alarm info WITHOUT emitting (item-17b emission ordering): the
+    // emissions used to run inside this try block BEFORE the registration
+    // writes — if an emission threw, the bare catch below swallowed it and
+    // the new turn was never registered, silently disarming the stall
+    // watchdog anchor at the exact moment the overlap detector fired.
+    let staleEviction: { turn: ActiveDiagnosticAgentTurn; ageMs: number } | undefined;
+    let overlap: { turn: ActiveDiagnosticAgentTurn; ageMs: number } | undefined;
     if (active && active.turnId !== params.turnId) {
       const activeAgeMs = Date.now() - active.startedAt;
       if (activeAgeMs > TURN_STALENESS_LIMIT_MS) {
+        // Staleness eviction (item-17): a turn that began but never ended
+        // (crashed or hung run) would otherwise stay "active" forever — ghost
+        // entries break overlap semantics and lie to wake-claim traces about
+        // which turn is active. Evict loudly. Resolution is symmetric with
+        // getActive() (canonical identity + sibling-ref scan).
         state.activeByIdentity.delete(activeEntry.identity);
-        diag.warn(
-          `[turn-stale-evicted] sessionId=${sessionId ?? "unknown"} sessionKey=${
-            sessionKey ?? "unknown"
-          } evictedTurnId=${active.turnId} evictedKind=${active.kind} ageMs=${Math.round(
-            activeAgeMs,
-          )} reason=turn never ended within staleness limit`,
-          {
-            evictedTurnId: active.turnId,
-            evictedKind: active.kind,
-            startedAt: active.startedAt,
-          },
-        );
+        staleEviction = { turn: active, ageMs: activeAgeMs };
       } else {
-        // HEADLINE DETECTOR: a second turn is starting while another turn is
-        // live on the same session. The session lane should make this
-        // impossible — if this fires, lane serialization was bypassed
-        // (concurrent handler dispatch, lane concurrency override, or an
-        // enqueue override). Always journaled (safety alarm), not gated on
-        // the diagnostics flag.
-        const message = `[turn-overlap] sessionId=${sessionId ?? "unknown"} sessionKey=${
-          sessionKey ?? "unknown"
-        } newTurnId=${params.turnId} newKind=${kind} activeTurnId=${active.turnId} activeKind=${
-          active.kind
-        } activeStartedAt=${active.startedAt} activeAgeMs=${Math.round(activeAgeMs)}`;
-        diag.error(message);
-        if (areDiagnosticsEnabledForProcess()) {
-          emitDiagnosticEvent({
-            type: "agentTurn.overlap",
-            sessionId,
-            sessionKey,
-            newTurnId: params.turnId,
-            newTurnKind: kind,
-            activeTurnId: active.turnId,
-            activeTurnKind: active.kind,
-            activeStartedAt: active.startedAt,
-          });
-        }
+        overlap = { turn: active, ageMs: activeAgeMs };
       }
     }
+    // State mutations first, emissions after: the new turn is registered and
+    // the watchdog anchor (recordLastTurnStartedAt) is refreshed before any
+    // journal/diagnostic emission runs.
     state.activeByIdentity.set(identity, turn);
     recordLastTurnStartedAt({ sessionId, sessionKey, kind });
+
+    if (staleEviction) {
+      diag.warn(
+        `[turn-stale-evicted] sessionId=${sessionId ?? "unknown"} sessionKey=${
+          sessionKey ?? "unknown"
+        } evictedTurnId=${staleEviction.turn.turnId} evictedKind=${
+          staleEviction.turn.kind
+        } ageMs=${Math.round(staleEviction.ageMs)} reason=turn never ended within staleness limit`,
+        {
+          evictedTurnId: staleEviction.turn.turnId,
+          evictedKind: staleEviction.turn.kind,
+          startedAt: staleEviction.turn.startedAt,
+        },
+      );
+    }
+    if (overlap) {
+      // HEADLINE DETECTOR: a second turn is starting while another turn is
+      // live on the same session. The session lane should make this
+      // impossible — if this fires, lane serialization was bypassed
+      // (concurrent handler dispatch, lane concurrency override, or an
+      // enqueue override). Always journaled (safety alarm), not gated on
+      // the diagnostics flag.
+      const message = `[turn-overlap] sessionId=${sessionId ?? "unknown"} sessionKey=${
+        sessionKey ?? "unknown"
+      } newTurnId=${params.turnId} newKind=${kind} activeTurnId=${overlap.turn.turnId} activeKind=${
+        overlap.turn.kind
+      } activeStartedAt=${overlap.turn.startedAt} activeAgeMs=${Math.round(overlap.ageMs)}`;
+      diag.error(message);
+      if (areDiagnosticsEnabledForProcess()) {
+        emitDiagnosticEvent({
+          type: "agentTurn.overlap",
+          sessionId,
+          sessionKey,
+          newTurnId: params.turnId,
+          newTurnKind: kind,
+          activeTurnId: overlap.turn.turnId,
+          activeTurnKind: overlap.turn.kind,
+          activeStartedAt: overlap.turn.startedAt,
+        });
+      }
+    }
     if (areDiagnosticsEnabledForProcess()) {
       const queueDepth =
         params.queueDepth ??

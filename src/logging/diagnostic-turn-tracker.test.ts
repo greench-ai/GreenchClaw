@@ -342,4 +342,67 @@ describe("diagnostic turn tracker", () => {
     ).toBe(true);
     endDiagnosticAgentTurn(token);
   });
+
+  it("still registers the new turn when the overlap alarm emission throws (item-17b emission ordering)", () => {
+    vi.spyOn(diag, "error").mockImplementation(() => {
+      throw new Error("emission explosion");
+    });
+    beginTurn({ turnId: "turn-a", kind: "user" });
+    // Overlap: turn-b begins while turn-a is live and the alarm emission throws.
+    const turnB = beginTurn({ turnId: "turn-b", kind: "heartbeat" });
+    // The turn must still be registered and the watchdog anchor refreshed —
+    // an emission failure must not disarm the stall detector (the exact
+    // failure mode the ocr review flagged for item-17b).
+    expect(getActiveDiagnosticAgentTurn({ sessionKey: SESSION_KEY })?.turnId).toBe("turn-b");
+    expect(
+      getLastDiagnosticAgentTurnStartedAt({ sessionKey: SESSION_KEY }, ["heartbeat"]),
+    ).toBeDefined();
+    endDiagnosticAgentTurn(turnB);
+  });
+
+  it("still registers the new turn when the stale-eviction emission throws (item-17b emission ordering)", () => {
+    const warnSpy = vi.spyOn(diag, "warn").mockImplementation(() => {
+      throw new Error("warn emission explosion");
+    });
+    // Seed a ghost turn older than the staleness limit by starting it, then
+    // rewinding its startedAt through the active map.
+    beginTurn({ turnId: "ghost-turn", kind: "user" });
+    const state = (
+      globalThis as unknown as {
+        [key: symbol]: { activeByIdentity: Map<string, { startedAt: number }> };
+      }
+    )[Symbol.for("GreenchClaw.diagnosticTurnTracker")];
+    for (const turn of state.activeByIdentity.values()) {
+      turn.startedAt = Date.now() - 61 * 60_000;
+    }
+    const fresh = beginTurn({ turnId: "fresh-turn", kind: "heartbeat" });
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    // Registration survived the throwing stale-eviction warn.
+    expect(getActiveDiagnosticAgentTurn({ sessionKey: SESSION_KEY })?.turnId).toBe("fresh-turn");
+    expect(
+      getLastDiagnosticAgentTurnStartedAt({ sessionKey: SESSION_KEY }, ["heartbeat"]),
+    ).toBeDefined();
+    endDiagnosticAgentTurn(fresh);
+  });
+
+  it("prunes least-recently-updated refs, not oldest-inserted (item-17b Map LRU fix)", () => {
+    const beginRef = (key: string) =>
+      beginDiagnosticAgentTurn({ turnId: `t-${key}`, kind: "user", sessionKey: key });
+    // Fill the ref ring to its bound: one refKey per distinct session key.
+    for (let idx = 0; idx < 512; idx += 1) {
+      const token = beginRef(`sess-${idx}`);
+      endDiagnosticAgentTurn(token);
+    }
+    // Refresh the very first ref — with true LRU it becomes the most recent.
+    const refreshed = beginRef("sess-0");
+    endDiagnosticAgentTurn(refreshed);
+    // One more ref pushes the ring over the bound; the prune must evict the
+    // least-recently-UPDATED ref (sess-1), not the refreshed sess-0. Under
+    // the old FIFO prune, sess-0 kept its original insertion position and
+    // was evicted first — losing the heartbeat anchor the watchdog needs.
+    beginRef("extra-ref");
+    expect(getLastDiagnosticAgentTurnStartedAt({ sessionKey: "sess-0" })).toBeDefined();
+    expect(getLastDiagnosticAgentTurnStartedAt({ sessionKey: "sess-1" })).toBeUndefined();
+    expect(getLastDiagnosticAgentTurnStartedAt({ sessionKey: "extra-ref" })).toBeDefined();
+  });
 });
