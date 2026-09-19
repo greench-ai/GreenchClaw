@@ -90,4 +90,49 @@ describe("reply-engine verdict ring (item-17)", () => {
     expect(entry?.kind).toBe("body-empty");
     expect(getRecentReplyEngineNoopsForTest()).toHaveLength(2);
   });
+
+  it("does not let other sessions' traffic evict a session's pre-model-death (item-17b HIGH)", () => {
+    const before = Date.now();
+    // Flood the ring with entries from OTHER sessions — far beyond the 32 cap.
+    for (let i = 0; i < 40; i += 1) {
+      recordReplyEngineNoop({
+        sessionKey: `agent:other-${i % 4}`,
+        kind: "native-slash-command",
+        verdict: "intentional",
+        reason: `flood-${i}`,
+        isHeartbeat: false,
+      });
+    }
+    // A genuine pre-model-death on the watched session AFTER the flood.
+    recordReplyEngineNoop({
+      sessionKey: "agent:main",
+      kind: "body-empty",
+      verdict: "pre-model-death",
+      reason: "must survive the flood",
+      isHeartbeat: true,
+    });
+    const entry = resolveRecentReplyEngineNoop({
+      sessionKey: "agent:main",
+      sinceMs: before,
+    });
+    expect(entry?.kind).toBe("body-empty");
+    expect(entry?.verdict).toBe("pre-model-death");
+    expect(entry?.reason).toBe("must survive the flood");
+  });
+
+  it("caps each session's ring independently", () => {
+    for (let i = 0; i < 40; i += 1) {
+      recordReplyEngineNoop({
+        sessionKey: "agent:main",
+        kind: "queue-busy",
+        verdict: "intentional",
+        reason: `burst-${i}`,
+        isHeartbeat: false,
+      });
+    }
+    // Session main's ring is capped at 32; another session's ring stays empty.
+    const mainEntries = getRecentReplyEngineNoopsForTest().filter((e) => e.sessionKey === "agent:main");
+    expect(mainEntries).toHaveLength(32);
+    expect(mainEntries[0]?.reason).toBe("burst-8");
+  });
 });

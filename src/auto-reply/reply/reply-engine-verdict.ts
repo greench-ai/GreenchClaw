@@ -77,19 +77,36 @@ export type RecordReplyEngineNoopParams = {
 const REPLY_ENGINE_NOOP_STATE_KEY = Symbol.for("GreenchClaw.replyEngineNoop.state");
 
 type ReplyEngineNoopState = {
-  entries: ReplyEngineNoopEntry[];
+  /** Per-session rings (item-17b: a single global ring let other sessions' noop
+   *  traffic evict a genuine pre-model-death before its runner could read it —
+   * the ocr HIGH finding). Each session keeps its own bounded ring. */
+  rings: Map<string | undefined, ReplyEngineNoopEntry[]>;
 };
 
 const RECENT_NOOP_LIMIT = 32;
+
+function ringKeyFor(sessionKey: string | undefined): string | undefined {
+  return sessionKey;
+}
 
 function resolveState(): ReplyEngineNoopState {
   const globalRecord = globalThis as Record<symbol, unknown>;
   let state = globalRecord[REPLY_ENGINE_NOOP_STATE_KEY] as ReplyEngineNoopState | undefined;
   if (!state) {
-    state = { entries: [] };
+    state = { rings: new Map() };
     globalRecord[REPLY_ENGINE_NOOP_STATE_KEY] = state;
   }
   return state;
+}
+
+function ringFor(state: ReplyEngineNoopState, sessionKey: string | undefined): ReplyEngineNoopEntry[] {
+  const key = ringKeyFor(sessionKey);
+  let ring = state.rings.get(key);
+  if (!ring) {
+    ring = [];
+    state.rings.set(key, ring);
+  }
+  return ring;
 }
 
 /**
@@ -112,9 +129,10 @@ export function recordReplyEngineNoop(params: RecordReplyEngineNoopParams): void
     ...(params.detail ? { detail: params.detail } : {}),
   };
   const state = resolveState();
-  state.entries.push(entry);
-  if (state.entries.length > RECENT_NOOP_LIMIT) {
-    state.entries.shift();
+  const ring = ringFor(state, entry.sessionKey);
+  ring.push(entry);
+  if (ring.length > RECENT_NOOP_LIMIT) {
+    ring.shift();
   }
   const line = `[reply-noop] kind=${entry.kind} verdict=${entry.verdict} session=${
     entry.sessionKey ?? "(unknown)"
@@ -144,11 +162,14 @@ export function resolveRecentReplyEngineNoop(params: {
   const state = resolveState();
   const nowMs = params.nowMs ?? Date.now();
   const sessionKey = params.sessionKey;
-  for (let idx = state.entries.length - 1; idx >= 0; idx -= 1) {
-    const entry = state.entries[idx];
+  const ring = state.rings.get(ringKeyFor(sessionKey)) ?? [];
+  for (let idx = ring.length - 1; idx >= 0; idx -= 1) {
+    const entry = ring[idx];
     if (entry.at < params.sinceMs || entry.at > nowMs) {
       continue;
     }
+    // Sessions are isolated by ring (item-17b); the key check stays as a guard
+    // for entries recorded before this session's ring existed.
     if (sessionKey !== undefined && entry.sessionKey !== sessionKey) {
       continue;
     }
@@ -157,12 +178,17 @@ export function resolveRecentReplyEngineNoop(params: {
   return undefined;
 }
 
-/** Test/ops introspection: recent noop ring (oldest first). */
+/** Test/ops introspection: recent noop entries across all rings (oldest first). */
 export function getRecentReplyEngineNoopsForTest(): readonly ReplyEngineNoopEntry[] {
-  return [...resolveState().entries];
+  const all: ReplyEngineNoopEntry[] = [];
+  for (const ring of resolveState().rings.values()) {
+    all.push(...ring);
+  }
+  all.sort((a, b) => a.at - b.at);
+  return all;
 }
 
-/** Test-only: clear the noop ring. */
+/** Test-only: clear every session's noop ring. */
 export function resetReplyEngineNoopsForTest(): void {
-  resolveState().entries = [];
+  resolveState().rings.clear();
 }
