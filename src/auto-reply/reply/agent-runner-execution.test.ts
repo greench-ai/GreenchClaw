@@ -9,6 +9,7 @@ import { SILENT_REPLY_TOKEN } from "../tokens.js";
 import type { GetReplyOptions, ReplyPayload } from "../types.js";
 import {
   buildContextOverflowRecoveryText,
+  buildKnownAgentRunFailureReplyPayload,
   MAX_LIVE_SWITCH_RETRIES,
 } from "./agent-runner-execution.js";
 import type { FollowupRun } from "./queue.js";
@@ -385,6 +386,31 @@ function createMinimalRunAgentTurnParams(overrides?: {
     resolvedVerboseLevel: "off" as const,
   };
 }
+
+describe("buildKnownAgentRunFailureReplyPayload — payload-too-large classification (item-17b)", () => {
+  const webchatCtx = { provider: "webchat", channel: "webchat" } as unknown as TemplateContext;
+
+  it("classifies the payload-guard 413 as a clean oversized-attachment failure", () => {
+    const payload = buildKnownAgentRunFailureReplyPayload({
+      err: new Error(
+        "Model request payload too large: 43.0MB exceeds the 10MB limit — largest field messages[0].content[0].text (~43000KB) is the likely oversized attachment. Attach smaller media or reference files by path instead of inlining them.",
+      ),
+      sessionCtx: webchatCtx,
+      resolvedVerboseLevel: "off",
+    });
+    expect(payload?.text).toMatch(/payload was too large/i);
+    expect(payload?.text).toMatch(/smaller media/i);
+  });
+
+  it("does not swallow unrelated failures into the payload classification", () => {
+    const payload = buildKnownAgentRunFailureReplyPayload({
+      err: new Error("fetch failed: connection reset by peer"),
+      sessionCtx: webchatCtx,
+      resolvedVerboseLevel: "off",
+    });
+    expect(payload).toBeUndefined();
+  });
+});
 
 describe("buildContextOverflowRecoveryText", () => {
   it("keeps the generic compaction-buffer hint without heartbeat model evidence", () => {

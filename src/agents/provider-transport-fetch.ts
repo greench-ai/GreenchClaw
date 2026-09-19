@@ -95,6 +95,58 @@ function describeLargestBodyField(bodyText: string): string {
 }
 
 /**
+ * item-17b (ocr finding #4): the payload guard only measured string bodies, so
+ * multipart uploads (FormData — the OpenAI SDK transcription/file path),
+ * Blobs, and URLSearchParams bodies silently skipped BOTH the size guard and
+ * the upload-aware idle timeout. FormData and Blob bodies are measured
+ * without consuming them (iterating FormData entries is non-destructive);
+ * true streams (ReadableStream / Request with a streamed body) remain
+ * unmeasurable and keep the old skip (logged as bodyBytes=unknown).
+ */
+function estimateRequestBodyBytes(body: unknown): number | undefined {
+  if (typeof body === "string") {
+    return Buffer.byteLength(body, "utf8");
+  }
+  if (typeof FormData === "function" && body instanceof FormData) {
+    let total = 0;
+    let parts = 0;
+    for (const [, value] of body.entries()) {
+      if (typeof value === "string") {
+        total += Buffer.byteLength(value, "utf8");
+      } else if (value && typeof (value as Blob).size === "number") {
+        total += (value as Blob).size;
+      }
+      parts += 1;
+    }
+    // Multipart overhead: per-part boundary + headers, plus final boundary.
+    return total + parts * 512 + 1024;
+  }
+  if (typeof Blob === "function" && body instanceof Blob) {
+    return body.size;
+  }
+  if (body instanceof URLSearchParams) {
+    return Buffer.byteLength(body.toString(), "utf8");
+  }
+  return undefined;
+}
+
+/** Best-effort pointer at the oversized attachment inside a multipart body. */
+function describeLargestFormField(body: FormData): string {
+  let largest: { name: string; bytes: number } | undefined;
+  for (const [name, value] of body.entries()) {
+    const bytes =
+      typeof value === "string" ? Buffer.byteLength(value, "utf8") : (value as Blob).size;
+    if (!largest || bytes > largest.bytes) {
+      largest = { name, bytes };
+    }
+  }
+  if (!largest) {
+    return "";
+  }
+  return ` — largest field ${largest.name} (~${Math.round(largest.bytes / 1024)}KB) is the likely oversized attachment`;
+}
+
+/**
  * Upload-aware idle timeout (item-17): the guarded-fetch timeout only
  * refreshes on response bytes, so a slow upload looks identical to a silent
  * server. Scale the timeout by body size (floor 256KB/s) so an in-progress
@@ -571,14 +623,17 @@ export function buildGuardedModelFetch(
     // timeout. String JSON bodies (the OpenAI-compat SDK path) are measured
     // before dispatch; Request objects with streamed bodies skip measurement
     // (the body cannot be re-read safely).
-    const bodyText =
-      typeof (requestInit ?? init)?.body === "string"
-        ? ((requestInit ?? init)?.body as string)
-        : undefined;
-    const bodyBytes = bodyText !== undefined ? Buffer.byteLength(bodyText, "utf8") : undefined;
+    const rawBody = (requestInit ?? init)?.body;
+    const bodyText = typeof rawBody === "string" ? (rawBody as string) : undefined;
+    const bodyBytes = estimateRequestBodyBytes(rawBody);
     const maxBodyBytes = resolveMaxModelRequestBodyBytes();
     if (bodyBytes !== undefined && bodyBytes > maxBodyBytes) {
-      const hint = describeLargestBodyField(bodyText ?? "");
+      const hint =
+        bodyText !== undefined
+          ? describeLargestBodyField(bodyText)
+          : typeof FormData === "function" && rawBody instanceof FormData
+            ? describeLargestFormField(rawBody)
+            : "";
       const message = `Model request payload too large: ${(
         bodyBytes /
         (1024 * 1024)
@@ -593,7 +648,30 @@ export function buildGuardedModelFetch(
           limitBytes: maxBodyBytes,
         },
       );
-      throw new Error(message);
+      // item-17b (ocr finding #5): throwing here made the OpenAI SDK treat
+      // the permanent oversized-payload rejection as a connection failure
+      // and re-send the same body up to maxRetries times. A synthetic 413
+      // response is non-retryable by the SDK's shouldRetry (413 is outside
+      // the retryable status set; x-should-retry: false is explicit
+      // belt-and-braces) — the guard now fails exactly once and surfaces as
+      // an APIError carrying this message.
+      return new Response(
+        JSON.stringify({
+          error: {
+            message,
+            type: "invalid_request_error",
+            code: "payload_too_large",
+          },
+        }),
+        {
+          status: 413,
+          statusText: "Payload Too Large",
+          headers: {
+            "content-type": "application/json",
+            "x-should-retry": "false",
+          },
+        },
+      );
     }
     const uploadAwareTimeoutMs = resolveUploadAwareTimeoutMs({
       requestTimeoutMs,

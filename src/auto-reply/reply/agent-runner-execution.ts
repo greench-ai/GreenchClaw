@@ -486,6 +486,21 @@ const CLI_BACKEND_OVERALL_TIMEOUT_RE =
   /\bCLI exceeded timeout\s*\(\s*(\d+)\s*s\s*\)\s+and was terminated\b/iu;
 const CLI_BACKEND_ROUTING_REF_BEFORE_ERROR_RE = /\b([\w.-]+\/[A-Za-z][\w.-]*)\s*:\s*CLI\b/iu;
 
+const MODEL_PAYLOAD_TOO_LARGE_RE = /\bModel request payload too large\b/iu;
+
+/**
+ * item-17b: the pre-flight payload guard (provider-transport-fetch) blocks
+ * oversized bodies with a synthetic 413 whose APIError message starts with
+ * "Model request payload too large". Classify it so the conversation sees a
+ * clean oversized-attachment failure instead of the generic runner failure.
+ */
+function buildModelPayloadTooLargeFailureText(message: string): string | null {
+  if (!MODEL_PAYLOAD_TOO_LARGE_RE.test(message)) {
+    return null;
+  }
+  return "⚠️ The model request was blocked: its payload was too large (an oversized media attachment). Attach smaller media, or reference files by path instead of inlining them.";
+}
+
 function buildCliBackendTimeoutFailureText(message: string): string | null {
   const normalizedMessage = collapseRepeatedFailureDetail(message);
   const stall = normalizedMessage.match(CLI_BACKEND_NO_OUTPUT_STALL_RE);
@@ -568,6 +583,10 @@ function buildExternalRunFailureReply(
   const cliBackendTimeoutFailure = buildCliBackendTimeoutFailureText(normalizedMessage);
   if (cliBackendTimeoutFailure) {
     return { text: cliBackendTimeoutFailure, isGenericRunnerFailure: false };
+  }
+  const payloadTooLargeFailure = buildModelPayloadTooLargeFailureText(normalizedMessage);
+  if (payloadTooLargeFailure) {
+    return { text: payloadTooLargeFailure, isGenericRunnerFailure: false };
   }
   return {
     text: options?.includeDetails

@@ -801,7 +801,7 @@ describe("buildGuardedModelFetch", () => {
       baseUrl: "http://localhost:11434/v1",
     } as unknown as Model<"openai-completions">;
 
-    it("fails fast with a clear error when the request body exceeds the limit", async () => {
+    it("fails fast with a non-retryable 413 response when the request body exceeds the limit", async () => {
       const fetcher = buildGuardedModelFetch(guardTestModel);
       const hugeBody = JSON.stringify({
         model: "glm-5.3-flash",
@@ -809,14 +809,67 @@ describe("buildGuardedModelFetch", () => {
           { role: "user", content: [{ type: "text", text: "x".repeat(11 * 1024 * 1024) }] },
         ],
       });
-      await expect(
-        fetcher("http://localhost:11434/v1/chat/completions", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: hugeBody,
-        }),
-      ).rejects.toThrow(/payload too large.*messages\[0\].content\[0\].text/);
+      const response = await fetcher("http://localhost:11434/v1/chat/completions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: hugeBody,
+      });
+      // item-17b: a synthetic 413 (not a thrown error) so the OpenAI SDK's
+      // shouldRetry never re-sends the oversized payload.
+      expect(response.status).toBe(413);
+      expect(response.headers.get("x-should-retry")).toBe("false");
+      const errorBody = JSON.parse(await response.text()) as {
+        error: { message: string };
+      };
+      expect(errorBody.error.message).toMatch(
+        /payload too large.*messages\[0\].content\[0\].text/,
+      );
       expect(fetchWithSsrFGuardMock).not.toHaveBeenCalled();
+    });
+
+    it("measures multipart FormData bodies — the transcription/file upload path (item-17b)", async () => {
+      const fetcher = buildGuardedModelFetch(guardTestModel);
+      const form = new FormData();
+      form.append("file", new Blob(["z".repeat(11 * 1024 * 1024)]), "audio.wav");
+      form.append("model", "glm-5.3-flash");
+      const response = await fetcher("http://localhost:11434/v1/audio/transcriptions", {
+        method: "POST",
+        body: form,
+      });
+      expect(response.status).toBe(413);
+      const errorBody = JSON.parse(await response.text()) as {
+        error: { message: string };
+      };
+      expect(errorBody.error.message).toMatch(/largest field file/);
+      expect(fetchWithSsrFGuardMock).not.toHaveBeenCalled();
+    });
+
+    it("measures Blob bodies against the limit (item-17b)", async () => {
+      const fetcher = buildGuardedModelFetch(guardTestModel);
+      const response = await fetcher("http://localhost:11434/v1/chat/completions", {
+        method: "POST",
+        body: new Blob(["q".repeat(11 * 1024 * 1024)]),
+      });
+      expect(response.status).toBe(413);
+      expect(fetchWithSsrFGuardMock).not.toHaveBeenCalled();
+    });
+
+    it("passes under-limit multipart bodies and scales the upload-aware timeout by their measured size (item-17b)", async () => {
+      const model = {
+        ...guardTestModel,
+        requestTimeoutMs: 120_000,
+      } as unknown as Model<"openai-completions">;
+      const fetcher = buildGuardedModelFetch(model);
+      const form = new FormData();
+      form.append("file", new Blob(["a".repeat(4 * 1024 * 1024)]), "audio.wav");
+      await fetcher("http://localhost:11434/v1/audio/transcriptions", {
+        method: "POST",
+        body: form,
+      });
+      expect(fetchWithSsrFGuardMock).toHaveBeenCalled();
+      const params = latestGuardedFetchParams();
+      // ~4MB measured body: timeout >= 120s base + 16s upload allowance.
+      expect(params.timeoutMs as number).toBeGreaterThanOrEqual(120_000 + 16_000);
     });
 
     it("allows bodies under the limit and passes body metadata to the guarded fetch", async () => {
