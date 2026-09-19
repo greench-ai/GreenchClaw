@@ -17,6 +17,10 @@ import {
 } from "./get-reply.test-fixtures.js";
 import { loadGetReplyModuleForTest } from "./get-reply.test-loader.js";
 import "./get-reply.test-runtime-mocks.js";
+import {
+  getRecentReplyEngineNoopsForTest,
+  resetReplyEngineNoopsForTest,
+} from "./reply-engine-verdict.js";
 
 type LoadModelCatalogFn = typeof import("../../agents/model-catalog.js").loadModelCatalog;
 type ModelAliasIndex = import("../../agents/model-selection.js").ModelAliasIndex;
@@ -251,6 +255,103 @@ describe("getReplyFromConfig fast test bootstrap", () => {
     expect(stored.pendingFinalDelivery).toBe(true);
     expect(stored.pendingFinalDeliveryText).toBe("short");
     expect(stored.pendingFinalDeliveryAttemptCount).toBe(1);
+  });
+
+  it("goes terminal on attempt-capped pending delivery instead of replaying forever (stall #4)", async () => {
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), "GreenchClaw-heartbeat-pending-terminal-"));
+    const storePath = path.join(home, "sessions.json");
+    const sessionKey = "agent:main:telegram:123";
+    const lostText = "Lost report from a previous turn that has no delivery route";
+    await fs.writeFile(
+      storePath,
+      JSON.stringify({
+        [sessionKey]: {
+          sessionId: "pending-terminal-attempts",
+          updatedAt: Date.now(),
+          pendingFinalDelivery: true,
+          pendingFinalDeliveryText: lostText,
+          pendingFinalDeliveryCreatedAt: Date.now(),
+          pendingFinalDeliveryAttemptCount: 3,
+          pendingFinalDeliveryLastError: null,
+        },
+      }),
+      "utf8",
+    );
+    const cfg = withFastReplyConfig({
+      agents: {
+        defaults: {
+          model: "openai/gpt-5.5",
+          workspace: home,
+          heartbeat: { ackMaxChars: 300 },
+        },
+      },
+      session: { store: storePath },
+    } as GreenchClawConfig);
+
+    resetReplyEngineNoopsForTest();
+    // The wake must NOT be consumed by the replay: it proceeds to the run path.
+    await expect(
+      getReplyFromConfig(buildGetReplyCtx(), { isHeartbeat: true }, cfg),
+    ).resolves.toEqual({ text: "ok" });
+
+    const stored = JSON.parse(await fs.readFile(storePath, "utf8"))[sessionKey];
+    expect(stored.pendingFinalDelivery).toBeUndefined();
+    expect(stored.pendingFinalDeliveryText).toBeUndefined();
+
+    const noops = getRecentReplyEngineNoopsForTest();
+    const terminal = noops.find(
+      (entry) =>
+        entry.kind === "pending-final-delivery" && entry.reason.includes("terminal"),
+    );
+    expect(terminal).toBeDefined();
+    expect(terminal?.detail?.abandoned).toBe(lostText);
+  });
+
+  it("goes terminal on stale pending delivery via TTL even with a low attempt count", async () => {
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), "GreenchClaw-heartbeat-pending-ttl-"));
+    const storePath = path.join(home, "sessions.json");
+    const sessionKey = "agent:main:telegram:123";
+    const lostText = "Stale lost report older than the replay TTL";
+    await fs.writeFile(
+      storePath,
+      JSON.stringify({
+        [sessionKey]: {
+          sessionId: "pending-terminal-ttl",
+          updatedAt: Date.now(),
+          pendingFinalDelivery: true,
+          pendingFinalDeliveryText: lostText,
+          pendingFinalDeliveryCreatedAt: Date.now() - 16 * 60 * 1000,
+          pendingFinalDeliveryAttemptCount: 1,
+          pendingFinalDeliveryLastError: null,
+        },
+      }),
+      "utf8",
+    );
+    const cfg = withFastReplyConfig({
+      agents: {
+        defaults: {
+          model: "openai/gpt-5.5",
+          workspace: home,
+          heartbeat: { ackMaxChars: 300 },
+        },
+      },
+      session: { store: storePath },
+    } as GreenchClawConfig);
+
+    resetReplyEngineNoopsForTest();
+    await expect(
+      getReplyFromConfig(buildGetReplyCtx(), { isHeartbeat: true }, cfg),
+    ).resolves.toEqual({ text: "ok" });
+
+    const stored = JSON.parse(await fs.readFile(storePath, "utf8"))[sessionKey];
+    expect(stored.pendingFinalDelivery).toBeUndefined();
+
+    const terminal = getRecentReplyEngineNoopsForTest().find(
+      (entry) =>
+        entry.kind === "pending-final-delivery" && entry.reason.includes("terminal"),
+    );
+    expect(terminal).toBeDefined();
+    expect(terminal?.detail?.abandoned).toBe(lostText);
   });
 
   it("handles native /status before workspace bootstrap", async () => {

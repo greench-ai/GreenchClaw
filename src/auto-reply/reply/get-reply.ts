@@ -14,6 +14,7 @@ import { type GreenchClawConfig, getRuntimeConfig } from "../../config/config.js
 import { logVerbose } from "../../globals.js";
 import { measureDiagnosticsTimelineSpan } from "../../infra/diagnostics-timeline.js";
 import { formatErrorMessage } from "../../infra/errors.js";
+import { createSubsystemLogger } from "../../logging/subsystem.js";
 import { buildAgentHookContextChannelFields } from "../../plugins/hook-agent-context.js";
 import { defaultRuntime } from "../../runtime.js";
 import { createLazyImportLoader } from "../../shared/lazy-promise.js";
@@ -53,6 +54,22 @@ import {
 import { createTypingController } from "./typing.js";
 
 type ResetCommandAction = "new" | "reset";
+
+const log = createSubsystemLogger("gateway/reply");
+
+/**
+ * Stall #4 (2026-09-19, item-17b): an undeliverable pendingFinalDelivery
+ * replayed on every heartbeat wake for ~9h (207 eaten wakes, zero model
+ * calls) because the replay re-registered itself and nothing ever went
+ * terminal. Guards: abandon the replay after 3 attempts or 15 minutes,
+ * clear the pending state loudly, and let the wake proceed as a real turn.
+ */
+const PENDING_FINAL_DELIVERY_MAX_ATTEMPTS = 3;
+const PENDING_FINAL_DELIVERY_TTL_MS = 15 * 60 * 1000;
+
+function previewForTerminalLog(text: string): string {
+  return text.length > 200 ? `${text.slice(0, 200)}…` : text;
+}
 
 function classifyHeartbeatPendingFinalDelivery(text: string, ackMaxChars: number) {
   const stripped = stripHeartbeatToken(text, {
@@ -395,6 +412,40 @@ export async function getReplyFromConfig(
     bodyStripped,
   } = sessionState;
 
+  // item-17b (stall #4): single clear path for the pendingFinalDelivery state —
+  // in-memory entry + sessionStore + durable store, all fields.
+  const clearPendingFinalDeliveryState = async (): Promise<void> => {
+    if (!sessionEntry) {
+      return;
+    }
+    sessionEntry.pendingFinalDelivery = undefined;
+    sessionEntry.pendingFinalDeliveryText = undefined;
+    sessionEntry.pendingFinalDeliveryCreatedAt = undefined;
+    sessionEntry.pendingFinalDeliveryLastAttemptAt = undefined;
+    sessionEntry.pendingFinalDeliveryAttemptCount = undefined;
+    sessionEntry.pendingFinalDeliveryLastError = undefined;
+    sessionEntry.pendingFinalDeliveryContext = undefined;
+    if (sessionKey && sessionStore) {
+      sessionStore[sessionKey] = sessionEntry;
+    }
+    if (sessionKey && storePath) {
+      const { updateSessionStoreEntry } = await import("../../config/sessions.js");
+      await updateSessionStoreEntry({
+        storePath,
+        sessionKey,
+        update: async () => ({
+          pendingFinalDelivery: undefined,
+          pendingFinalDeliveryText: undefined,
+          pendingFinalDeliveryCreatedAt: undefined,
+          pendingFinalDeliveryLastAttemptAt: undefined,
+          pendingFinalDeliveryAttemptCount: undefined,
+          pendingFinalDeliveryLastError: undefined,
+          pendingFinalDeliveryContext: undefined,
+        }),
+      });
+    }
+  };
+
   if (sessionEntry?.pendingFinalDelivery && sessionEntry.pendingFinalDeliveryText) {
     const text = sessionEntry.pendingFinalDeliveryText;
 
@@ -407,32 +458,37 @@ export async function getReplyFromConfig(
         resolveHeartbeatAckMaxChars(cfg, agentId),
       );
       if (heartbeatPending.shouldClear) {
-        sessionEntry.pendingFinalDelivery = undefined;
-        sessionEntry.pendingFinalDeliveryText = undefined;
-        sessionEntry.pendingFinalDeliveryCreatedAt = undefined;
-        sessionEntry.pendingFinalDeliveryLastAttemptAt = undefined;
-        sessionEntry.pendingFinalDeliveryAttemptCount = undefined;
-        sessionEntry.pendingFinalDeliveryLastError = undefined;
-        sessionEntry.pendingFinalDeliveryContext = undefined;
-        if (sessionKey && sessionStore) {
-          sessionStore[sessionKey] = sessionEntry;
-        }
-        if (sessionKey && storePath) {
-          const { updateSessionStoreEntry } = await import("../../config/sessions.js");
-          await updateSessionStoreEntry({
-            storePath,
-            sessionKey,
-            update: async () => ({
-              pendingFinalDelivery: undefined,
-              pendingFinalDeliveryText: undefined,
-              pendingFinalDeliveryCreatedAt: undefined,
-              pendingFinalDeliveryLastAttemptAt: undefined,
-              pendingFinalDeliveryAttemptCount: undefined,
-              pendingFinalDeliveryLastError: undefined,
-              pendingFinalDeliveryContext: undefined,
-            }),
-          });
-        }
+        await clearPendingFinalDeliveryState();
+      } else if (
+        (sessionEntry.pendingFinalDeliveryAttemptCount ?? 0) >=
+          PENDING_FINAL_DELIVERY_MAX_ATTEMPTS ||
+        (sessionEntry.pendingFinalDeliveryCreatedAt
+          ? Date.now() - sessionEntry.pendingFinalDeliveryCreatedAt
+          : 0) >= PENDING_FINAL_DELIVERY_TTL_MS
+      ) {
+        // Stall #4 fix (item-17b): the pending reply could not be delivered on
+        // repeated attempts (e.g. the wake has no delivery route). Going
+        // terminal instead of replaying forever: clear loudly, keep the
+        // abandoned text in the journal, and let this wake be a real turn.
+        const attempts = sessionEntry.pendingFinalDeliveryAttemptCount ?? 0;
+        const ageMs = sessionEntry.pendingFinalDeliveryCreatedAt
+          ? Date.now() - sessionEntry.pendingFinalDeliveryCreatedAt
+          : 0;
+        const abandonedPreview = previewForTerminalLog(text);
+        log.error(
+          `[reply] [pending-final-delivery-terminal] attempts=${attempts} ageMs=${ageMs} — abandoning undeliverable reply, clearing pending state; lane unstuck, wake proceeds to the model`,
+          { sessionKey: agentSessionKey, attempts, ageMs, abandoned: abandonedPreview },
+        );
+        recordReplyEngineNoop({
+          sessionKey: agentSessionKey,
+          kind: "pending-final-delivery",
+          verdict: "intentional",
+          reason: "pending final delivery went terminal — cleared, wake proceeds to model",
+          isHeartbeat: true,
+          detail: { attempts, ageMs, abandoned: abandonedPreview },
+        });
+        await clearPendingFinalDeliveryState();
+        // Fall through: this wake continues as a normal heartbeat turn.
       } else {
         const updatedAt = Date.now();
         const attemptCount = (sessionEntry.pendingFinalDeliveryAttemptCount ?? 0) + 1;
