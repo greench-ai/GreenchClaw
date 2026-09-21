@@ -2,6 +2,7 @@ import type { ImageContent } from "@earendil-works/pi-ai";
 import type { PromptImageOrderEntry } from "../media/prompt-image-order.js";
 import type { ReplyPayload } from "./reply-payload.js";
 import type { TypingController } from "./reply/typing.js";
+import type { ReplyRunOutcome } from "./reply/reply-run-outcome.js";
 
 export type BlockReplyContext = {
   abortSignal?: AbortSignal;
@@ -183,4 +184,14 @@ export type GetReplyOptions = {
   hasRepliedRef?: { value: boolean };
   /** Override agent timeout in seconds (0 = no timeout). Threads through to resolveAgentTimeoutMs. */
   timeoutOverrideSeconds?: number;
+  /**
+   * Per-call reply-run outcome (item-17c). The heartbeat runner threads an
+   * empty object here and reads `phase` after `getReplyFromConfig` returns:
+   * `pre-model-noop` means the engine died before the model without handing
+   * the prompt off — the runner must not consume queued system events and
+   * retries the wake instead. Missing/undefined keeps legacy behavior.
+   * Written on every reply-engine return path via
+   * `createReplyRunOutcomeRecorder` (see reply-run-outcome.ts).
+   */
+  replyRunOutcome?: ReplyRunOutcome;
 };

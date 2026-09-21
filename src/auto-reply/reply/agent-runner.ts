@@ -84,6 +84,7 @@ import { drainPendingToolTasks } from "./pending-tool-task-drain.js";
 import { readPostCompactionContext } from "./post-compaction-context.js";
 import { resolveActiveRunQueueAction } from "./queue-policy.js";
 import { recordReplyEngineNoop } from "./reply-engine-verdict.js";
+import { createReplyRunOutcomeRecorder } from "./reply-run-outcome.js";
 import {
   enqueueFollowupRun,
   refreshQueuedFollowupSession,
@@ -1088,6 +1089,14 @@ export async function runReplyAgent(params: {
   const effectiveShouldFollowup = !effectiveResetTriggered && shouldFollowup;
 
   const isHeartbeat = opts?.isHeartbeat === true;
+  // item-17c: per-call outcome recorder — queue hand-offs record `queued`, a
+  // live reply operation records `dispatched`; silent pre-model drops would
+  // record `pre-model-noop` (none exist on this path today — see the queue
+  // verdicts below for the designed drop policies).
+  const replyRunOutcome = createReplyRunOutcomeRecorder(opts?.replyRunOutcome, {
+    sessionKey: sessionKey ?? followupRun.run.sessionKey,
+    isHeartbeat,
+  });
   const traceAttributes = {
     provider: followupRun.run.provider,
     hasSessionKey: Boolean(sessionKey ?? followupRun.run.sessionKey),
@@ -1155,6 +1164,9 @@ export async function runReplyAgent(params: {
         reason: "turn steered into active streaming run",
         isHeartbeat,
       });
+      // The payload is in the hands of the active streaming run — a queued
+      // hand-off, not a death (the runner keeps legacy consume semantics).
+      replyRunOutcome.queued("queue-steer", { detail: `steerSessionId=${steerSessionId ?? "unknown"}` });
       return undefined;
     }
     if (!steerOutcome.queued) {
@@ -1208,6 +1220,10 @@ export async function runReplyAgent(params: {
         shouldFollowup: effectiveShouldFollowup,
       },
     });
+    // Designed drop policy — dispatched-equivalent so the runner keeps legacy
+    // consume semantics (a pre-model-noop here re-created the item-17b
+    // retry-storm class; see the queue-drop comment above).
+    replyRunOutcome.dispatched();
     return undefined;
   }
 
@@ -1239,6 +1255,8 @@ export async function runReplyAgent(params: {
       reason: "turn enqueued as followup behind active run",
       isHeartbeat,
     });
+    // The payload is queued behind the active run — a hand-off, not a death.
+    replyRunOutcome.queued("queue-followup");
     return undefined;
   }
 
@@ -1308,12 +1326,19 @@ export async function runReplyAgent(params: {
   } catch (error) {
     if (error instanceof ReplyRunAlreadyActiveError) {
       typing.cleanup();
+      // Designed busy rejection with a visible canned reply — the runner
+      // keeps legacy consume semantics (same class as the queue-busy verdict).
+      replyRunOutcome.dispatched();
       return markReplyPayloadForSourceSuppressionDelivery({
         text: REPLY_RUN_STILL_SHUTTING_DOWN_TEXT,
       });
     }
     throw error;
   }
+  // Past the queue gates: a live reply operation now owns this session lane.
+  // Everything from here on is model-call level — an empty reply past this
+  // point is intentional silence (silent policy, heartbeat ack token).
+  replyRunOutcome.dispatched();
   let runFollowupTurn = queuedRunFollowupTurn;
   let shouldDrainQueuedFollowupsAfterClear = false;
   const returnWithQueuedFollowupDrain = <T>(value: T): T => {

@@ -46,6 +46,7 @@ import { hasInboundMedia } from "./inbound-media.js";
 import { emitPreAgentMessageHooks } from "./message-preprocess-hooks.js";
 import { createFastTestModelSelectionState } from "./model-selection.js";
 import { recordReplyEngineNoop } from "./reply-engine-verdict.js";
+import { createReplyRunOutcomeRecorder } from "./reply-run-outcome.js";
 import { initSessionState } from "./session.js";
 import {
   isStaleHeartbeatAutoFallbackOverride,
@@ -240,6 +241,15 @@ export async function getReplyFromConfig(
       ? normalizeOptionalString(ctx.CommandTargetSessionKey)
       : undefined;
   const agentSessionKey = targetSessionKey || ctx.SessionKey;
+  // item-17c: per-call reply-run outcome recorder. The heartbeat runner passes
+  // `opts.replyRunOutcome` and reads the phase after this call returns — the
+  // window-scanned noop ring (item-17b) stays as the fallback detector, while
+  // this out-param is the per-call truth: only `pre-model-noop` changes runner
+  // behavior (do NOT consume queued system events + bounded retry).
+  const replyRunOutcome = createReplyRunOutcomeRecorder(opts?.replyRunOutcome, {
+    sessionKey: agentSessionKey,
+    isHeartbeat: opts?.isHeartbeat === true,
+  });
   const traceAttributes = {
     surface: normalizeOptionalString(ctx.Surface ?? ctx.Provider) ?? "unknown",
     hasSessionKey: Boolean(agentSessionKey),
@@ -339,6 +349,10 @@ export async function getReplyFromConfig(
       reason: "native slash command handled on fast path",
       isHeartbeat: opts?.isHeartbeat === true,
     });
+    // Work-equivalent fast path: a real command executed and produced a reply
+    // — the runner must keep legacy consume semantics, so record the phase as
+    // dispatched-equivalent rather than a pre-model noop.
+    replyRunOutcome.dispatched();
     return nativeSlashCommandFastReply.reply;
   }
 
@@ -521,6 +535,10 @@ export async function getReplyFromConfig(
           reason: "replayed pending final delivery from previous turn",
           isHeartbeat: true,
         });
+        // Work-equivalent (delivery retry, bounded by the item-17b terminal
+        // guards): the replay text is a real outbound payload — the runner
+        // must deliver it, not treat the turn as a pre-model noop.
+        replyRunOutcome.dispatched();
         return { text: heartbeatPending.replayText };
       }
     }
@@ -734,6 +752,8 @@ export async function getReplyFromConfig(
       reason: "reply directive resolved the turn without the model",
       isHeartbeat: opts?.isHeartbeat === true,
     });
+    // Work-equivalent fast path (directive executed, real reply produced).
+    replyRunOutcome.dispatched();
     return directiveResult.reply;
   }
 
@@ -841,6 +861,8 @@ export async function getReplyFromConfig(
       reason: "inline action resolved the turn without the model",
       isHeartbeat: opts?.isHeartbeat === true,
     });
+    // Work-equivalent fast path (inline action executed, real reply produced).
+    replyRunOutcome.dispatched();
     return inlineActionResult.reply;
   }
   await maybeEmitMissingResetHooks();
@@ -883,6 +905,8 @@ export async function getReplyFromConfig(
           reason: "before_agent_reply hook handled the turn",
           isHeartbeat: opts?.isHeartbeat === true,
         });
+        // Work-equivalent fast path (hook executed, real reply produced).
+        replyRunOutcome.dispatched();
         return hookResult.reply ?? { text: SILENT_REPLY_TOKEN };
       }
     }

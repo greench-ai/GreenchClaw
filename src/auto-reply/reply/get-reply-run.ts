@@ -70,6 +70,7 @@ import { resolveActiveRunQueueAction } from "./queue-policy.js";
 import { resolveQueueSettings } from "./queue/settings-runtime.js";
 import { isSteeringQueueMode } from "./queue/steering.js";
 import { recordReplyEngineNoop } from "./reply-engine-verdict.js";
+import { createReplyRunOutcomeRecorder } from "./reply-run-outcome.js";
 import { resolveRuntimePolicySessionKey } from "./runtime-policy-session-key.js";
 import { resolveBareSessionResetPromptState } from "./session-reset-prompt.js";
 import { resolveBareResetBootstrapFileAccess } from "./session-reset-prompt.js";
@@ -405,6 +406,13 @@ export async function runPreparedReply(
     abortedLastRun,
   } = params;
   const isHeartbeat = opts?.isHeartbeat === true;
+  // item-17c: per-call outcome recorder (same out-param the runner threaded
+  // into GetReplyOptions). First verdict wins; recording on every pre-model
+  // return path keeps the runner's window-scan fallback honest.
+  const replyRunOutcome = createReplyRunOutcomeRecorder(opts?.replyRunOutcome, {
+    sessionKey,
+    isHeartbeat,
+  });
   const traceAttributes = {
     provider,
     hasSessionKey: Boolean(sessionKey),
@@ -576,6 +584,9 @@ export async function runPreparedReply(
       reason: "whole-message command from unauthorized sender dropped",
       isHeartbeat,
     });
+    // Designed drop (security policy) — not a silent death, so the runner
+    // keeps legacy consume semantics (dispatched-equivalent).
+    replyRunOutcome.dispatched();
     return undefined;
   }
   const isBareNewOrReset = /^\/(new|reset)$/.test(normalizedCommandBody);
@@ -677,6 +688,10 @@ export async function runPreparedReply(
         model,
       },
     });
+    // item-17c: THE stall-class pre-model death — the run returned without the
+    // model and without handing the prompt off. The runner must NOT consume
+    // queued system events and retries the wake (bounded).
+    replyRunOutcome.noop("body-empty", { warn: true });
     typing.cleanup();
     return {
       text: "I didn't receive any text in your message. Please resend or add a caption.",
@@ -817,6 +832,8 @@ export async function runPreparedReply(
         reason: `thinking level "${resolvedThinkLevel}" not supported for ${provider}/${model}`,
         isHeartbeat,
       });
+      // Intentional, user-visible error reply — legacy consume semantics.
+      replyRunOutcome.dispatched();
       return {
         text: `Thinking level "${resolvedThinkLevel}" is not supported for ${provider}/${model}. Use one of: ${formatThinkingLevels(provider, model, ", ", thinkingCatalog)}.`,
       };
@@ -1012,6 +1029,8 @@ export async function runPreparedReply(
         reason: "active run still shutting down; queued turn rejected",
         isHeartbeat,
       });
+      // Designed busy reply — legacy consume semantics (dispatched-equivalent).
+      replyRunOutcome.dispatched();
       return queueState.reply;
     }
     ({ activeSessionId, isActive, isStreaming } = queueState.busyState);
