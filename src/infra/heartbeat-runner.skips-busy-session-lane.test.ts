@@ -9,6 +9,10 @@ import { createOutboundTestPlugin, createTestRegistry } from "../test-utils/chan
 import { type HeartbeatDeps, runHeartbeatOnce } from "./heartbeat-runner.js";
 import { seedMainSessionStore, withTempHeartbeatSandbox } from "./heartbeat-runner.test-utils.js";
 import {
+  type HeartbeatEventPayload,
+  onHeartbeatEvent,
+} from "./heartbeat-events.js";
+import {
   HEARTBEAT_SKIP_CRON_IN_PROGRESS,
   HEARTBEAT_SKIP_LANES_BUSY,
   HEARTBEAT_SKIP_REQUESTS_IN_FLIGHT,
@@ -281,6 +285,39 @@ describe("heartbeat runner skips when target session lane is busy", () => {
 
       expect(replySpy).toHaveBeenCalled();
       expect(result.status).toBe("ran");
+    });
+  });
+
+  it("journals the main-lane busy skip as a heartbeat event (item-17c)", async () => {
+    await withTempHeartbeatSandbox(async ({ storePath, replySpy }) => {
+      const cfg = createHeartbeatTelegramConfig();
+      await seedHeartbeatTelegramSession(storePath, cfg);
+      const events: HeartbeatEventPayload[] = [];
+      const unsubscribe = onHeartbeatEvent((evt) => events.push(evt));
+
+      try {
+        const result = await runHeartbeatOnce({
+          cfg,
+          deps: {
+            getQueueSize: vi.fn((lane?: string) => (lane === CommandLane.Main ? 1 : 0)),
+            nowMs: () => Date.now(),
+            getReplyFromConfig: replySpy,
+          } as HeartbeatDeps,
+        });
+
+        expect(result).toEqual({ status: "skipped", reason: HEARTBEAT_SKIP_REQUESTS_IN_FLIGHT });
+        expect(replySpy).not.toHaveBeenCalled();
+        // item-17c: the main-lane gate previously returned silently — busy
+        // skips must land in the heartbeat event stream like every other
+        // skip so a stalled window is visible from the journal alone.
+        const skipEvent = events.find(
+          (evt) =>
+            evt.status === "skipped" && evt.reason === HEARTBEAT_SKIP_REQUESTS_IN_FLIGHT,
+        );
+        expect(skipEvent).toBeDefined();
+      } finally {
+        unsubscribe();
+      }
     });
   });
 });

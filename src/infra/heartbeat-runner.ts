@@ -1308,7 +1308,26 @@ export async function runHeartbeatOnce(opts: {
 
   const getSize = opts.deps?.getQueueSize ?? getQueueSize;
   const getSnapshots = opts.deps?.getCommandLaneSnapshots ?? getCommandLaneSnapshots;
+  // Busy-lane skips and re-dispatch (item-17c verification): every
+  // HEARTBEAT_SKIP_* busy reason below is retryable — the wake layer
+  // (heartbeat-wake.ts) requeues the wake target and retries at 1s cadence
+  // with per-minute stall warnings. Due work is re-derived from durable
+  // state on every pass, so the NEXT pass picks up exactly what this pass
+  // skipped: heartbeat task timestamps only advance on successful runs
+  // (updateTaskTimestamps), pending system events are never consumed on a
+  // skip (consumption happens only on ran-turn claim paths), and cron jobs
+  // are dispatched by their own service timer, unaffected by heartbeat busy
+  // skips. These emitHeartbeatEvent calls close the last journal gap: until
+  // item-17c the main-lane and final-delivery-defer gates returned silently
+  // (only the wake layer's per-minute warn covered them) — the item-17
+  // postmortem lesson is that production-invisible skip paths are where
+  // stall evidence dies.
   if (getSize(CommandLane.Main) > 0) {
+    emitHeartbeatEvent({
+      status: "skipped",
+      reason: HEARTBEAT_SKIP_REQUESTS_IN_FLIGHT,
+      durationMs: Date.now() - startedAt,
+    });
     return { status: "skipped", reason: HEARTBEAT_SKIP_REQUESTS_IN_FLIGHT };
   }
 
@@ -1353,6 +1372,15 @@ export async function runHeartbeatOnce(opts: {
     recentSessionEntry?.updatedAt &&
     startedAt - recentSessionEntry.updatedAt < HEARTBEAT_DEFER_WINDOW_MS
   ) {
+    // Phase 2 deferral: a final-delivery replay is pending and fresh — let it
+    // settle first. Journal it (item-17c): this gate previously returned
+    // silently under the requests-in-flight reason, hiding the 30s deferral
+    // window from the heartbeat event stream.
+    emitHeartbeatEvent({
+      status: "skipped",
+      reason: HEARTBEAT_SKIP_REQUESTS_IN_FLIGHT,
+      durationMs: Date.now() - startedAt,
+    });
     return { status: "skipped", reason: HEARTBEAT_SKIP_REQUESTS_IN_FLIGHT };
   }
 
