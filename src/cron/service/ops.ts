@@ -750,6 +750,7 @@ async function finishPreparedManualRun(
           delivered: coreResult.delivered,
           startedAt,
           endedAt,
+          turnCompleted: coreResult.turnCompleted,
         },
         { preserveSchedule: mode === "force" },
       );

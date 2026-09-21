@@ -13,6 +13,7 @@ import {
   failTaskRunByRunId,
 } from "../../tasks/detached-task-runtime.js";
 import { clearCronJobActive, markCronJobActive } from "../active-jobs.js";
+import { registerOneShotHandoffCompletion } from "../one-shot-handoff.js";
 import { resolveCronDeliveryPlan } from "../delivery-plan.js";
 import {
   createCronRunDiagnosticsFromError,
@@ -657,6 +658,9 @@ export function applyJobResult(
     delivered?: boolean;
     startedAt: number;
     endedAt: number;
+    /** item-17c: false = payload handed off to the heartbeat queue, agent turn
+     * still pending — defer deleteAfterRun deletion to true completion. */
+    turnCompleted?: boolean;
   },
   opts?: {
     // Preserve recurring "every" anchors for manual force runs.
@@ -736,8 +740,26 @@ export function applyJobResult(
     job.state.lastFailureAlertAtMs = undefined;
   }
 
+  // item-17c: a handed-off main-session one-shot (turnCompleted: false) did
+  // NOT lose its execution at dispatch — the entry stays as the durable
+  // retry/audit record until the handed-off turn completes and consumes the
+  // queued event (one-shot-handoff.ts finalizes the deletion).
+  const deleteDeferredUntilTurnCompletion =
+    result.status === "ok" &&
+    job.schedule.kind === "at" &&
+    job.deleteAfterRun === true &&
+    result.turnCompleted === false;
+  if (deleteDeferredUntilTurnCompletion) {
+    state.deps.log.info(
+      { jobId: job.id, jobName: job.name },
+      "cron: deleteAfterRun deletion deferred until the handed-off heartbeat turn completes (item-17c)",
+    );
+  }
   const shouldDelete =
-    job.schedule.kind === "at" && job.deleteAfterRun === true && result.status === "ok";
+    job.schedule.kind === "at" &&
+    job.deleteAfterRun === true &&
+    result.status === "ok" &&
+    result.turnCompleted !== false;
 
   if (!shouldDelete) {
     if (job.schedule.kind === "at") {
@@ -876,6 +898,7 @@ function applyOutcomeToStoredJob(state: CronServiceState, result: TimedCronRunOu
         delivered: result.delivered,
         startedAt: result.startedAt,
         endedAt: result.endedAt,
+        turnCompleted: result.turnCompleted,
       });
       emitJobFinished(state, result.job, result, result.startedAt);
       state.deps.log.info(
@@ -898,6 +921,7 @@ function applyOutcomeToStoredJob(state: CronServiceState, result: TimedCronRunOu
     delivered: result.delivered,
     startedAt: result.startedAt,
     endedAt: result.endedAt,
+    turnCompleted: result.turnCompleted,
   });
 
   emitJobFinished(state, job, result, result.startedAt);
@@ -1542,6 +1566,51 @@ async function executeMainSessionCronJob(
     sessionKey: targetMainSessionKey,
     contextKey: `cron:${job.id}`,
   });
+  // item-17c: from here the payload lives in the IN-MEMORY system-event queue
+  // and the agent turn runs later on a heartbeat wake. A deleteAfterRun
+  // one-shot must NOT be deleted at this dispatch moment — the job entry is
+  // the only durable record of the payload, and a process death between
+  // hand-off and turn completion would lose the execution outright. Register
+  // the deferred deletion (finalized when a completed heartbeat turn consumes
+  // the `cron:<id>` event — see one-shot-handoff.ts) and report
+  // turnCompleted:false so applyJobResult keeps the (disabled) entry.
+  const deferDeleteAfterRunUntilTurnCompletion = () => {
+    if (job.schedule.kind !== "at" || job.deleteAfterRun !== true) {
+      return;
+    }
+    registerOneShotHandoffCompletion(
+      job.id,
+      async () => {
+        try {
+          await locked(state, async () => {
+            await ensureLoaded(state, { skipRecompute: true });
+            const store = state.store;
+            if (!store) {
+              return;
+            }
+            const entry = store.jobs.find((j) => j.id === job.id);
+            if (!entry) {
+              return;
+            }
+            if (entry.schedule.kind !== "at" || entry.deleteAfterRun !== true || entry.enabled) {
+              // Patched or re-enabled while the handed-off event was queued —
+              // the operator wants this entry kept.
+              return;
+            }
+            store.jobs = store.jobs.filter((j) => j.id !== job.id);
+            emit(state, { jobId: job.id, action: "removed", job: entry });
+            await persist(state);
+          });
+          armTimer(state);
+        } catch (err) {
+          state.deps.log.warn(
+            { jobId: job.id, err: String(err) },
+            "cron: deferred deleteAfterRun deletion after handed-off turn failed — entry kept as audit record",
+          );
+        }
+      },
+    );
+  };
   if (job.wakeMode === "now" && state.deps.runHeartbeatOnce) {
     const reason = `cron:${job.id}`;
     const maxWaitMs = state.deps.wakeNowHeartbeatBusyMaxWaitMs ?? 2 * 60_000;
@@ -1577,7 +1646,8 @@ async function executeMainSessionCronJob(
           sessionKey: targetMainSessionKey,
           heartbeat: { target: "last" },
         });
-        return { status: "ok", summary: text };
+        deferDeleteAfterRunUntilTurnCompletion();
+        return { status: "ok", turnCompleted: false, summary: text };
       }
       if (abortSignal?.aborted) {
         return { status: "error", error: timeoutErrorMessage() };
@@ -1594,13 +1664,16 @@ async function executeMainSessionCronJob(
           sessionKey: targetMainSessionKey,
           heartbeat: { target: "last" },
         });
-        return { status: "ok", summary: text };
+        deferDeleteAfterRunUntilTurnCompletion();
+        return { status: "ok", turnCompleted: false, summary: text };
       }
       await waitWithAbort(retryDelayMs);
     }
 
     if (heartbeatResult.status === "ran") {
-      return { status: "ok", summary: text };
+      // The wake-now loop waited for the heartbeat: the agent turn genuinely
+      // completed on this dispatch — deleteAfterRun may delete at completion.
+      return { status: "ok", turnCompleted: true, summary: text };
     }
     if (heartbeatResult.status === "skipped") {
       return { status: "skipped", error: heartbeatResult.reason, summary: text };
@@ -1619,7 +1692,8 @@ async function executeMainSessionCronJob(
     sessionKey: targetMainSessionKey,
     heartbeat: { target: "last" },
   });
-  return { status: "ok", summary: text };
+  deferDeleteAfterRunUntilTurnCompletion();
+  return { status: "ok", turnCompleted: false, summary: text };
 }
 
 async function executeDetachedCronJob(
@@ -1734,6 +1808,7 @@ export async function executeJob(
     delivered: coreResult.delivered,
     startedAt,
     endedAt,
+    turnCompleted: coreResult.turnCompleted,
   });
 
   emitJobFinished(state, job, coreResult, startedAt);

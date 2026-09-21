@@ -207,6 +207,68 @@ describe("cron service timer regressions", () => {
     expect(overloadedResult.runIsolatedAgentJob).toHaveBeenCalledTimes(2);
   });
 
+  it("item-17c: deleteAfterRun deletion waits for turnCompleted (handed-off main jobs)", () => {
+    const startedAt = Date.parse("2026-02-06T11:00:00.000Z");
+    const endedAt = startedAt + 50;
+    const state = createCronServiceState({
+      cronEnabled: true,
+      storePath: "/tmp/cron-item-17c-turn-completed.json",
+      log: noopLogger,
+      nowMs: () => endedAt,
+      enqueueSystemEvent: vi.fn(),
+      requestHeartbeat: vi.fn(),
+      runIsolatedAgentJob: createDefaultIsolatedRunner(),
+    });
+    const makeDeleteAfterRunOneShot = (id: string) => {
+      const job = createIsolatedRegressionJob({
+        id,
+        name: id,
+        scheduledAt: startedAt,
+        schedule: { kind: "at", at: new Date(startedAt).toISOString() },
+        payload: { kind: "agentTurn", message: "remind me" },
+        state: { nextRunAtMs: startedAt - 1_000, runningAtMs: startedAt - 500 },
+      });
+      job.deleteAfterRun = true;
+      return job;
+    };
+
+    // Handed-off main job: payload queued, agent turn still pending — the
+    // entry must NOT be deleted at dispatch (it is the durable record of the
+    // execution until the handed-off turn completes).
+    const handedOff = makeDeleteAfterRunOneShot("item-17c-handedoff");
+    const shouldDeleteHandedOff = applyJobResult(state, handedOff, {
+      status: "ok",
+      startedAt,
+      endedAt,
+      turnCompleted: false,
+    });
+    expect(shouldDeleteHandedOff).toBe(false);
+    // The double-execution guard is intact: the job is disabled either way.
+    expect(handedOff.enabled).toBe(false);
+    expect(handedOff.state.lastStatus).toBe("ok");
+
+    // A turn that completed during the dispatch (wake-now waited for ran)
+    // deletes at completion — the legacy semantic, now explicit.
+    const completed = makeDeleteAfterRunOneShot("item-17c-completed");
+    const shouldDeleteCompleted = applyJobResult(state, completed, {
+      status: "ok",
+      startedAt,
+      endedAt,
+      turnCompleted: true,
+    });
+    expect(shouldDeleteCompleted).toBe(true);
+
+    // Ok without the flag keeps the legacy completion semantics (isolated and
+    // manual runs never set turnCompleted — their ok IS completion).
+    const legacy = makeDeleteAfterRunOneShot("item-17c-legacy");
+    const shouldDeleteLegacy = applyJobResult(state, legacy, {
+      status: "ok",
+      startedAt,
+      endedAt,
+    });
+    expect(shouldDeleteLegacy).toBe(true);
+  });
+
   it("#24355: one-shot job disabled after max transient retries", async () => {
     const store = timerRegressionFixtures.makeStorePath();
     const scheduledAt = Date.parse("2026-02-06T10:00:00.000Z");

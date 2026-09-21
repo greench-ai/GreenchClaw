@@ -123,6 +123,14 @@ export type CronRunOutcome = {
   sessionId?: string;
   sessionKey?: string;
   diagnostics?: CronRunDiagnostics;
+  /**
+   * item-17c: false when a main-session job handed its payload to the
+   * heartbeat queue (system event enqueued + wake requested) but the agent
+   * turn has not completed yet. deleteAfterRun deletion is deferred until
+   * true completion (the handed-off turn consumes the event); ok-without-flag
+   * keeps the legacy delete-at-completion semantics (isolated/manual runs).
+   */
+  turnCompleted?: boolean;
 };
 
 export type CronAgentExecutionPhase =

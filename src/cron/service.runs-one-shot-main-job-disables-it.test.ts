@@ -1,9 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   HEARTBEAT_SKIP_CRON_IN_PROGRESS,
   HEARTBEAT_SKIP_REQUESTS_IN_FLIGHT,
   type HeartbeatRunResult,
 } from "../infra/heartbeat-wake.js";
+import {
+  noteConsumedCronContextKeys,
+  resetOneShotHandoffsForTests,
+} from "./one-shot-handoff.js";
 import type { CronEvent, CronServiceDeps } from "./service.js";
 import { CronService } from "./service.js";
 import {
@@ -17,6 +21,15 @@ const noopLogger = createNoopLogger();
 installCronTestHooks({ logger: noopLogger });
 const { makeStorePath } = createCronStoreHarness({
   prefix: "GreenchClaw-cron-runs-one-shot-",
+});
+
+// item-17c: the handed-off one-shot registry is module-global — keep tests isolated.
+beforeEach(() => {
+  resetOneShotHandoffsForTests();
+});
+
+afterEach(() => {
+  resetOneShotHandoffsForTests();
 });
 
 function createCronEventHarness() {
@@ -91,8 +104,12 @@ async function createCronHarness(options: CronHarnessOptions = {}) {
   return { store, cron, enqueueSystemEvent, requestHeartbeat, events };
 }
 
-async function createMainOneShotHarness() {
-  const harness = await createCronHarness();
+async function createMainOneShotHarness(options?: {
+  runHeartbeatOnce?: NonNullable<CronServiceDeps["runHeartbeatOnce"]>;
+}) {
+  const harness = await createCronHarness({
+    ...(options?.runHeartbeatOnce ? { runHeartbeatOnce: options.runHeartbeatOnce } : {}),
+  });
   if (!harness.events) {
     throw new Error("missing event harness");
   }
@@ -245,8 +262,15 @@ function createStartedCronService(
   });
 }
 
-async function createMainOneShotJobHarness(params: { name: string; deleteAfterRun?: boolean }) {
-  const harness = await createMainOneShotHarness();
+async function createMainOneShotJobHarness(params: {
+  name: string;
+  deleteAfterRun?: boolean;
+  /** item-17c: provide a wake-now heartbeat mock to complete the turn synchronously. */
+  runHeartbeatOnce?: NonNullable<CronServiceDeps["runHeartbeatOnce"]>;
+}) {
+  const harness = await createMainOneShotHarness({
+    ...(params.runHeartbeatOnce ? { runHeartbeatOnce: params.runHeartbeatOnce } : {}),
+  });
   const atMs = Date.parse("2025-12-13T00:00:02.000Z");
   const job = await addMainOneShotHelloJob(harness.cron, {
     atMs,
@@ -297,9 +321,13 @@ describe("CronService", () => {
   });
 
   it("runs a one-shot job and deletes it after success by default", async () => {
+    // item-17c: the wake-now loop waits for the heartbeat — a ran result means
+    // the agent turn COMPLETED, so deleteAfterRun fires at completion.
+    const runHeartbeatOnce = vi.fn(async () => ({ status: "ran" as const, durationMs: 5 }));
     const { store, cron, enqueueSystemEvent, requestHeartbeat, events, job } =
       await createMainOneShotJobHarness({
         name: "one-shot delete",
+        runHeartbeatOnce,
       });
 
     vi.setSystemTime(new Date("2025-12-13T00:00:02.000Z"));
@@ -309,7 +337,62 @@ describe("CronService", () => {
     const jobs = await cron.list({ includeDisabled: true });
     expect(jobs.find((j) => j.id === job.id)).toBeUndefined();
     expectMainSystemEventPosted(enqueueSystemEvent, { text: "hello", jobId: job.id });
-    expect(requestHeartbeat).toHaveBeenCalled();
+    // The wake-now path completed the turn synchronously — no queued wake needed.
+    expect(requestHeartbeat).not.toHaveBeenCalled();
+
+    await stopCronAndCleanup(cron, store);
+  });
+
+  it("defers deleteAfterRun deletion until the handed-off turn completes (item-17c)", async () => {
+    // No runHeartbeatOnce dep: the dispatch hands the payload to the queued
+    // heartbeat wake. Before item-17c the job entry was deleted AT DISPATCH —
+    // a process death before the wake ran lost the execution outright (the
+    // system-event queue is in-memory by design). Now the entry survives as
+    // the durable record and the deletion finalizes when a completed turn
+    // consumes the cron event.
+    const { store, cron, enqueueSystemEvent, requestHeartbeat, events, job } =
+      await createMainOneShotJobHarness({
+        name: "one-shot handoff defers delete",
+      });
+
+    vi.setSystemTime(new Date("2025-12-13T00:00:02.000Z"));
+    await vi.runOnlyPendingTimersAsync();
+    await events.waitFor((evt) => evt.jobId === job.id && evt.action === "finished");
+
+    // Handed off: the entry is disabled (double-execution guard) but KEPT.
+    expectQueuedCronHeartbeat(requestHeartbeat, { jobId: job.id });
+    let jobs = await cron.list({ includeDisabled: true });
+    let updated = jobs.find((j) => j.id === job.id);
+    expect(updated).toBeDefined();
+    expect(updated?.enabled).toBe(false);
+    expect(updated?.state.lastStatus).toBe("ok");
+    expectMainSystemEventPosted(enqueueSystemEvent, { text: "hello", jobId: job.id });
+
+    // The handed-off turn completes and consumes the cron:<jobId> event — the
+    // same hook the heartbeat runner invokes on a ran turn.
+    noteConsumedCronContextKeys([`cron:${job.id}`]);
+    await events.waitFor((evt) => evt.jobId === job.id && evt.action === "removed");
+
+    jobs = await cron.list({ includeDisabled: true });
+    expect(jobs.find((j) => j.id === job.id)).toBeUndefined();
+
+    await stopCronAndCleanup(cron, store);
+  });
+
+  it("keeps a handed-off deleteAfterRun job when the turn never completes (item-17c)", async () => {
+    const { store, cron, requestHeartbeat, events, job } = await createMainOneShotJobHarness({
+      name: "one-shot handoff never completes",
+    });
+
+    vi.setSystemTime(new Date("2025-12-13T00:00:02.000Z"));
+    await vi.runOnlyPendingTimersAsync();
+    await events.waitFor((evt) => evt.jobId === job.id && evt.action === "finished");
+
+    // The queued wake never runs (mocked away) — the entry stays as the
+    // disabled audit record instead of vanishing before its turn ran.
+    expectQueuedCronHeartbeat(requestHeartbeat, { jobId: job.id });
+    const jobs = await cron.list({ includeDisabled: true });
+    expect(jobs.find((j) => j.id === job.id)).toBeDefined();
 
     await stopCronAndCleanup(cron, store);
   });

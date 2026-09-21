@@ -67,6 +67,7 @@ import type { SessionEntry } from "../config/sessions/types.js";
 import type { AgentDefaultsConfig } from "../config/types.agent-defaults.js";
 import type { GreenchClawConfig } from "../config/types.GreenchClaw.js";
 import { hasActiveCronJobs } from "../cron/active-jobs.js";
+import { noteConsumedCronContextKeys } from "../cron/one-shot-handoff.js";
 import { resolveCronSession } from "../cron/isolated-agent/session.js";
 import {
   getActiveDiagnosticAgentTurn,
@@ -1639,6 +1640,12 @@ export async function runHeartbeatOnce(opts: {
       claimPath: "run",
     });
     consumeSelectedSystemEventEntries(sessionKey, inspectedSystemEventsToConsume);
+    // item-17c: the turn ran and consumed its payload — handed-off
+    // deleteAfterRun one-shots whose `cron:<jobId>` event was consumed now
+    // finalize their deferred deletion at true completion.
+    noteConsumedCronContextKeys(
+      inspectedSystemEventsToConsume.map((event) => event.contextKey),
+    );
   };
 
   const ctx = {
