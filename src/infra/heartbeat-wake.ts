@@ -16,6 +16,16 @@ export type HeartbeatRunResult =
 export const HEARTBEAT_SKIP_REQUESTS_IN_FLIGHT = "requests-in-flight";
 export const HEARTBEAT_SKIP_CRON_IN_PROGRESS = "cron-in-progress";
 export const HEARTBEAT_SKIP_LANES_BUSY = "lanes-busy";
+/**
+ * item-17c: the reply engine died before the model on this wake (pre-model
+ * noop — no payload handed off, no work done). The runner returns this
+ * retryable skip instead of a terminal `failed`: queued system events were
+ * NOT consumed (they are the retry vehicle), so the wake is requeued for a
+ * bounded retry below. Previously recovery=none: item-17b preserved the
+ * events but returned `failed`, leaving the payload to wait for the next
+ * interval heartbeat — event-driven wakes (cron/exec) had no retry at all.
+ */
+export const HEARTBEAT_SKIP_REPLY_PRE_MODEL_NOOP = "reply-pre-model-noop";
 export type RetryableHeartbeatBusySkipReason =
   | typeof HEARTBEAT_SKIP_REQUESTS_IN_FLIGHT
   | typeof HEARTBEAT_SKIP_CRON_IN_PROGRESS
@@ -207,6 +217,16 @@ const BUSY_RETRY_STALL_THRESHOLD = 300; // 5 minutes of 1s retries
 
 const DEFAULT_COALESCE_MS = 250;
 const DEFAULT_RETRY_MS = 1_000;
+
+// item-17c: pre-model-noop wakes are requeued at most this many times per
+// target before the chain is dropped loudly. Busy skips are legitimately
+// unbounded (they retry while a turn drains and clear on their own); a
+// pre-model noop means the engine hit a deterministic bug — an unbounded 1s
+// retry loop would spin forever. After the cap the queued system events stay
+// preserved (never consumed on a pre-model noop) and the next interval
+// heartbeat retries at its natural cadence.
+const HEARTBEAT_PRE_MODEL_NOOP_RETRY_CAP = 3;
+const preModelNoopRetryCounts = new Map<string, number>();
 const REASON_PRIORITY = {
   RETRY: 0,
   INTERVAL: 1,
@@ -375,39 +395,83 @@ function schedule(coalesceMs: number, kind: WakeTimerKind = "normal") {
         };
         traceWakeClaim(pendingWake);
         const res = await active(wakeOpts);
-        if (res.status === "skipped" && isRetryableHeartbeatBusySkipReason(res.reason)) {
-          // The target runtime is busy; retry this wake target soon.
-          busySeen = true;
-          consecutiveBusyRetries += 1;
-          const nowMs = Date.now();
-          log.debug(
-            `[wake-retry] re-queueing wake after busy skip: reason="${res.reason}" targetSession=${
-              pendingWake.sessionKey ?? pendingWake.agentId ?? "(broadcast)"
-            } retryInMs=${DEFAULT_RETRY_MS} consecutiveBusyRetries=${consecutiveBusyRetries}`,
-            {
-              reason: res.reason,
-              sessionKey: pendingWake.sessionKey,
-              agentId: pendingWake.agentId,
-              consecutiveBusyRetries,
-            },
-          );
-          if (nowMs - lastBusySkipLogAt >= BUSY_SKIP_LOG_INTERVAL_MS) {
-            lastBusySkipLogAt = nowMs;
-            const stalled = consecutiveBusyRetries >= BUSY_RETRY_STALL_THRESHOLD;
-            log.warn(
-              `heartbeat: wake skipped (busy: ${res.reason}); retrying in 1s — consecutive busy retries: ${consecutiveBusyRetries}${stalled ? " — STALL SUSPECTED: busy condition has not cleared in 5+ minutes, check main-session/turn lane state" : ""}`,
-              { reason: res.reason, consecutiveBusyRetries, stalled },
+        const wakeTargetKey = getWakeTargetKey(pendingWake);
+        if (res.status === "skipped" && res.reason === HEARTBEAT_SKIP_REPLY_PRE_MODEL_NOOP) {
+          // item-17c: pre-model-noop recovery — bounded requeue. The runner
+          // preserved the queued system events; retry the wake so the payload
+          // gets a fresh turn instead of waiting for the interval heartbeat.
+          const retries = (preModelNoopRetryCounts.get(wakeTargetKey) ?? 0) + 1;
+          if (retries > HEARTBEAT_PRE_MODEL_NOOP_RETRY_CAP) {
+            preModelNoopRetryCounts.delete(wakeTargetKey);
+            busySeen = true;
+            log.error(
+              `heartbeat: reply engine died pre-model ${HEARTBEAT_PRE_MODEL_NOOP_RETRY_CAP}+ times in a row — dropping this wake (cap reached); queued system events stay preserved for the next interval heartbeat`,
+              {
+                reason: res.reason,
+                sessionKey: pendingWake.sessionKey,
+                agentId: pendingWake.agentId,
+                retries,
+              },
             );
+          } else {
+            preModelNoopRetryCounts.set(wakeTargetKey, retries);
+            busySeen = true;
+            log.warn(
+              `heartbeat: reply engine died pre-model — requeueing wake for bounded retry ${retries}/${HEARTBEAT_PRE_MODEL_NOOP_RETRY_CAP} (reply-pre-model-noop); queued system events preserved`,
+              {
+                reason: res.reason,
+                sessionKey: pendingWake.sessionKey,
+                agentId: pendingWake.agentId,
+                retries,
+              },
+            );
+            queuePendingWakeReason({
+              source: pendingWake.source,
+              intent: pendingWake.intent,
+              reason: pendingWake.reason ?? "retry",
+              agentId: pendingWake.agentId,
+              sessionKey: pendingWake.sessionKey,
+              heartbeat: pendingWake.heartbeat,
+            });
+            schedule(DEFAULT_RETRY_MS, "retry");
           }
-          queuePendingWakeReason({
-            source: pendingWake.source,
-            intent: pendingWake.intent,
-            reason: pendingWake.reason ?? "retry",
-            agentId: pendingWake.agentId,
-            sessionKey: pendingWake.sessionKey,
-            heartbeat: pendingWake.heartbeat,
-          });
-          schedule(DEFAULT_RETRY_MS, "retry");
+        } else {
+          // Any other outcome breaks a pre-model-noop chain for this target.
+          preModelNoopRetryCounts.delete(wakeTargetKey);
+          if (res.status === "skipped" && isRetryableHeartbeatBusySkipReason(res.reason)) {
+            // The target runtime is busy; retry this wake target soon.
+            busySeen = true;
+            consecutiveBusyRetries += 1;
+            const nowMs = Date.now();
+            log.debug(
+              `[wake-retry] re-queueing wake after busy skip: reason="${res.reason}" targetSession=${
+                pendingWake.sessionKey ?? pendingWake.agentId ?? "(broadcast)"
+              } retryInMs=${DEFAULT_RETRY_MS} consecutiveBusyRetries=${consecutiveBusyRetries}`,
+              {
+                reason: res.reason,
+                sessionKey: pendingWake.sessionKey,
+                agentId: pendingWake.agentId,
+                consecutiveBusyRetries,
+              },
+            );
+            if (nowMs - lastBusySkipLogAt >= BUSY_SKIP_LOG_INTERVAL_MS) {
+              lastBusySkipLogAt = nowMs;
+              const stalled = consecutiveBusyRetries >= BUSY_RETRY_STALL_THRESHOLD;
+              log.warn(
+                `heartbeat: wake skipped (busy: ${res.reason}); retrying in 1s — consecutive busy retries: ${consecutiveBusyRetries}${stalled ? " — STALL SUSPECTED: busy condition has not cleared in 5+ minutes, check main-session/turn lane state" : ""}`,
+                { reason: res.reason, consecutiveBusyRetries, stalled },
+              );
+            }
+            queuePendingWakeReason({
+              source: pendingWake.source,
+              intent: pendingWake.intent,
+              reason: pendingWake.reason ?? "retry",
+              agentId: pendingWake.agentId,
+              sessionKey: pendingWake.sessionKey,
+              heartbeat: pendingWake.heartbeat,
+            });
+            schedule(DEFAULT_RETRY_MS, "retry");
+          }
         }
       }
     } catch {
@@ -479,6 +543,7 @@ export function setHeartbeatWakeHandler(next: HeartbeatWakeHandler | null): () =
     runningOwnerGeneration = 0;
     consecutiveBusyRetries = 0;
     lastBusySkipLogAt = 0;
+    preModelNoopRetryCounts.clear();
   }
   if (handler && pendingWakes.size > 0) {
     schedule(DEFAULT_COALESCE_MS, "normal");
@@ -547,6 +612,7 @@ export function resetHeartbeatWakeStateForTests() {
   runningOwnerGeneration = 0;
   recentWakeClaims.length = 0;
   nextWakeClaimSeq = 0;
+  preModelNoopRetryCounts.clear();
   handlerGeneration += 1;
   handler = null;
 }

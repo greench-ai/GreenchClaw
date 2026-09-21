@@ -3,6 +3,7 @@ import {
   getRecentHeartbeatWakeClaimsForTest,
   HEARTBEAT_SKIP_CRON_IN_PROGRESS,
   HEARTBEAT_SKIP_LANES_BUSY,
+  HEARTBEAT_SKIP_REPLY_PRE_MODEL_NOOP,
   HEARTBEAT_SKIP_REQUESTS_IN_FLIGHT,
   hasHeartbeatWakeHandler,
   hasPendingHeartbeatWake,
@@ -511,5 +512,78 @@ describe("heartbeat-wake", () => {
     resolvers[1]?.({ status: "ran", durationMs: 1 });
     await vi.advanceTimersByTimeAsync(2_000);
     expect(handler).toHaveBeenCalledTimes(3);
+  });
+
+  it("requeues a reply-pre-model-noop skip after the default retry delay (item-17c)", async () => {
+    vi.useFakeTimers();
+    const handler = vi
+      .fn()
+      .mockResolvedValueOnce({ status: "skipped", reason: HEARTBEAT_SKIP_REPLY_PRE_MODEL_NOOP })
+      .mockResolvedValueOnce({ status: "ran", durationMs: 1 });
+    await expectRetryAfterDefaultDelay({
+      handler,
+      initialReason: "cron:job-1",
+      expectedRetryReason: "cron:job-1",
+    });
+  });
+
+  it("drops a reply-pre-model-noop wake after the bounded retry cap (item-17c)", async () => {
+    vi.useFakeTimers();
+    const handler = vi.fn().mockImplementation(async () => ({
+      status: "skipped" as const,
+      reason: HEARTBEAT_SKIP_REPLY_PRE_MODEL_NOOP,
+    }));
+    setHeartbeatWakeHandler(handler);
+
+    requestHeartbeat(wake("cron:job-cap", { coalesceMs: 0 }));
+    await vi.advanceTimersByTimeAsync(1);
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    // Three bounded retries requeue the wake; the cap drops it after the 4th
+    // pre-model-noop result — no tight loop, no infinite 1s spin.
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(handler).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(handler).toHaveBeenCalledTimes(3);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(handler).toHaveBeenCalledTimes(4);
+
+    // Cap reached: no further retries are scheduled.
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(handler).toHaveBeenCalledTimes(4);
+    expect(hasPendingHeartbeatWake()).toBe(false);
+  });
+
+  it("a successful run resets the pre-model-noop retry chain", async () => {
+    vi.useFakeTimers();
+    const handler = vi
+      .fn()
+      .mockResolvedValueOnce({ status: "skipped", reason: HEARTBEAT_SKIP_REPLY_PRE_MODEL_NOOP })
+      .mockResolvedValueOnce({ status: "skipped", reason: HEARTBEAT_SKIP_REPLY_PRE_MODEL_NOOP })
+      .mockResolvedValueOnce({ status: "ran", durationMs: 1 })
+      .mockResolvedValueOnce({ status: "skipped", reason: HEARTBEAT_SKIP_REPLY_PRE_MODEL_NOOP })
+      .mockResolvedValueOnce({ status: "skipped", reason: HEARTBEAT_SKIP_REPLY_PRE_MODEL_NOOP })
+      .mockResolvedValueOnce({ status: "skipped", reason: HEARTBEAT_SKIP_REPLY_PRE_MODEL_NOOP })
+      .mockResolvedValueOnce({ status: "ran", durationMs: 1 });
+    setHeartbeatWakeHandler(handler);
+
+    requestHeartbeat(wake("exec-event", { coalesceMs: 0 }));
+    await vi.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(1_000);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(handler).toHaveBeenCalledTimes(3); // noop, noop, ran (chain reset)
+
+    // A fresh chain starts from zero: three more noops in a row are allowed
+    // (cap = 3 retries), then a ran clears it again.
+    requestHeartbeat(wake("exec-event", { coalesceMs: 0 }));
+    await vi.advanceTimersByTimeAsync(1);
+    expect(handler).toHaveBeenCalledTimes(4);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(handler).toHaveBeenCalledTimes(5);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(handler).toHaveBeenCalledTimes(6);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(handler).toHaveBeenCalledTimes(7);
+    expect(hasPendingHeartbeatWake()).toBe(false);
   });
 });

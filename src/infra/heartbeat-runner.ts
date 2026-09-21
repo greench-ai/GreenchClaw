@@ -20,6 +20,7 @@ import { formatReasoningMessage } from "../agents/pi-embedded-utils.js";
 import { DEFAULT_HEARTBEAT_FILENAME } from "../agents/workspace.js";
 import { resolveHeartbeatReplyPayload } from "../auto-reply/heartbeat-reply-payload.js";
 import { resolveRecentReplyEngineNoop } from "../auto-reply/reply/reply-engine-verdict.js";
+import type { ReplyRunOutcome } from "../auto-reply/reply/reply-run-outcome.js";
 import {
   getHeartbeatToolNotificationText,
   resolveHeartbeatToolResponseFromReplyResult,
@@ -118,6 +119,7 @@ import {
   areHeartbeatsEnabled,
   HEARTBEAT_SKIP_CRON_IN_PROGRESS,
   HEARTBEAT_SKIP_LANES_BUSY,
+  HEARTBEAT_SKIP_REPLY_PRE_MODEL_NOOP,
   HEARTBEAT_SKIP_REQUESTS_IN_FLIGHT,
   type HeartbeatRunResult,
   type HeartbeatWakeHandler,
@@ -1752,8 +1754,12 @@ export async function runHeartbeatOnce(opts: {
       typeof heartbeat?.timeoutSeconds === "number" ? heartbeat.timeoutSeconds : undefined;
     const bootstrapContextMode: "lightweight" | undefined =
       heartbeat?.lightContext === true ? "lightweight" : undefined;
+    const replyRunOutcome: ReplyRunOutcome = {};
     const replyOpts = {
       isHeartbeat: true,
+      // item-17c: per-call reply-run outcome — the reply engine records the
+      // phase on every pre-model return path; read below after the call.
+      replyRunOutcome,
       ...(heartbeatModelOverride ? { heartbeatModelOverride } : {}),
       suppressToolErrorWarnings,
       ...(usesHeartbeatResponseTool ? { enableHeartbeatTool: true, forceHeartbeatTool: true } : {}),
@@ -1775,28 +1781,57 @@ export async function runHeartbeatOnce(opts: {
     // return pre-model no-ops with zero diagnostics, and this runner
     // misclassified them as ok-empty/ok-token — consuming the wake/system
     // events and reporting `ran` while the agent never actually turned.
-    // Consult the recorded turn verdict: intentional noops (commands, hooks,
-    // queued turns) keep the legacy behavior; pre-model deaths must NOT
-    // consume events so the payload survives for the next run.
+    // 2026-09-21 (item-17c): the per-call outcome out-param (above) is now the
+    // PRIMARY classifier — only a phase recorded by THIS call counts. The
+    // item-17b noop ring stays as the window-scan fallback for engine paths
+    // that do not record an outcome. Either way: intentional noops (commands,
+    // hooks, queued turns) keep the legacy behavior; pre-model deaths must NOT
+    // consume events so the payload survives — and the run now returns a
+    // retryable skip (HEARTBEAT_SKIP_REPLY_PRE_MODEL_NOOP) so the wake layer
+    // requeues it with a bounded retry cap, instead of item-17b's terminal
+    // `failed` which left recovery to the next interval heartbeat.
     const replyEngineNoop = resolveRecentReplyEngineNoop({
       sessionKey: runSessionKey,
       sinceMs: startedAt,
     });
-    if (replyEngineNoop?.verdict === "pre-model-death") {
+    const preModelNoop = (() => {
+      if (replyRunOutcome.phase === "pre-model-noop") {
+        return {
+          kind: replyRunOutcome.reason ?? "unknown",
+          reason: replyRunOutcome.reason ?? "(no reason recorded)",
+          detail: replyRunOutcome.detail,
+        };
+      }
+      // Per-call truth: a dispatched/queued phase overrides a ring entry —
+      // the ring is window-scanned and can see a sibling turn's noop.
+      if (
+        replyRunOutcome.phase === undefined &&
+        replyEngineNoop?.verdict === "pre-model-death"
+      ) {
+        return {
+          kind: replyEngineNoop.kind,
+          reason: replyEngineNoop.reason,
+          detail: replyEngineNoop.detail
+            ? JSON.stringify(replyEngineNoop.detail)
+            : undefined,
+        };
+      }
+      return undefined;
+    })();
+    if (preModelNoop) {
       await restoreHeartbeatUpdatedAt({
         storePath,
         sessionKey,
         updatedAt: previousUpdatedAt,
       });
-      const noopReason = `reply-engine-died-pre-model:${replyEngineNoop.kind}`;
+      const noopReason = `reply-engine-died-pre-model:${preModelNoop.kind}`;
       log.error(
-        `[heartbeat] reply engine died pre-model (kind=${replyEngineNoop.kind} reason="${replyEngineNoop.reason}") — no events consumed, run failed; payload stays retryable`,
+        `[heartbeat] reply engine died pre-model (kind=${preModelNoop.kind} reason="${preModelNoop.reason}") — no events consumed, wake requeued for bounded retry (item-17c)`,
         {
           sessionKey: runSessionKey,
-          kind: replyEngineNoop.kind,
-          noopReason: replyEngineNoop.reason,
-          isHeartbeat: replyEngineNoop.isHeartbeat,
-          ...(replyEngineNoop.detail ?? {}),
+          kind: preModelNoop.kind,
+          noopReason: preModelNoop.reason,
+          ...(preModelNoop.detail ? { outcomeDetail: preModelNoop.detail } : {}),
           replyHadText: Boolean(replyPayload?.text),
           source: opts.source,
           reason: opts.reason,
@@ -1810,7 +1845,7 @@ export async function runHeartbeatOnce(opts: {
         accountId: delivery.accountId,
         indicatorType: visibility.useIndicator ? "error" : undefined,
       });
-      return { status: "failed", reason: noopReason };
+      return { status: "skipped", reason: HEARTBEAT_SKIP_REPLY_PRE_MODEL_NOOP };
     }
     const includeReasoning = heartbeat?.includeReasoning === true;
     const reasoningPayloads = includeReasoning
