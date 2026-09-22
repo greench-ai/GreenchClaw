@@ -143,4 +143,57 @@ describe("resetReplyRunSession", () => {
 
     await expectPathMissing(oldTranscriptPath);
   });
+
+  it("clears sticky failover model overrides and reverts queued runs to the fallback origin", async () => {
+    const storePath = path.join(rootDir, "sessions.json");
+    const sessionEntry: SessionEntry = {
+      sessionId: "session",
+      updatedAt: 1,
+      sessionFile: path.join(rootDir, "session.jsonl"),
+      providerOverride: "ollama-local",
+      modelOverride: "canna-v17.1",
+      modelOverrideSource: "auto",
+      modelOverrideFallbackOriginProvider: "ollama",
+      modelOverrideFallbackOriginModel: "glm-5.3",
+    };
+    const sessionStore = { main: sessionEntry };
+    const followupRun = createTestFollowupRun({ provider: "ollama-local", model: "canna-v17.1" });
+    await writeTestSessionStore(storePath, "main", sessionEntry);
+
+    const reset = await resetReplyRunSession({
+      options: {
+        failureLabel: "compaction failure",
+        buildLogMessage: (next) => `reset ${next}`,
+      },
+      sessionKey: "main",
+      queueKey: "main",
+      activeSessionEntry: sessionEntry,
+      activeSessionStore: sessionStore,
+      storePath,
+      followupRun,
+      onActiveSessionEntry: () => {},
+      onNewSession: () => {},
+    });
+
+    expect(reset).toBe(true);
+    // Sticky selection cleared on the rotated entry...
+    expect(sessionStore.main.providerOverride).toBeUndefined();
+    expect(sessionStore.main.modelOverride).toBeUndefined();
+    expect(sessionStore.main.modelOverrideSource).toBeUndefined();
+    expect(sessionStore.main.modelOverrideFallbackOriginProvider).toBeUndefined();
+    expect(sessionStore.main.modelOverrideFallbackOriginModel).toBeUndefined();
+    // ...and the in-memory run reverted to the pre-failover origin...
+    expect(followupRun.run.provider).toBe("ollama");
+    expect(followupRun.run.model).toBe("glm-5.3");
+    expect(followupRun.run.hasSessionModelOverride).toBe(false);
+    expect(followupRun.run.modelOverrideSource).toBeUndefined();
+    // ...and queued runs get the origin rewrite too.
+    expect(refreshQueuedFollowupSessionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        previousSessionId: "session",
+        nextProvider: "ollama",
+        nextModel: "glm-5.3",
+      }),
+    );
+  });
 });

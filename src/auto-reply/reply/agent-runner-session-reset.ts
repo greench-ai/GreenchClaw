@@ -55,6 +55,12 @@ export async function resetReplyRunSession(params: {
     return false;
   }
   const prevSessionId = params.options.cleanupTranscripts ? prevEntry.sessionId : undefined;
+  // Capture the pre-failover primary before clearing the sticky selection: the
+  // queued runs still carry the failover model (e.g. a tiny-context fallback),
+  // and retrying a fresh session on it re-enters the same overflow loop. Revert
+  // them to the origin so the next run resolves from the clean session entry.
+  const originProvider = prevEntry.modelOverrideFallbackOriginProvider;
+  const originModel = prevEntry.modelOverrideFallbackOriginModel;
   const nextSessionId = deps.generateSecureUuid();
   const now = Date.now();
   const nextEntry: SessionEntry = {
@@ -71,6 +77,11 @@ export async function resetReplyRunSession(params: {
     abortedLastRun: false,
     modelProvider: undefined,
     model: undefined,
+    providerOverride: undefined,
+    modelOverride: undefined,
+    modelOverrideSource: undefined,
+    modelOverrideFallbackOriginProvider: undefined,
+    modelOverrideFallbackOriginModel: undefined,
     inputTokens: undefined,
     outputTokens: undefined,
     totalTokens: undefined,
@@ -110,11 +121,26 @@ export async function resetReplyRunSession(params: {
   });
   params.followupRun.run.sessionId = nextSessionId;
   params.followupRun.run.sessionFile = nextSessionFile;
+  // Drop the sticky failover selection on the in-memory run so the retry does
+  // not pin the new session to the failed fallback model.
+  if (originProvider && originModel) {
+    params.followupRun.run.provider = originProvider;
+    params.followupRun.run.model = originModel;
+  }
+  params.followupRun.run.hasSessionModelOverride = false;
+  params.followupRun.run.modelOverrideSource = undefined;
   deps.refreshQueuedFollowupSession({
     key: params.queueKey,
     previousSessionId: prevEntry.sessionId,
     nextSessionId,
     nextSessionFile,
+    ...(originProvider && originModel
+      ? {
+          nextProvider: originProvider,
+          nextModel: originModel,
+          nextModelOverrideSource: undefined,
+        }
+      : {}),
   });
   params.onActiveSessionEntry(nextEntry);
   params.onNewSession(nextSessionId, nextSessionFile);

@@ -65,6 +65,7 @@ import {
   getApiKeyForModel,
   resolveModelAuthMode,
 } from "../model-auth.js";
+import { isNonSecretApiKeyMarker } from "../model-auth-markers.js";
 import { isFallbackSummaryError, runWithModelFallback } from "../model-fallback.js";
 import { supportsModelTools } from "../model-tool-support.js";
 import { ensureGreenchClawModelsJson } from "../models-config.js";
@@ -566,7 +567,18 @@ async function compactEmbeddedPiSessionDirectOnce(
       if (!runtimeApiKey) {
         throw new Error(`Provider "${runtimeModel.provider}" runtime auth returned no apiKey.`);
       }
-      authStorage.setRuntimeApiKey(runtimeModel.provider, runtimeApiKey);
+      if (isNonSecretApiKeyMarker(runtimeApiKey)) {
+        // Synthetic local marker (e.g. ollama-local, custom-local) — not a real
+        // credential. Registering it as a runtime API key makes the pi ollama
+        // client treat the provider as a keyed cloud account and route requests
+        // to ollama.com (401), instead of hitting the model's local baseUrl
+        // unauthenticated. Local servers need a keyless client.
+        log.info(
+          `[compact] skipping runtime API key registration for "${runtimeModel.provider}": synthetic local marker`,
+        );
+      } else {
+        authStorage.setRuntimeApiKey(runtimeModel.provider, runtimeApiKey);
+      }
     }
   } catch (err) {
     const reason = formatErrorMessage(err);
