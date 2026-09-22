@@ -77,7 +77,7 @@ export function createTestPluginApi(api: TestPluginApiInput = {}): GreenchClawPl
     unscheduleSessionTurnsByTag: async () => ({ removed: 0, failed: 0 }),
     registerMemoryCapability() {},
     registerMemoryPromptSection() {},
-    registerMemoryPromptSupplement() {},
+    registerMemoryPromptSupplement(_pluginId, _builder) {},
     registerMemoryCorpusSupplement() {},
     registerMemoryFlushPlan() {},
     registerMemoryRuntime() {},
