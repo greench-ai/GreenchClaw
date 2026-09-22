@@ -14,7 +14,7 @@ inputs:
   pnpm-version:
     description: pnpm version for corepack.
     required: false
-    default: "11.0.8"
+    default: "auto"
   install-bun:
     description: Whether to install Bun alongside Node.
     required: false

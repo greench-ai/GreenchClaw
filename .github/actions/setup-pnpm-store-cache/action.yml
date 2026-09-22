@@ -2,9 +2,12 @@ name: Setup pnpm + store cache
 description: Prepare pnpm via corepack and restore pnpm store cache.
 inputs:
   pnpm-version:
-    description: pnpm version to activate via corepack.
+    description: >
+      pnpm version to activate via corepack. Use "auto" to derive from the
+      project's packageManager field in package.json (recommended — avoids
+      version drift between the project pin and CI setup).
     required: false
-    default: "11.0.8"
+    default: "auto"
   cache-key-suffix:
     description: Suffix appended to the cache key.
     required: false
@@ -43,9 +46,21 @@ runs:
         PNPM_VERSION: ${{ inputs.pnpm-version }}
       run: |
         set -euo pipefail
+        PNPM_FALLBACK="11.0.8"
         if [[ ! "$PNPM_VERSION" =~ ^[0-9]+(\.[0-9]+){1,2}([.-][0-9A-Za-z.-]+)?$ ]]; then
-          echo "::error::Invalid pnpm-version input: '$PNPM_VERSION'"
-          exit 2
+          if [[ "$PNPM_VERSION" == "auto" ]]; then
+            PROJECT_PIN="$(sed -n 's/.*"packageManager": *"pnpm@\([^\"+]*\)[+\"].*/\1/p' package.json | head -1 || true)"
+            if [[ "$PROJECT_PIN" =~ ^[0-9]+(\.[0-9]+){1,2}([.-][0-9A-Za-z.-]+)?$ ]]; then
+              echo "Derived pnpm version from packageManager: $PROJECT_PIN"
+              PNPM_VERSION="$PROJECT_PIN"
+            else
+              echo "No usable packageManager pin; falling back to $PNPM_FALLBACK"
+              PNPM_VERSION="$PNPM_FALLBACK"
+            fi
+          else
+            echo "::error::Invalid pnpm-version input: '$PNPM_VERSION'"
+            exit 2
+          fi
         fi
         corepack enable
         for attempt in 1 2 3; do
