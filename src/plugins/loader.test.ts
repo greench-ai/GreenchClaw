@@ -2704,6 +2704,44 @@ module.exports = { id: "throws-after-import", register() {} };`,
     expect(listMemoryEmbeddingProviders()).toStrictEqual([]);
   });
 
+  it("accepts the declared two-arg memory prompt supplement shape (pluginId, builder)", () => {
+    useNoBundledPlugins();
+    clearMemoryPluginState();
+    const plugin = writePlugin({
+      id: "memory-prompt-supplement-two-arg",
+      filename: "memory-prompt-supplement-two-arg.cjs",
+      body: `module.exports = {
+        id: "memory-prompt-supplement-two-arg",
+        register(api) {
+          api.registerMemoryPromptSupplement("zz-test-facts", () => ["zz test supplement"]);
+        },
+      };`,
+    });
+
+    const registry = loadGreenchClawPlugins({
+      cache: false,
+      workspaceDir: plugin.dir,
+      config: {
+        plugins: {
+          load: { paths: [plugin.file] },
+          allow: ["memory-prompt-supplement-two-arg"],
+        },
+      },
+      onlyPluginIds: ["memory-prompt-supplement-two-arg"],
+    });
+
+    expect(
+      registry.plugins.find((entry) => entry.id === "memory-prompt-supplement-two-arg")?.status,
+    ).not.toBe("error");
+    expect(listMemoryPromptSupplements().map((registration) => registration.pluginId)).toStrictEqual([
+      "zz-test-facts",
+    ]);
+    expect(buildMemoryPromptSection({ availableTools: new Set() })).toStrictEqual([
+      "zz test supplement",
+    ]);
+    clearMemoryPluginState();
+  });
+
   it("does not replace the active detached task runtime during non-activating loads", () => {
     useNoBundledPlugins();
     const activeRuntime = createDetachedTaskRuntimeStub("active");

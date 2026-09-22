@@ -2787,7 +2787,15 @@ export function createPluginRegistry(registryParams: PluginRegistryParams) {
                 }
                 registerMemoryPromptSectionForPlugin(record.id, builder);
               },
-              registerMemoryPromptSupplement: (builder) => {
+              registerMemoryPromptSupplement: (pluginIdOrBuilder, maybeBuilder) => {
+                // Accept both shapes: legacy 1-arg (builder) and the declared 2-arg
+                // (pluginId, builder) from PluginApiContract (types.ts). The 2-arg form
+                // lets plugins choose their own supplement id (ordering semantics, e.g.
+                // memory-core's "zz-facts" sorting last); the registry dedups by id.
+                const supplementId =
+                  typeof pluginIdOrBuilder === "string" ? pluginIdOrBuilder : record.id;
+                const builder =
+                  typeof pluginIdOrBuilder === "string" ? maybeBuilder : pluginIdOrBuilder;
                 if (typeof builder !== "function") {
                   pushDiagnostic({
                     level: "error",
@@ -2797,7 +2805,7 @@ export function createPluginRegistry(registryParams: PluginRegistryParams) {
                   });
                   return;
                 }
-                registerMemoryPromptSupplement(record.id, builder);
+                registerMemoryPromptSupplement(supplementId, builder);
               },
               registerMemoryCorpusSupplement: (supplement) => {
                 registerMemoryCorpusSupplement(record.id, supplement);
