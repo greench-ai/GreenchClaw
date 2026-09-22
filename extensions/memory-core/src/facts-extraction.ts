@@ -22,9 +22,12 @@ import type { GreenchClawConfig } from "GreenchClaw/plugin-sdk/config-contracts"
 import { resolveUserPath } from "GreenchClaw/plugin-sdk/memory-core-host-engine-foundation";
 import { resolveMemorySearchConfig } from "GreenchClaw/plugin-sdk/memory-core-host-runtime-core";
 import { resolveSessionTranscriptsDirForAgent } from "GreenchClaw/plugin-sdk/memory-core-host-runtime-core";
-// Import directly from memory-host-sdk package (uses exports map + TypeScript paths)
-import { extractFactsFromTurn, type ExtractionMessage } from "memory-host-sdk/engine-extract";
-import { generateFactId, upsertFact } from "memory-host-sdk/engine-facts";
+// Import via the bundled plugin-sdk host wrappers (tsconfig-path resolved at build,
+// bundled into dist chunks — bare `memory-host-sdk/*` specifiers resolve nowhere at
+// runtime: not in extension deps, not in root deps, package ships only src/*.ts.
+// Broken-since-57ff1b60 load failure class, root-caused with Gohan 2026-09-22)
+import { extractFactsFromTurn, type ExtractionMessage } from "GreenchClaw/plugin-sdk/memory-core-host-engine-extract";
+import { generateFactId, upsertFact } from "GreenchClaw/plugin-sdk/memory-core-host-engine-facts";
 import { openMemoryDatabaseAtPath } from "./memory/manager-db.js";
 
 // ── Config defaults ──────────────────────────────────────────────────────────
