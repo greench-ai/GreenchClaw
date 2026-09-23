@@ -107,9 +107,7 @@ async function createCronHarness(options: CronHarnessOptions = {}) {
 async function createMainOneShotHarness(options?: {
   runHeartbeatOnce?: NonNullable<CronServiceDeps["runHeartbeatOnce"]>;
 }) {
-  const harness = await createCronHarness({
-    ...(options?.runHeartbeatOnce ? { runHeartbeatOnce: options.runHeartbeatOnce } : {}),
-  });
+  const harness = await createCronHarness((options?.runHeartbeatOnce ? { runHeartbeatOnce: options.runHeartbeatOnce } : {}));
   if (!harness.events) {
     throw new Error("missing event harness");
   }
@@ -268,9 +266,7 @@ async function createMainOneShotJobHarness(params: {
   /** item-17c: provide a wake-now heartbeat mock to complete the turn synchronously. */
   runHeartbeatOnce?: NonNullable<CronServiceDeps["runHeartbeatOnce"]>;
 }) {
-  const harness = await createMainOneShotHarness({
-    ...(params.runHeartbeatOnce ? { runHeartbeatOnce: params.runHeartbeatOnce } : {}),
-  });
+  const harness = await createMainOneShotHarness((params.runHeartbeatOnce ? { runHeartbeatOnce: params.runHeartbeatOnce } : {}));
   const atMs = Date.parse("2025-12-13T00:00:02.000Z");
   const job = await addMainOneShotHelloJob(harness.cron, {
     atMs,

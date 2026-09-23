@@ -83,7 +83,7 @@ async function invokeCronAdd(params: {
   const { calls, respond } = captureRespond();
   await cronHandlers["cron.add"]({
     req: { id: 1, method: "cron.add", params: params.jobParams ?? createBaseJobParams() } as never,
-    params: (params.jobParams ?? createBaseJobParams()) as Record<string, unknown>,
+    params: (params.jobParams ?? createBaseJobParams()),
     client: params.client === undefined ? createClient() : params.client,
     isWebchatConnect: () => false,
     respond,
@@ -150,7 +150,7 @@ describe("cron.add creator provenance", () => {
     // The wire schema rejects the unknown field; when validation is bypassed
     // (or a direct service caller threads one through), the server-side
     // provenance still wins.
-    if (respondCalls[0]?.[0] === true) {
+    if (respondCalls[0]?.[0]) {
       expect(jobCreate?.createdBy?.kind).toBe("mcp-loopback");
       expect(jobCreate?.createdBy?.id).not.toBe("forged");
     } else {

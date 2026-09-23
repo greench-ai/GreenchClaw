@@ -27,13 +27,13 @@ function makeResult(
 function getPromptsPath(): string {
   const homedir = process.env.HOME ?? process.env.USERPROFILE ?? "/tmp";
   const dir = join(homedir, ".GreenchClaw");
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  if (!existsSync(dir)) {mkdirSync(dir, { recursive: true });}
   return join(dir, "prompts.json");
 }
 
 function loadPrompts(): Prompt[] {
   const path = getPromptsPath();
-  if (!existsSync(path)) return [];
+  if (!existsSync(path)) {return [];}
   try {
     return JSON.parse(readFileSync(path, "utf-8")) as Prompt[];
   } catch {
@@ -66,7 +66,7 @@ export default definePluginEntry({
         execute: async () => {
           try {
             const prompts = loadPrompts();
-            if (!prompts.length) return makeResult("No prompts saved yet.", { count: 0 });
+            if (!prompts.length) {return makeResult("No prompts saved yet.", { count: 0 });}
             const lines = prompts.map(
               (p) =>
                 `[${p.id}] **${p.name}** — ${p.description || "(no description)"} | vars: ${p.variables.join(", ") || "none"}`,
@@ -100,7 +100,7 @@ export default definePluginEntry({
             };
             const prompts = loadPrompts();
             const prompt = prompts.find((p) => p.name === name);
-            if (!prompt) return makeResult(`Prompt "${name}" not found.`, { success: false });
+            if (!prompt) {return makeResult(`Prompt "${name}" not found.`, { success: false });}
             const filled = interpolate(prompt.content, variables);
             return makeResult(
               `**Prompt: ${prompt.name}**\n\n${filled}\n\nVariables: ${prompt.variables.join(", ") || "none"}`,
@@ -190,7 +190,7 @@ export default definePluginEntry({
             const { name } = toolParams as { name: string };
             const prompts = loadPrompts();
             const idx = prompts.findIndex((p) => p.name === name);
-            if (idx === -1) return makeResult(`Prompt "${name}" not found.`, { success: false });
+            if (idx === -1) {return makeResult(`Prompt "${name}" not found.`, { success: false });}
             prompts.splice(idx, 1);
             savePrompts(prompts);
             return makeResult(`Prompt "${name}" deleted.`, { name });

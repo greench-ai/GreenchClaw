@@ -12,8 +12,8 @@ const REPETITION_LIMIT = 3;
 
 function safeMath(expr: string): string {
   const s = expr.replace(/\s+/g, "");
-  if (!/^[\d+\-*/().%]+$/.test(s)) throw new Error("Invalid characters");
-  if (/\+\+|--|\.\.|\*\/|\/\*|\+\-|\-\+|\(\*|\(\/|\)\(/.test(s)) throw new Error("Invalid syntax");
+  if (!/^[\d+\-*/().%]+$/.test(s)) {throw new Error("Invalid characters");}
+  if (/\+\+|--|\.\.|\*\/|\/\*|\+-|-\+|\(\*|\(\/|\)\(/.test(s)) {throw new Error("Invalid syntax");}
   // eslint-disable-next-line no-new-func
   return String(new Function(`return (${s})`)());
 }
@@ -27,7 +27,7 @@ const toolRegistry = new Map<string, ToolRunner>();
 let toolsBuilt = false;
 
 function buildTools(): void {
-  if (toolsBuilt) return;
+  if (toolsBuilt) {return;}
   toolsBuilt = true;
 
   const reg = (name: string, fn: ToolRunner) => toolRegistry.set(name, fn);
@@ -105,11 +105,11 @@ function buildTools(): void {
   reg("web_search", async (a) => {
     const key = process.env.BRAVE_SEARCH_API_KEY;
     if (!key)
-      return {
+      {return {
         success: true,
         output: `Web search — set BRAVE_SEARCH_API_KEY to enable.`,
         error: null,
-      };
+      };}
     try {
       const resp = await fetch(
         `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(String(a.query ?? ""))}&count=5`,
@@ -122,7 +122,7 @@ function buildTools(): void {
         web?: { results?: Array<{ title?: string; url?: string; description?: string }> };
       };
       const results = data.web?.results ?? [];
-      if (!results.length) return { success: true, output: "No results.", error: null };
+      if (!results.length) {return { success: true, output: "No results.", error: null };}
       return {
         success: true,
         output: results
@@ -141,7 +141,7 @@ function buildTools(): void {
         `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(String(a.topic ?? "").trim())}`,
         { headers: { "User-Agent": "GreenchClaw/1.0" }, signal: AbortSignal.timeout(5000) },
       );
-      if (!resp.ok) return { success: false, output: "", error: `HTTP ${resp.status}` };
+      if (!resp.ok) {return { success: false, output: "", error: `HTTP ${resp.status}` };}
       const d = (await resp.json()) as { title?: string; extract?: string };
       return {
         success: true,
@@ -253,10 +253,10 @@ async function runCompletion(
   const apiKey = String(cfg["apiKey"] ?? "");
   const apiStyle = String(cfg["api"] ?? "openai");
 
-  if (!baseUrl) throw new Error(`No baseUrl for: ${provider}`);
+  if (!baseUrl) {throw new Error(`No baseUrl for: ${provider}`);}
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (apiKey && apiKey !== "***") headers["Authorization"] = `Bearer ${apiKey}`;
+  if (apiKey && apiKey !== "***") {headers["Authorization"] = `Bearer ${apiKey}`;}
 
   let url = `${baseUrl}/chat/completions`;
   const body: Record<string, unknown> = {
@@ -271,7 +271,7 @@ async function runCompletion(
   }
 
   const resp = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal });
-  if (!resp.ok) throw new Error(`API ${resp.status}`);
+  if (!resp.ok) {throw new Error(`API ${resp.status}`);}
 
   if (apiStyle === "anthropic-messages") {
     return (
@@ -306,7 +306,7 @@ async function runAgent(task: string, model: string): Promise<{ output: string }
   ];
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
-    if (abortController.signal.aborted) break;
+    if (abortController.signal.aborted) {break;}
 
     const conversation = [
       ...messages,
@@ -329,7 +329,7 @@ async function runAgent(task: string, model: string): Promise<{ output: string }
     }
 
     const { thought, final, toolName, toolArgs } = parseResponse(responseText);
-    if (thought) steps.push(`**Thought:** ${thought}`);
+    if (thought) {steps.push(`**Thought:** ${thought}`);}
     if (final) {
       finalAnswer = final;
       break;
@@ -339,7 +339,7 @@ async function runAgent(task: string, model: string): Promise<{ output: string }
       break;
     }
 
-    if (toolName === lastTool) sameCount++;
+    if (toolName === lastTool) {sameCount++;}
     else {
       sameCount = 1;
       lastTool = toolName;
@@ -352,11 +352,11 @@ async function runAgent(task: string, model: string): Promise<{ output: string }
 
     let toolInput: Record<string, unknown> = {};
     if (toolArgs)
-      try {
+      {try {
         toolInput = JSON.parse(toolArgs);
       } catch {
         toolInput = { input: toolArgs };
-      }
+      }}
 
     if (!toolRegistry.has(toolName)) {
       steps.push(`**Result (${toolName}):** ERROR: unknown tool`);

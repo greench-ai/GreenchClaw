@@ -295,6 +295,15 @@ function sanitizeDiagnosticEvent(event: DiagnosticEventPayload): DiagnosticStabi
       }
       assignReasonCode(record, event.outcomeReason ?? event.reason);
       break;
+    case "agentTurn.overlap":
+      // Shadow-turn anomaly: full detail goes to the diagnostics error log
+      // (see diagnostic-turn-tracker's [turn-overlap] message); the stability
+      // record keeps the base fields (seq/ts/type) plus the overlap shape.
+      record.outcome = "overlap";
+      record.source = event.activeTurnKind;
+      record.target = event.newTurnKind;
+      record.count = 1;
+      break;
     case "queue.lane.enqueue":
       record.source = event.lane;
       record.queueSize = event.queueSize;

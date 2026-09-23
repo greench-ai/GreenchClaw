@@ -64,7 +64,9 @@ function setHooksPath(hooksPath) {
 
 export function isDirectSetupHooksInvocation(params = {}) {
   const entryPath = params.entryPath ?? process.argv[1];
-  if (!entryPath) return false;
+  if (!entryPath) {
+    return false;
+  }
   const modulePath = params.modulePath ?? fileURLToPath(import.meta.url);
   return resolve(entryPath) === resolve(modulePath);
 }

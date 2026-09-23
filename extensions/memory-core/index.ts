@@ -179,7 +179,7 @@ export default definePluginEntry({
     registerBuiltInMemoryEmbeddingProviders(api);
     registerShortTermPromotionDreaming(api);
     startFactsExtractionRunner({
-      cfg: api.config as GreenchClawConfig,
+      cfg: api.config,
       logger: api.logger,
       getConfig: () => (api.runtime.config?.current?.() ?? api.config) as GreenchClawConfig,
     });

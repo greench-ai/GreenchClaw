@@ -99,10 +99,10 @@ export default definePluginEntry({
           }
           const m = FOCUS_MODES.find((f) => f.id === mode);
           if (!m)
-            return makeResult(
+            {return makeResult(
               `Unknown mode. Available: ${FOCUS_MODES.map((f) => f.id).join(", ")}`,
               { success: false },
-            );
+            );}
           activeMode = m;
           return makeResult(
             `${m.emoji} Focus mode: **${m.name}**\n\n${m.description}\n\nRelevant tools: ${m.relevantTools.join(", ")}`,

@@ -2514,7 +2514,7 @@ export function startHeartbeatRunner(opts: {
               // full retry window — re-arm the runner's own timer so the
               // schedule can never stay dead if the wake layer's chain breaks.
               //
-              // TODO(race-audit 2026-09-17): after this re-arm, BOTH the wake
+              // RACE-AUDIT NOTE (2026-09-17): after this re-arm, BOTH the wake
               // layer's 1s-retry chain (heartbeat-wake.ts schedule(retry)) and
               // the runner's busy-poll timer are armed for the same agent.
               // When the busy condition clears, the wake-layer retry dispatches
@@ -2595,7 +2595,7 @@ export function startHeartbeatRunner(opts: {
             // Self-heal (2026-09-16): the busy condition persisted through a
             // full retry window — re-arm the runner's own timer so the
             // schedule can never stay dead if the wake layer's chain breaks.
-            // TODO(race-audit 2026-09-17): see targeted-branch comment above —
+            // RACE-AUDIT NOTE (2026-09-17): see targeted-branch comment above —
             // this re-arm leaves both the wake-layer retry chain and this
             // busy-poll timer armed; serialization relies on the wake layer's
             // `running` flag + the runningOwnerGeneration guard.
@@ -2702,7 +2702,7 @@ export function startHeartbeatRunner(opts: {
     if (state.stopped) {
       return;
     }
-    const agent = state.agents.values().next().value as HeartbeatAgentState | undefined;
+    const agent = state.agents.values().next().value;
     if (agent) {
       log.info(
         `heartbeat: alive — nextDue in ${Math.max(0, Math.round((agent.nextDueMs - Date.now()) / 1000))}s, lastRun ${

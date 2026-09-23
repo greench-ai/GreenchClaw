@@ -31,8 +31,8 @@ function runPython(args: string[]): Promise<string> {
     proc.stdout?.on("data", (d) => (stdout += d.toString()));
     proc.stderr?.on("data", (d) => (stderr += d.toString()));
     proc.on("close", (code) => {
-      if (code === 0) resolve(stdout.trim());
-      else reject(new Error(stderr || `Python exited ${code}`));
+      if (code === 0) {resolve(stdout.trim());}
+      else {reject(new Error(stderr || `Python exited ${code}`));}
     });
     proc.on("error", reject);
   });
@@ -69,7 +69,7 @@ Returns the number of records indexed and any errors encountered.`,
           async (_id, params) => {
             try {
               const args = ["index"];
-              if (params.force) args.push("--force");
+              if (params.force) {args.push("--force");}
               const result = await runPython(args);
               const stats = JSON.parse(result);
               return {

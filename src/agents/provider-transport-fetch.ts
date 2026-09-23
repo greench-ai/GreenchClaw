@@ -642,7 +642,7 @@ export function buildGuardedModelFetch(
     // before dispatch; Request objects with streamed bodies skip measurement
     // (the body cannot be re-read safely).
     const rawBody = (requestInit ?? init)?.body;
-    const bodyText = typeof rawBody === "string" ? (rawBody as string) : undefined;
+    const bodyText = typeof rawBody === "string" ? (rawBody) : undefined;
     const bodyBytes = estimateRequestBodyBytes(rawBody);
     const maxBodyBytes = resolveMaxModelRequestBodyBytes();
     if (bodyBytes !== undefined && bodyBytes > maxBodyBytes) {

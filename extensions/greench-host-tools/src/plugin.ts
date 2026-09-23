@@ -47,7 +47,7 @@ export default definePluginEntry({
                 ["-e", "bash", "-c", command],
                 { timeout, maxBuffer: 512_000 },
                 (err, out, err2) =>
-                  err ? rej(new Error(err2 || err.message)) : res(out as string),
+                  err ? rej(new Error(err2 || err.message)) : res(out),
               ),
             );
             return makeResult(stdout || "(no output)", { success: true });

@@ -63,9 +63,9 @@ async function parseDocument(buffer: Buffer, fileType: string): Promise<string> 
     const { extractSingleImage } = await import("mammoth");
     const result = await extractSingleImage({ buffer });
     return result.value;
-  } else {
-    return buffer.toString("utf-8");
   }
+    return buffer.toString("utf-8");
+  
 }
 
 // ── Chunking ─────────────────────────────────────────────────────────────────
@@ -82,7 +82,7 @@ function chunkText(text: string, chunkSize: number, chunkOverlap: number): Chunk
   while (start < text.length) {
     const end = start + chunkSize;
     const chunk = text.slice(start, end).trim();
-    if (chunk) chunks.push({ text: chunk, chunk_id: `chunk_${id++}` });
+    if (chunk) {chunks.push({ text: chunk, chunk_id: `chunk_${id++}` });}
     start += chunkSize - chunkOverlap;
   }
   return chunks;
@@ -99,14 +99,14 @@ async function embedTexts(texts: string[], baseUrl: string, model: string): Prom
       body: JSON.stringify({ model, prompt: text }),
       signal: AbortSignal.timeout(60_000),
     });
-    if (!resp.ok) throw new Error(`Embedding failed: ${resp.status}`);
+    if (!resp.ok) {throw new Error(`Embedding failed: ${resp.status}`);}
     const data = (await resp.json()) as { embedding?: number[] };
     results.push(data.embedding ?? []);
     if (results[results.length - 1].length !== EMBEDDING_DIMS) {
       // Pad or truncate to expected dimensions
       const vec = results[results.length - 1];
-      while (vec.length < EMBEDDING_DIMS) vec.push(0);
-      if (vec.length > EMBEDDING_DIMS) vec.length = EMBEDDING_DIMS;
+      while (vec.length < EMBEDDING_DIMS) {vec.push(0);}
+      if (vec.length > EMBEDDING_DIMS) {vec.length = EMBEDDING_DIMS;}
     }
   }
   return results;
@@ -123,7 +123,7 @@ async function qdrantRequest<T>(url: string, opts: RequestInit = {}): Promise<T>
     ...opts,
     headers: { "Content-Type": "application/json", ...opts.headers },
   });
-  if (!resp.ok) throw new Error(`Qdrant ${resp.status}: ${await resp.text().catch(() => "")}`);
+  if (!resp.ok) {throw new Error(`Qdrant ${resp.status}: ${await resp.text().catch(() => "")}`);}
   return resp.json() as Promise<T>;
 }
 
@@ -226,7 +226,7 @@ async function indexDocument(
 
   const points = chunks.map((chunk, i) => ({
     id: Math.abs(
-      parseInt(crypto.createHash("sha1").update(`${docId}_${i}`).digest("hex").slice(0, 16), 16),
+      Number.parseInt(crypto.createHash("sha1").update(`${docId}_${i}`).digest("hex").slice(0, 16), 16),
     ),
     vector: vectors[i],
     payload: {
@@ -301,7 +301,7 @@ async function deleteDocument(
   const chunkCount = meta.chunk_count;
   const pointIds = Array.from({ length: chunkCount }, (_, i) =>
     Math.abs(
-      parseInt(crypto.createHash("sha1").update(`${doc_id}_${i}`).digest("hex").slice(0, 16), 16),
+      Number.parseInt(crypto.createHash("sha1").update(`${doc_id}_${i}`).digest("hex").slice(0, 16), 16),
     ),
   );
 

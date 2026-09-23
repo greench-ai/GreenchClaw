@@ -86,16 +86,16 @@ function readTranscriptMessages(sessionPath: string): ExtractionMessage[] {
   }
   for (const line of raw.split("\n")) {
     const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("//")) continue;
+    if (!trimmed || trimmed.startsWith("//")) {continue;}
     let entry: TranscriptEntry;
     try {
       entry = JSON.parse(trimmed) as TranscriptEntry;
     } catch {
       continue;
     }
-    if (entry.type !== "user" && entry.type !== "assistant") continue;
+    if (entry.type !== "user" && entry.type !== "assistant") {continue;}
     const content = entry.content ?? entry.text ?? entry.message?.content ?? "";
-    if (!content || typeof content !== "string" || !content.trim()) continue;
+    if (!content || typeof content !== "string" || !content.trim()) {continue;}
     const role = entry.role ?? entry.message?.role ?? entry.type;
     messages.push({ role: role as "user" | "assistant", content: content.trim() });
   }
@@ -112,8 +112,8 @@ function getRecentSessionFiles(sessionsDir: string, lookbackMs: number): string[
   try {
     for (const entry of readdirSync(sessionsDir)) {
       // Skip trajectory files and topic files
-      if (entry.endsWith(".trajectory.jsonl") || entry.includes("-topic-")) continue;
-      if (!entry.endsWith(".jsonl")) continue;
+      if (entry.endsWith(".trajectory.jsonl") || entry.includes("-topic-")) {continue;}
+      if (!entry.endsWith(".jsonl")) {continue;}
       const fullPath = path.join(sessionsDir, entry);
       let stat: ReturnType<typeof statSync>;
       try {
@@ -157,7 +157,7 @@ async function extractFactsForSession(params: {
   let factsStored = 0;
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
-    if (msg.role !== "user") continue;
+    if (msg.role !== "user") {continue;}
 
     // Pair with next assistant message if present
     const turnMessages: ExtractionMessage[] = [msg];
@@ -251,7 +251,7 @@ export async function runFactsExtraction(params: {
       .prepare("SELECT DISTINCT session_id FROM agent_facts WHERE session_id IS NOT NULL")
       .all() as Array<{ session_id: string }>;
     for (const row of rows) {
-      if (row.session_id) processedSessions.add(row.session_id);
+      if (row.session_id) {processedSessions.add(row.session_id);}
     }
   } catch {
     // table may not exist yet — skip
@@ -308,7 +308,7 @@ function getConfiguredAgentIds(cfg: GreenchClawConfig): string[] {
   const agentList = (cfg.agents as { list?: Array<{ id?: string }> } | undefined)?.list;
   if (agentList) {
     for (const agent of agentList) {
-      if (agent.id) ids.add(agent.id);
+      if (agent.id) {ids.add(agent.id);}
     }
   }
   return Array.from(ids);
@@ -318,12 +318,12 @@ function parseCronToIntervalMs(cronExpr: string): number | null {
   // "0 */30 * * * *" → every 30 minutes (6-field cron with seconds)
   const match6 = cronExpr.match(/^\s*(\d+)\s+\*\/(\d+)\s+\*\s+\*\s+\*\s+\*$/);
   if (match6) {
-    return parseInt(match6[2], 10) * 60 * 1000;
+    return Number.parseInt(match6[2], 10) * 60 * 1000;
   }
   // "*/30 * * * *" → every 30 minutes (5-field cron, no seconds)
   const match5 = cronExpr.match(/^\s*\*\/(\d+)\s+\*\s+\*\s+\*\s+\*$/);
   if (match5) {
-    return parseInt(match5[1], 10) * 60 * 1000;
+    return Number.parseInt(match5[1], 10) * 60 * 1000;
   }
   return null; // unparseable → use default
 }
@@ -360,7 +360,7 @@ export async function runFactsExtractionForAllAgents(params: {
         | undefined
     )?.list?.find((a) => a.id === agentId);
     const agentEnabled = agentEntry?.memory?.factsEnabled ?? globalEnabled ?? true;
-    if (!agentEnabled) continue;
+    if (!agentEnabled) {continue;}
 
     const config = resolveFactsExtractionConfig(cfg);
     const result = await runFactsExtraction({ cfg, agentId, config, logger });
@@ -389,7 +389,7 @@ export function startFactsExtractionRunner(params: {
 }): void {
   const { logger, getConfig } = params;
 
-  if (extractionInterval !== null) return; // already running
+  if (extractionInterval !== null) {return;} // already running
 
   const mc = getConfig().memory as Record<string, unknown> | undefined;
   const cronExpr = (mc?.factsExtractionCron as string | undefined) ?? "0 */30 * * * *";

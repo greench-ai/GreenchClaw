@@ -52,7 +52,7 @@ async function embedText(text: string, baseUrl: string, model: string): Promise<
     body: JSON.stringify({ model, prompt: text }),
     signal: AbortSignal.timeout(30_000),
   });
-  if (!resp.ok) throw new Error(`Embedding failed: ${resp.status}`);
+  if (!resp.ok) {throw new Error(`Embedding failed: ${resp.status}`);}
   const data = (await resp.json()) as { embedding?: number[] };
   return data.embedding ?? [];
 }
@@ -68,7 +68,7 @@ async function qdrantRequest<T>(url: string, opts: RequestInit = {}): Promise<T>
     ...opts,
     headers: { "Content-Type": "application/json", ...opts.headers },
   });
-  if (!resp.ok) throw new Error(`Qdrant ${resp.status}: ${await resp.text().catch(() => "")}`);
+  if (!resp.ok) {throw new Error(`Qdrant ${resp.status}: ${await resp.text().catch(() => "")}`);}
   return resp.json() as Promise<T>;
 }
 
@@ -159,7 +159,7 @@ async function brainAddMemory(
 
   await brainUpsert(cfg, {
     id: Math.abs(
-      parseInt(crypto.createHash("sha1").update(memoryId).digest("hex").slice(0, 12), 16),
+      Number.parseInt(crypto.createHash("sha1").update(memoryId).digest("hex").slice(0, 12), 16),
     ),
     vector,
     payload: {
@@ -214,7 +214,7 @@ async function brainDeleteMemory(
 ): Promise<boolean> {
   const cfg = getBrainConfig(api);
   const pointId = Math.abs(
-    parseInt(crypto.createHash("sha1").update(memoryId).digest("hex").slice(0, 12), 16),
+    Number.parseInt(crypto.createHash("sha1").update(memoryId).digest("hex").slice(0, 12), 16),
   );
   try {
     await brainDeletePoint(cfg, pointId);
@@ -301,7 +301,7 @@ export default definePluginEntry({
                 Number(params.limit ?? 10),
               );
               if (!results.length)
-                return { success: true, output: "No memories found.", error: null };
+                {return { success: true, output: "No memories found.", error: null };}
               const lines = results.map(
                 (r, i) =>
                   `[${i + 1}] (score: ${r.score.toFixed(3)}) ${r.text}${Object.keys(r.metadata).length ? ` | ${JSON.stringify(r.metadata)}` : ""}`,
@@ -332,7 +332,7 @@ export default definePluginEntry({
                 Number(params.limit ?? 100),
               );
               if (!memories.length)
-                return { success: true, output: "No memories stored.", error: null };
+                {return { success: true, output: "No memories stored.", error: null };}
               return {
                 success: true,
                 output: memories.map((m, i) => `[${i + 1}] ${m.text}`).join("\n"),
