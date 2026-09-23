@@ -841,6 +841,77 @@ describe("resolveModel", () => {
     });
   });
 
+  it("applies provider-level params as defaults under per-model params", () => {
+    const cfg = {
+      models: {
+        providers: {
+          "ollama-local": {
+            baseUrl: "http://127.0.0.1:11434",
+            api: "ollama",
+            params: { num_ctx: 16384, keep_alive: "5m" },
+            models: [
+              {
+                ...makeModel("lfm2.5-2.6b"),
+                params: { num_ctx: 32768 },
+              },
+              {
+                ...makeModel("canna-v17.1"),
+              },
+            ],
+          },
+        },
+      },
+    } as unknown as GreenchClawConfig;
+
+    const explicitModel = resolveModelForTest("ollama-local", "lfm2.5-2.6b", "/tmp/agent", cfg);
+    expect(explicitModel.error).toBeUndefined();
+    expect(
+      (explicitModel.model as { params?: Record<string, unknown> } | undefined)?.params,
+    ).toEqual({
+      num_ctx: 32768,
+      keep_alive: "5m",
+    });
+
+    const inheritedModel = resolveModelForTest("ollama-local", "canna-v17.1", "/tmp/agent", cfg);
+    expect(inheritedModel.error).toBeUndefined();
+    expect(
+      (inheritedModel.model as { params?: Record<string, unknown> } | undefined)?.params,
+    ).toEqual({
+      num_ctx: 16384,
+      keep_alive: "5m",
+    });
+  });
+
+  it("lets provider-level params express num_ctx for fallback-chain registry models", () => {
+    // Fallback-chain entries resolved through the pi model registry must also
+    // pick up provider-level params (applyConfiguredProviderOverrides path).
+    mockDiscoveredModel(discoverModels, {
+      provider: "ollama-local",
+      modelId: "lfm2.5-2.6b",
+      templateModel: {
+        ...makeModel("lfm2.5-2.6b"),
+        provider: "ollama-local",
+      },
+    });
+    const cfg = {
+      models: {
+        providers: {
+          "ollama-local": {
+            baseUrl: "http://127.0.0.1:11434",
+            api: "ollama",
+            params: { num_ctx: 32768 },
+          },
+        },
+      },
+    } as unknown as GreenchClawConfig;
+
+    const result = resolveModelForTest("ollama-local", "lfm2.5-2.6b", "/tmp/agent", cfg);
+    expect(result.error).toBeUndefined();
+    expect((result.model as { params?: Record<string, unknown> } | undefined)?.params).toEqual({
+      num_ctx: 32768,
+    });
+  });
+
   it("resolves provider request timeout metadata for configured provider models", () => {
     mockDiscoveredModel(discoverModels, {
       provider: "ollama",

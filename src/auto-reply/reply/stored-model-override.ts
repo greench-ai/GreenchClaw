@@ -11,6 +11,10 @@ export type StoredModelOverride = {
   provider?: string;
   model: string;
   source: "session" | "parent";
+  /** `modelOverrideSource` of the entry that provided the override. */
+  modelOverrideSource?: "auto" | "user";
+  /** `updatedAt` (epoch ms) of the entry that provided the override. */
+  entryUpdatedAt?: number;
 };
 
 function resolveParentSessionKeyCandidate(params: {
@@ -41,7 +45,13 @@ export function resolveStoredModelOverride(params: {
     overrideModel: params.sessionEntry?.modelOverride,
   });
   if (direct) {
-    return { ...direct, source: "session" };
+    return {
+      ...direct,
+      source: "session",
+      modelOverrideSource: params.sessionEntry?.modelOverrideSource,
+      entryUpdatedAt:
+        typeof params.sessionEntry?.updatedAt === "number" ? params.sessionEntry.updatedAt : undefined,
+    };
   }
   const parentKey = resolveParentSessionKeyCandidate({
     sessionKey: params.sessionKey,
@@ -59,7 +69,12 @@ export function resolveStoredModelOverride(params: {
   if (!parentOverride) {
     return null;
   }
-  return { ...parentOverride, source: "parent" };
+  return {
+    ...parentOverride,
+    source: "parent",
+    modelOverrideSource: parentEntry?.modelOverrideSource,
+    entryUpdatedAt: typeof parentEntry?.updatedAt === "number" ? parentEntry.updatedAt : undefined,
+  };
 }
 
 function resolveModelRefKey(params: {
@@ -127,4 +142,47 @@ export function isStaleHeartbeatAutoFallbackOverride(params: {
     overrideModel: params.storedOverride.model,
   });
   return storedOverrideKey !== null && storedOverrideKey !== primaryKey;
+}
+
+/**
+ * Current gateway process start time (epoch ms). `process.uptime()` is used so
+ * no new global state is needed; every write in this process stamps
+ * `updatedAt` with a post-boot clock value.
+ */
+export function resolveProcessStartEpochMs(now = Date.now()): number {
+  return now - Math.max(0, process.uptime() * 1000);
+}
+
+/**
+ * True when a persisted AUTO model override was last touched by a previous
+ * gateway process. Auto failover overrides (quota blips, rate-limit rotation)
+ * must not survive a gateway restart: after a restart the session must
+ * re-resolve from the configured primary instead of retrying on whatever
+ * fallback model the last process stuck to (e.g. a tiny-context local model
+ * that cannot even hold the session bootstrap prompt).
+ *
+ * User-driven overrides (`/model`, `sessions.patch`) and legacy entries without
+ * a `modelOverrideSource` keep surviving restarts — only auto fallbacks reset.
+ * The check is timestamp-based: `updatedAt` is stamped by every sticky-state
+ * write (see applyFallbackSelectionState), so `updatedAt < processStart` means
+ * no write happened in this process lifetime.
+ */
+export function isStaleAutoModelOverrideAcrossRestart(params: {
+  storedOverride?: StoredModelOverride | null;
+  now?: number;
+  processStartEpochMs?: number;
+}): boolean {
+  const override = params.storedOverride;
+  if (!override) {
+    return false;
+  }
+  if (override.modelOverrideSource !== "auto") {
+    return false;
+  }
+  if (typeof override.entryUpdatedAt !== "number" || !Number.isFinite(override.entryUpdatedAt)) {
+    return false;
+  }
+  const processStart =
+    params.processStartEpochMs ?? resolveProcessStartEpochMs(params.now);
+  return override.entryUpdatedAt < processStart;
 }

@@ -918,7 +918,7 @@ export const FIELD_HELP: Record<string, string> = {
   "models.providers.*.injectNumCtxForOpenAICompat":
     "Controls whether GreenchClaw injects `options.num_ctx` for Ollama providers configured with the OpenAI-compatible adapter (`openai-completions`). Default is true. Set false only if your proxy/upstream rejects unknown `options` payload fields.",
   "models.providers.*.params":
-    "Provider-specific runtime parameters interpreted by provider plugins. Keep keys documented by the provider, and prefer explicit provider docs over ad hoc shared assumptions.",
+    "Provider-specific runtime parameters applied as defaults to every model under this provider; per-model `models[].params` overrides them. For Ollama providers `params.num_ctx` sets the server-side context window (KV cache size) for native /api/chat requests — use it to raise local models off the 4096 default. Keep keys documented by the provider.",
   "models.providers.*.headers":
     "Static HTTP headers merged into provider requests for tenant routing, proxy auth, or custom gateway requirements. Use this sparingly and keep sensitive header values in secrets.",
   "models.providers.*.authHeader":

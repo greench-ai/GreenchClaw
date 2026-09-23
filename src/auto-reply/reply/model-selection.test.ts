@@ -4,6 +4,7 @@ import { loadModelCatalog } from "../../agents/model-catalog.runtime.js";
 import type { GreenchClawConfig } from "../../config/config.js";
 import type { SessionEntry } from "../../config/sessions.js";
 import { createModelSelectionState, resolveContextTokens } from "./model-selection.js";
+import { resolveProcessStartEpochMs } from "./stored-model-override.js";
 
 vi.mock("../../agents/model-catalog.runtime.js", () => ({
   loadModelCatalog: vi.fn(async () => [
@@ -862,6 +863,7 @@ describe("createModelSelectionState auto-failover overrides", () => {
     primaryProvider?: string;
     primaryModel?: string;
     isHeartbeat?: boolean;
+    entryUpdatedAt?: number;
   }) {
     const cfg = {} as GreenchClawConfig;
     const sessionEntry = makeEntry({
@@ -873,6 +875,9 @@ describe("createModelSelectionState auto-failover overrides", () => {
       fallbackNoticeSelectedModel: params.fallbackNoticeSelectedModel,
       authProfileOverride: params.authProfileOverride,
       authProfileOverrideSource: params.authProfileOverrideSource,
+      ...(params.entryUpdatedAt !== undefined
+        ? { updatedAt: params.entryUpdatedAt }
+        : {}),
     });
     const sessionStore = { [sessionKey]: sessionEntry };
     const state = await createModelSelectionState({
@@ -970,6 +975,93 @@ describe("createModelSelectionState auto-failover overrides", () => {
     expect(state.model).toBe("minimax/minimax-m2.7");
     expect(sessionStore[sessionKey]?.modelOverrideSource).toBe("auto");
     expect(state.resetModelOverride).toBe(false);
+  });
+
+  it("resets an auto-failover override that predates the current gateway process", async () => {
+    // Gateway restart semantics: a fallback pinned by a previous process must
+    // not survive the restart — the session re-resolves from the configured
+    // primary instead of retrying on the stale fallback model.
+    const { state, sessionStore } = await resolveStateWithOverride({
+      providerOverride: "ollama-local",
+      modelOverride: "lfm2.5-2.6b",
+      modelOverrideSource: "auto",
+      provider: "ollama-local",
+      model: "lfm2.5-2.6b",
+      entryUpdatedAt: resolveProcessStartEpochMs() - 60_000,
+    });
+
+    expect(state.provider).toBe(defaultProvider);
+    expect(state.model).toBe(defaultModel);
+    expect(state.resetModelOverride).toBe(true);
+    expect(state.resetModelOverrideRef).toBe("ollama-local/lfm2.5-2.6b");
+    expect(sessionStore[sessionKey]?.providerOverride).toBeUndefined();
+    expect(sessionStore[sessionKey]?.modelOverride).toBeUndefined();
+    expect(sessionStore[sessionKey]?.modelOverrideSource).toBeUndefined();
+    expect(sessionStore[sessionKey]?.modelOverrideFallbackOriginProvider).toBeUndefined();
+    expect(sessionStore[sessionKey]?.modelOverrideFallbackOriginModel).toBeUndefined();
+  });
+
+  it("clears the auto auth profile override but preserves user auth overrides on restart reset", async () => {
+    authProfileStoreMock.store = {
+      version: 1,
+      profiles: {
+        "mac-studio:local": {
+          type: "api_key",
+          provider: defaultProvider,
+          key: "test-key",
+        },
+      },
+    };
+    const { state, sessionStore } = await resolveStateWithOverride({
+      providerOverride: "ollama-local",
+      modelOverride: "canna-v17.1",
+      modelOverrideSource: "auto",
+      authProfileOverride: "mac-studio:local",
+      authProfileOverrideSource: "user",
+      provider: "ollama-local",
+      model: "canna-v17.1",
+      entryUpdatedAt: resolveProcessStartEpochMs() - 60_000,
+    });
+
+    expect(state.provider).toBe(defaultProvider);
+    expect(state.model).toBe(defaultModel);
+    expect(sessionStore[sessionKey]?.authProfileOverride).toBe("mac-studio:local");
+    expect(sessionStore[sessionKey]?.authProfileOverrideSource).toBe("user");
+  });
+
+  it("drops the auto auth profile override together with a restart-stale model override", async () => {
+    const { state, sessionStore } = await resolveStateWithOverride({
+      providerOverride: "ollama-local",
+      modelOverride: "canna-v17.1",
+      modelOverrideSource: "auto",
+      authProfileOverride: "nvidia:backup",
+      authProfileOverrideSource: "auto",
+      provider: "ollama-local",
+      model: "canna-v17.1",
+      entryUpdatedAt: resolveProcessStartEpochMs() - 60_000,
+    });
+
+    expect(state.provider).toBe(defaultProvider);
+    expect(state.model).toBe(defaultModel);
+    expect(sessionStore[sessionKey]?.authProfileOverride).toBeUndefined();
+    expect(sessionStore[sessionKey]?.authProfileOverrideSource).toBeUndefined();
+  });
+
+  it("keeps user-driven model overrides across a gateway restart", async () => {
+    const { state, sessionStore } = await resolveStateWithOverride({
+      providerOverride: "openrouter",
+      modelOverride: "minimax/minimax-m2.7",
+      modelOverrideSource: "user",
+      provider: "openrouter",
+      model: "minimax/minimax-m2.7",
+      entryUpdatedAt: resolveProcessStartEpochMs() - 60_000,
+    });
+
+    expect(state.provider).toBe("openrouter");
+    expect(state.model).toBe("minimax/minimax-m2.7");
+    expect(state.resetModelOverride).toBe(false);
+    expect(sessionStore[sessionKey]?.providerOverride).toBe("openrouter");
+    expect(sessionStore[sessionKey]?.modelOverride).toBe("minimax/minimax-m2.7");
   });
 
   it("clears stale heartbeat auto-failover override when the fallback origin changed", async () => {

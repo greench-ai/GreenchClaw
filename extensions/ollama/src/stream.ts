@@ -294,21 +294,92 @@ function resolveOllamaNumCtx(model: ProviderRuntimeModel): number {
 }
 
 /**
- * Resolves num_ctx for native /api/chat requests:
- *  1. explicit `params.num_ctx` set on the model wins,
- *  2. otherwise return undefined so Ollama's model, OLLAMA_CONTEXT_LENGTH,
- *     VRAM, or Modelfile policy decides.
- *
- * This intentionally differs from `resolveOllamaNumCtx` by not falling back
- * to `DEFAULT_CONTEXT_TOKENS`: that constant is a sane wrapper-side guess for
- * the OpenAI-compat path, but native `/api/chat` should not force the full
- * advertised catalog context for local models unless the operator opted in.
+ * Sane num_ctx floor used when a local Ollama request would otherwise run at
+ * the server default (4096). 4096 silently truncates real sessions — large
+ * prompts overflow the KV window and produce garbage — so requests against
+ * local servers never resolve below this unless the operator explicitly
+ * configures a smaller `params.num_ctx`.
  */
-function resolveOllamaNativeNumCtx(model: ProviderRuntimeModel): number | undefined {
-  return resolveOllamaConfiguredNumCtx(model);
+const OLLAMA_FALLBACK_NUM_CTX = 8192;
+
+function isLocalOllamaRequestBaseUrl(requestBaseUrl: string): boolean {
+  try {
+    const parsed = new URL(requestBaseUrl);
+    let hostname = parsed.hostname.toLowerCase();
+    if (hostname.startsWith("[") && hostname.endsWith("]")) {
+      hostname = hostname.slice(1, -1);
+    }
+    if (hostname === "localhost" || hostname === "::1") {
+      return true;
+    }
+    const octets = hostname.split(".");
+    if (octets.length === 4 && octets.every((o) => /^\d{1,3}$/.test(o))) {
+      const ip = octets.map((o) => Number(o));
+      if (ip.some((n) => n > 255)) {
+        return false;
+      }
+      const [a, b] = ip as [number, number, number, number];
+      // RFC1918 private + link-local + loopback + CGNAT (100.64.0.0/10).
+      return (
+        a === 10 ||
+        a === 127 ||
+        (a === 172 && b >= 16 && b <= 31) ||
+        (a === 192 && b === 168) ||
+        (a === 169 && b === 254) ||
+        (a === 100 && b >= 64 && b <= 127)
+      );
+    }
+    // IPv6 unique-local (fc00::/7) + link-local (fe80::/10).
+    if (/^f[cd][0-9a-f]{2}(?::|$)/.test(hostname) || /^fe[89ab][0-9a-f]?(?::|$)/.test(hostname)) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
 }
 
-function resolveOllamaModelOptions(model: ProviderRuntimeModel): Record<string, unknown> {
+/**
+ * Resolves num_ctx for native /api/chat requests, in precedence order:
+ *  1. explicit config wins — `params.num_ctx` merged onto the model from
+ *     model-level then provider-level `models.providers.*.params`
+ *     (`readModelParams` merge chain in pi-embedded-runner/model.ts),
+ *  2. for LOCAL servers (loopback/LAN), fall back to model metadata
+ *     (`contextWindow`) so requests stop running at Ollama's silent 4096
+ *     default while the model supports far more — large sessions otherwise
+ *     overflow the KV window and produce garbage. Cloud/remote requests keep
+ *     server-side policy (explicit-only) so upstream limits are respected.
+ *  3. sane floor for local servers when metadata is unusable.
+ *
+ * This intentionally differs from `resolveOllamaNumCtx` (the OpenAI-compat
+ * wrapper path) by reading real model metadata instead of guessing.
+ */
+function resolveOllamaNativeNumCtx(
+  model: ProviderRuntimeModel,
+  requestBaseUrl?: string,
+): number | undefined {
+  const configured = resolveOllamaConfiguredNumCtx(model);
+  if (configured !== undefined) {
+    return configured;
+  }
+  if (!requestBaseUrl || !isLocalOllamaRequestBaseUrl(requestBaseUrl)) {
+    return undefined;
+  }
+  const metadataContextWindow = model.contextWindow;
+  if (
+    typeof metadataContextWindow === "number" &&
+    Number.isFinite(metadataContextWindow) &&
+    metadataContextWindow > 0
+  ) {
+    return Math.floor(metadataContextWindow);
+  }
+  return OLLAMA_FALLBACK_NUM_CTX;
+}
+
+function resolveOllamaModelOptions(
+  model: ProviderRuntimeModel,
+  requestBaseUrl?: string,
+): Record<string, unknown> {
   const options: Record<string, unknown> = {};
   const params = model.params;
   if (params && typeof params === "object" && !Array.isArray(params)) {
@@ -321,7 +392,7 @@ function resolveOllamaModelOptions(model: ProviderRuntimeModel): Record<string, 
       }
     }
   }
-  const numCtx = resolveOllamaNativeNumCtx(model);
+  const numCtx = resolveOllamaNativeNumCtx(model, requestBaseUrl);
   if (numCtx !== undefined) {
     options.num_ctx = numCtx;
   }
@@ -1024,18 +1095,67 @@ function resolveOllamaRequestTimeoutMs(
   return typeof raw === "number" && Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : undefined;
 }
 
+/**
+ * Endpoint routing for the shared pi-ai api registry.
+ *
+ * pi-ai registers ONE stream per api id (e.g. "ollama"), first registration
+ * wins (`ensureCustomApiRegistered`), and every provider configured with that
+ * api dispatches through the same entry — including summarizer requests that
+ * bypass `session.agent.streamFn` (pi `compact()` → `completeSimple`).
+ * A stream fn created for provider A must therefore not serve provider B's
+ * models against A's baked URL: when the request model belongs to a different
+ * provider, route by the model's own baseUrl — the same per-model dispatch the
+ * normal chat path already uses. Without this, a stream baked for the cloud
+ * "ollama" provider (https://ollama.com) sends `ollama-local/*` summarizer
+ * requests to ollama.com (401) while the model's local baseUrl points at
+ * 127.0.0.1.
+ */
+function resolveRequestOllamaEndpoint(params: {
+  model: { provider?: unknown; baseUrl?: unknown };
+  bakedChatUrl: string;
+  bakedSsrfPolicy: ReturnType<typeof buildOllamaBaseUrlSsrFPolicy>;
+  creationProvider?: string;
+}): { chatUrl: string; ssrfPolicy: ReturnType<typeof buildOllamaBaseUrlSsrFPolicy> } {
+  const creationProvider = params.creationProvider?.trim();
+  const rawRequestProvider = params.model.provider;
+  const requestProvider =
+    typeof rawRequestProvider === "string" ? rawRequestProvider.trim() : "";
+  if (!creationProvider || !requestProvider || creationProvider === requestProvider) {
+    return { chatUrl: params.bakedChatUrl, ssrfPolicy: params.bakedSsrfPolicy };
+  }
+  const modelBaseUrl = readStringValue(params.model.baseUrl)?.trim() ?? "";
+  if (!modelBaseUrl) {
+    return { chatUrl: params.bakedChatUrl, ssrfPolicy: params.bakedSsrfPolicy };
+  }
+  const chatUrl = resolveOllamaChatUrl(modelBaseUrl);
+  if (chatUrl === params.bakedChatUrl) {
+    return { chatUrl: params.bakedChatUrl, ssrfPolicy: params.bakedSsrfPolicy };
+  }
+  return {
+    chatUrl,
+    ssrfPolicy: buildOllamaBaseUrlSsrFPolicy(chatUrl),
+  };
+}
+
 export function createOllamaStreamFn(
   baseUrl: string,
   defaultHeaders?: Record<string, string>,
+  routing?: { creationProvider?: string },
 ): StreamFn {
-  const chatUrl = resolveOllamaChatUrl(baseUrl);
-  const ssrfPolicy = buildOllamaBaseUrlSsrFPolicy(chatUrl);
+  const bakedChatUrl = resolveOllamaChatUrl(baseUrl);
+  const bakedSsrfPolicy = buildOllamaBaseUrlSsrFPolicy(bakedChatUrl);
 
   return (model, context, options) => {
     const stream = createAssistantMessageEventStream();
 
     const run = async () => {
       try {
+        const { chatUrl, ssrfPolicy } = resolveRequestOllamaEndpoint({
+          model,
+          bakedChatUrl,
+          bakedSsrfPolicy,
+          creationProvider: routing?.creationProvider,
+        });
         const availableToolNames = buildOllamaToolNameSet(context.tools);
         const toolCallNameOptions: OllamaToolCallNameOptions = availableToolNames
           ? { availableToolNames }
@@ -1047,7 +1167,10 @@ export function createOllamaStreamFn(
         );
         const ollamaTools = extractOllamaTools(context.tools);
 
-        const ollamaOptions: Record<string, unknown> = resolveOllamaModelOptions(model);
+        const ollamaOptions: Record<string, unknown> = resolveOllamaModelOptions(
+          model,
+          chatUrl,
+        );
         if (typeof options?.temperature === "number") {
           ollamaOptions.temperature = options.temperature;
         }
@@ -1316,8 +1439,14 @@ export function createOllamaStreamFn(
 }
 
 export function createConfiguredOllamaStreamFn(params: {
-  model: { baseUrl?: string; headers?: unknown };
+  model: { provider?: string; baseUrl?: string; headers?: unknown };
   providerBaseUrl?: string;
+  /**
+   * Provider id this stream fn was created for. Marks the fn's "owning"
+   * provider so the shared pi-ai api-registry entry can re-route requests for
+   * OTHER providers by their own baseUrl (see resolveRequestOllamaEndpoint).
+   */
+  creationProvider?: string;
 }): StreamFn {
   return createOllamaStreamFn(
     resolveOllamaBaseUrlForRun({
@@ -1325,5 +1454,6 @@ export function createConfiguredOllamaStreamFn(params: {
       providerBaseUrl: params.providerBaseUrl,
     }),
     resolveOllamaModelHeaders(params.model),
+    { creationProvider: params.creationProvider },
   );
 }

@@ -237,6 +237,11 @@ export default definePluginEntry({
       createStreamFn: ({ config, model, provider }) => {
         return createConfiguredOllamaStreamFn({
           model,
+          // The pi-ai api registry keeps one stream per api id ("ollama"), so
+          // this fn can serve requests for sibling providers sharing that api
+          // (e.g. "ollama-local"). Mark the owning provider so cross-provider
+          // requests re-route by their own baseUrl instead of this provider's.
+          creationProvider: provider,
           providerBaseUrl: readProviderBaseUrl(
             resolveConfiguredOllamaProviderConfig({ config, providerId: provider }),
           ),

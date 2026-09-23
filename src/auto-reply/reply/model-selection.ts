@@ -29,6 +29,7 @@ export {
   type ModelDirectiveSelection,
 } from "./model-selection-directive.js";
 import {
+  isStaleAutoModelOverrideAcrossRestart,
   isStaleHeartbeatAutoFallbackOverride,
   resolveStoredModelOverride,
 } from "./stored-model-override.js";
@@ -167,7 +168,13 @@ export async function createModelSelectionState(params: {
     overrideModel: sessionEntry?.modelOverride,
   });
   const directStoredModelOverride = directStoredOverride
-    ? { ...directStoredOverride, source: "session" as const }
+    ? {
+        ...directStoredOverride,
+        source: "session" as const,
+        modelOverrideSource: sessionEntry?.modelOverrideSource,
+        entryUpdatedAt:
+          typeof sessionEntry?.updatedAt === "number" ? sessionEntry.updatedAt : undefined,
+      }
     : null;
   const staleHeartbeatAutoFallbackOverride = isStaleHeartbeatAutoFallbackOverride({
     isHeartbeat: params.isHeartbeat,
@@ -179,6 +186,14 @@ export async function createModelSelectionState(params: {
     primaryProvider: params.primaryProvider,
     primaryModel: params.primaryModel,
   });
+  // Auto fallback overrides persisted by a previous gateway process must not
+  // survive the restart: reset them to the configured primary. User-driven
+  // (and legacy unattributed) overrides still survive restarts.
+  const staleRestartAutoFallbackOverride = isStaleAutoModelOverrideAcrossRestart({
+    storedOverride: directStoredModelOverride,
+  });
+  const staleAutoFallbackOverride =
+    staleHeartbeatAutoFallbackOverride || staleRestartAutoFallbackOverride;
 
   if (needsModelCatalog) {
     modelCatalog = await (await loadModelCatalogRuntime()).loadModelCatalog({ config: cfg });
@@ -220,11 +235,20 @@ export async function createModelSelectionState(params: {
       directStoredOverride.model,
     );
     const key = modelKey(normalizedOverride.provider, normalizedOverride.model);
-    if (staleHeartbeatAutoFallbackOverride || !visibilityPolicy.allowsKey(key)) {
+    if (staleAutoFallbackOverride || !visibilityPolicy.allowsKey(key)) {
+      // Heartbeat-stale keeps the existing semantics (auth override preserved).
+      // Restart-stale clears AUTO auth overrides that rode along with the
+      // stale fallback selection but keeps user-driven ones. Visibility-denied
+      // resets keep clearing the auth override entirely.
+      const preserveAuthProfileOverride = staleHeartbeatAutoFallbackOverride
+        ? true
+        : staleRestartAutoFallbackOverride
+          ? sessionEntry.authProfileOverrideSource !== "auto"
+          : false;
       const { updated } = applyModelOverrideToSessionEntry({
         entry: sessionEntry,
         selection: { provider: primaryProvider, model: primaryModel, isDefault: true },
-        preserveAuthProfileOverride: staleHeartbeatAutoFallbackOverride,
+        preserveAuthProfileOverride,
       });
       if (updated) {
         sessionStore[sessionKey] = sessionEntry;
@@ -242,7 +266,7 @@ export async function createModelSelectionState(params: {
       }
     }
   }
-  if (staleHeartbeatAutoFallbackOverride) {
+  if (staleAutoFallbackOverride) {
     const normalizedCurrentSelection = normalizeModelRef(provider, model);
     const currentSelectionKey = modelKey(
       normalizedCurrentSelection.provider,
@@ -267,12 +291,18 @@ export async function createModelSelectionState(params: {
     parentSessionKey,
     defaultProvider,
   });
+  const storedOverrideStaleAcrossRestart = isStaleAutoModelOverrideAcrossRestart({
+    storedOverride,
+  });
   // Skip stored session model override only when an explicit heartbeat.model
   // was resolved. Heartbeats without heartbeat.model still inherit normal
   // overrides unless a direct auto fallback override is stale for the current
-  // configured default.
+  // configured default. Auto overrides persisted by a previous gateway
+  // process (session OR parent source) are also skipped so post-restart runs
+  // re-resolve from the configured primary.
   const skipStoredOverride =
     params.hasResolvedHeartbeatModelOverride === true ||
+    storedOverrideStaleAcrossRestart ||
     (staleHeartbeatAutoFallbackOverride && storedOverride?.source === "session");
 
   if (storedOverride?.model && !skipStoredOverride) {

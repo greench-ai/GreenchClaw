@@ -2047,3 +2047,262 @@ describe("createConfiguredOllamaStreamFn", () => {
     );
   });
 });
+
+describe("createOllamaStreamFn shared api-registry routing (cross-provider dispatch)", () => {
+  // pi-ai registers one stream per api id; a stream created for provider A can
+  // serve requests for provider B through the shared "ollama" api entry —
+  // including compaction summarizer requests (completeSimple). Cross-provider
+  // requests must route by the request model's own baseUrl, not the baked
+  // creation-provider URL (the compaction 401-to-ollama.com bug class).
+  it("routes cross-provider requests by the request model's baseUrl", async () => {
+    await withMockNdjsonFetch(
+      [
+        '{"model":"m","created_at":"t","message":{"role":"assistant","content":"ok"},"done":false}',
+        '{"model":"m","created_at":"t","message":{"role":"assistant","content":""},"done":true,"prompt_eval_count":1,"eval_count":1}',
+      ],
+      async (fetchMock) => {
+        // Stream fn created for the cloud "ollama" provider (baked ollama.com),
+        // as happens when the primary model registers the shared api first.
+        const streamFn = createConfiguredOllamaStreamFn({
+          model: { provider: "ollama", baseUrl: "https://ollama.com" },
+          providerBaseUrl: "https://ollama.com",
+          creationProvider: "ollama",
+        });
+        const stream = await Promise.resolve(
+          streamFn(
+            {
+              id: "lfm2.5-2.6b",
+              api: "ollama",
+              provider: "ollama-local",
+              baseUrl: "http://127.0.0.1:11434",
+              contextWindow: 131072,
+            } as never,
+            { messages: [{ role: "user", content: "hello" }] } as never,
+            {} as never,
+          ),
+        );
+        await collectStreamEvents(stream);
+        expect(getGuardedFetchCall(fetchMock).url).toBe("http://127.0.0.1:11434/api/chat");
+      },
+    );
+  });
+
+  it("keeps the baked URL for same-provider requests", async () => {
+    await withMockNdjsonFetch(
+      [
+        '{"model":"m","created_at":"t","message":{"role":"assistant","content":"ok"},"done":false}',
+        '{"model":"m","created_at":"t","message":{"role":"assistant","content":""},"done":true,"prompt_eval_count":1,"eval_count":1}',
+      ],
+      async (fetchMock) => {
+        const streamFn = createConfiguredOllamaStreamFn({
+          model: { provider: "ollama", baseUrl: "https://ollama.com" },
+          providerBaseUrl: "https://ollama.com",
+          creationProvider: "ollama",
+        });
+        const stream = await Promise.resolve(
+          streamFn(
+            {
+              id: "glm-5.3",
+              api: "ollama",
+              provider: "ollama",
+              baseUrl: "https://ollama.com",
+              contextWindow: 1048576,
+            } as never,
+            { messages: [{ role: "user", content: "hello" }] } as never,
+            {} as never,
+          ),
+        );
+        await collectStreamEvents(stream);
+        expect(getGuardedFetchCall(fetchMock).url).toBe("https://ollama.com/api/chat");
+      },
+    );
+  });
+
+  it("falls back to the baked URL when a cross-provider model has no baseUrl", async () => {
+    await withMockNdjsonFetch(
+      [
+        '{"model":"m","created_at":"t","message":{"role":"assistant","content":"ok"},"done":false}',
+        '{"model":"m","created_at":"t","message":{"role":"assistant","content":""},"done":true,"prompt_eval_count":1,"eval_count":1}',
+      ],
+      async (fetchMock) => {
+        const streamFn = createConfiguredOllamaStreamFn({
+          model: { provider: "ollama-local" },
+          providerBaseUrl: "http://127.0.0.1:11434",
+          creationProvider: "ollama-local",
+        });
+        const stream = await Promise.resolve(
+          streamFn(
+            {
+              id: "lfm2.5-2.6b",
+              api: "ollama",
+              provider: "ollama-local",
+              contextWindow: 131072,
+            } as never,
+            { messages: [{ role: "user", content: "hello" }] } as never,
+            {} as never,
+          ),
+        );
+        await collectStreamEvents(stream);
+        expect(getGuardedFetchCall(fetchMock).url).toBe("http://127.0.0.1:11434/api/chat");
+      },
+    );
+  });
+});
+
+describe("createOllamaStreamFn native num_ctx resolution", () => {
+  function readNumCtx(fetchMock: typeof fetchWithSsrFGuardMock): unknown {
+    const init = getGuardedFetchCall(fetchMock).init ?? {};
+    const body = JSON.parse(String(init.body)) as { options?: Record<string, unknown> };
+    return body.options?.num_ctx;
+  }
+
+  it("injects model metadata num_ctx for local requests without explicit config", async () => {
+    await withMockNdjsonFetch(
+      [
+        '{"model":"m","created_at":"t","message":{"role":"assistant","content":"ok"},"done":false}',
+        '{"model":"m","created_at":"t","message":{"role":"assistant","content":""},"done":true,"prompt_eval_count":1,"eval_count":1}',
+      ],
+      async (fetchMock) => {
+        const streamFn = createOllamaStreamFn("http://127.0.0.1:11434", undefined, {
+          creationProvider: "ollama-local",
+        });
+        const stream = await Promise.resolve(
+          streamFn(
+            {
+              id: "lfm2.5-2.6b",
+              api: "ollama",
+              provider: "ollama-local",
+              baseUrl: "http://127.0.0.1:11434",
+              contextWindow: 131072,
+            } as never,
+            { messages: [{ role: "user", content: "hello" }] } as never,
+            {} as never,
+          ),
+        );
+        await collectStreamEvents(stream);
+        expect(readNumCtx(fetchMock)).toBe(131072);
+      },
+    );
+  });
+
+  it("prefers explicit params.num_ctx over model metadata for local requests", async () => {
+    await withMockNdjsonFetch(
+      [
+        '{"model":"m","created_at":"t","message":{"role":"assistant","content":"ok"},"done":false}',
+        '{"model":"m","created_at":"t","message":{"role":"assistant","content":""},"done":true,"prompt_eval_count":1,"eval_count":1}',
+      ],
+      async (fetchMock) => {
+        const streamFn = createOllamaStreamFn("http://127.0.0.1:11434", undefined, {
+          creationProvider: "ollama-local",
+        });
+        const stream = await Promise.resolve(
+          streamFn(
+            {
+              id: "lfm2.5-2.6b",
+              api: "ollama",
+              provider: "ollama-local",
+              baseUrl: "http://127.0.0.1:11434",
+              contextWindow: 131072,
+              params: { num_ctx: 32768 },
+            } as never,
+            { messages: [{ role: "user", content: "hello" }] } as never,
+            {} as never,
+          ),
+        );
+        await collectStreamEvents(stream);
+        expect(readNumCtx(fetchMock)).toBe(32768);
+      },
+    );
+  });
+
+  it("keeps cloud requests explicit-only (no metadata num_ctx)", async () => {
+    await withMockNdjsonFetch(
+      [
+        '{"model":"m","created_at":"t","message":{"role":"assistant","content":"ok"},"done":false}',
+        '{"model":"m","created_at":"t","message":{"role":"assistant","content":""},"done":true,"prompt_eval_count":1,"eval_count":1}',
+      ],
+      async (fetchMock) => {
+        const streamFn = createOllamaStreamFn("https://ollama.com", undefined, {
+          creationProvider: "ollama",
+        });
+        const stream = await Promise.resolve(
+          streamFn(
+            {
+              id: "glm-5.3",
+              api: "ollama",
+              provider: "ollama",
+              baseUrl: "https://ollama.com",
+              contextWindow: 1048576,
+            } as never,
+            { messages: [{ role: "user", content: "hello" }] } as never,
+            {} as never,
+          ),
+        );
+        await collectStreamEvents(stream);
+        expect(readNumCtx(fetchMock)).toBeUndefined();
+      },
+    );
+  });
+
+  it("uses the sane floor when a local model has no usable contextWindow metadata", async () => {
+    await withMockNdjsonFetch(
+      [
+        '{"model":"m","created_at":"t","message":{"role":"assistant","content":"ok"},"done":false}',
+        '{"model":"m","created_at":"t","message":{"role":"assistant","content":""},"done":true,"prompt_eval_count":1,"eval_count":1}',
+      ],
+      async (fetchMock) => {
+        const streamFn = createOllamaStreamFn("http://127.0.0.1:11434", undefined, {
+          creationProvider: "ollama-local",
+        });
+        const stream = await Promise.resolve(
+          streamFn(
+            {
+              id: "tiny-local",
+              api: "ollama",
+              provider: "ollama-local",
+              baseUrl: "http://127.0.0.1:11434",
+            } as never,
+            { messages: [{ role: "user", content: "hello" }] } as never,
+            {} as never,
+          ),
+        );
+        await collectStreamEvents(stream);
+        expect(readNumCtx(fetchMock)).toBe(8192);
+      },
+    );
+  });
+
+  it("routes cross-provider local requests with metadata num_ctx", async () => {
+    // Shared api-registry entry baked for the cloud provider, request model is
+    // local: routing and num_ctx must both follow the request model.
+    await withMockNdjsonFetch(
+      [
+        '{"model":"m","created_at":"t","message":{"role":"assistant","content":"ok"},"done":false}',
+        '{"model":"m","created_at":"t","message":{"role":"assistant","content":""},"done":true,"prompt_eval_count":1,"eval_count":1}',
+      ],
+      async (fetchMock) => {
+        const streamFn = createConfiguredOllamaStreamFn({
+          model: { provider: "ollama", baseUrl: "https://ollama.com" },
+          providerBaseUrl: "https://ollama.com",
+          creationProvider: "ollama",
+        });
+        const stream = await Promise.resolve(
+          streamFn(
+            {
+              id: "lfm2.5-2.6b",
+              api: "ollama",
+              provider: "ollama-local",
+              baseUrl: "http://127.0.0.1:11434",
+              contextWindow: 131072,
+            } as never,
+            { messages: [{ role: "user", content: "hello" }] } as never,
+            {} as never,
+          ),
+        );
+        await collectStreamEvents(stream);
+        expect(getGuardedFetchCall(fetchMock).url).toBe("http://127.0.0.1:11434/api/chat");
+        expect(readNumCtx(fetchMock)).toBe(131072);
+      },
+    );
+  });
+});

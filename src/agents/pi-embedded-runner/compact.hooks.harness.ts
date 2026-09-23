@@ -103,6 +103,9 @@ export const applyExtraParamsToAgentMock = vi.fn(() => ({ effectiveExtraParams: 
 export const resolveAgentTransportOverrideMock: Mock<(params?: unknown) => string | undefined> =
   vi.fn(() => undefined);
 export const resolveSandboxContextMock = vi.fn(async () => null);
+export const getApiKeyForModelMock: Mock<
+  (params?: unknown) => Promise<{ apiKey?: string; mode?: string }>
+> = vi.fn(async () => ({ apiKey: "test", mode: "env" }));
 export const maybeCompactAgentHarnessSessionMock: Mock<(params?: unknown) => Promise<unknown>> =
   vi.fn(async () => undefined);
 export const rotateTranscriptAfterCompactionMock: Mock<
@@ -258,6 +261,8 @@ export function resetCompactSessionStateMocks(): void {
   resolveAgentTransportOverrideMock.mockReturnValue(undefined);
   resolveSandboxContextMock.mockReset();
   resolveSandboxContextMock.mockResolvedValue(null);
+  getApiKeyForModelMock.mockReset();
+  getApiKeyForModelMock.mockResolvedValue({ apiKey: "test", mode: "env" });
   maybeCompactAgentHarnessSessionMock.mockReset();
   maybeCompactAgentHarnessSessionMock.mockResolvedValue(undefined);
   rotateTranscriptAfterCompactionMock.mockReset();
@@ -436,7 +441,7 @@ export async function loadCompactHooksHarness(): Promise<{
     applyAuthHeaderOverride: vi.fn((model: unknown) => model),
     applyLocalNoAuthHeaderOverride: vi.fn((model: unknown) => model),
     ensureAuthProfileStoreWithoutExternalProfiles: vi.fn(() => ({})),
-    getApiKeyForModel: vi.fn(async () => ({ apiKey: "test", mode: "env" })),
+    getApiKeyForModel: getApiKeyForModelMock,
     resolveModelAuthMode: vi.fn(() => "env"),
   }));
 

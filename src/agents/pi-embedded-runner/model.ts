@@ -494,6 +494,8 @@ function mergeConfiguredRuntimeModelParams(params: {
   provider: string;
   modelId: string;
   discoveredParams?: unknown;
+  /** Provider-level `models.providers.*.params` — defaults under model params. */
+  providerParams?: unknown;
   configuredParams?: unknown;
 }): Record<string, unknown> | undefined {
   return mergeModelParams(
@@ -503,6 +505,7 @@ function mergeConfiguredRuntimeModelParams(params: {
       provider: params.provider,
       modelId: params.modelId,
     }),
+    readModelParams(params.providerParams),
     readModelParams(params.configuredParams),
   );
 }
@@ -581,6 +584,7 @@ function applyConfiguredProviderOverrides(params: {
   const resolvedParams = mergeModelParams(
     readModelParams(discoveredModel.params),
     defaultModelParams,
+    readModelParams(providerConfig?.params),
     readModelParams(configuredModel?.params),
   );
   const normalizedInput = resolveProviderModelInput({
@@ -681,6 +685,7 @@ function resolveExplicitModelWithRegistry(params: {
       cfg,
       provider,
       modelId,
+      providerParams: providerConfig?.params,
       configuredParams: inlineMatch.params,
     });
     return {
@@ -744,6 +749,7 @@ function resolveExplicitModelWithRegistry(params: {
       cfg,
       provider,
       modelId,
+      providerParams: providerConfig?.params,
       configuredParams: fallbackInlineMatch.params,
     });
     return {
@@ -846,6 +852,7 @@ function resolveConfiguredFallbackModel(params: {
     cfg,
     provider,
     modelId,
+    providerParams: providerConfig?.params,
     configuredParams: configuredModel?.params,
   });
   if (!providerConfig && !modelId.startsWith("mock-")) {

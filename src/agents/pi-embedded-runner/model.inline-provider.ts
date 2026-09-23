@@ -21,6 +21,8 @@ export type InlineProviderConfig = {
   baseUrl?: string;
   api?: ModelDefinitionConfig["api"];
   models?: ModelDefinitionConfig[];
+  /** Provider-level runtime params — defaults under per-model params. */
+  params?: ModelProviderConfig["params"];
   contextWindow?: ModelProviderConfig["contextWindow"];
   contextTokens?: ModelProviderConfig["contextTokens"];
   maxTokens?: ModelProviderConfig["maxTokens"];

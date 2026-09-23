@@ -7,6 +7,7 @@ import {
   ensureRuntimePluginsLoaded,
   estimateTokensMock,
   getMemorySearchManagerMock,
+  getApiKeyForModelMock,
   hookRunner,
   loadCompactHooksHarness,
   maybeCompactAgentHarnessSessionMock,
@@ -392,6 +393,36 @@ describe("compactEmbeddedPiSessionDirect hooks", () => {
     if (fallbackCall[3] === undefined) {
       throw new Error("Expected fallback resolve-model options");
     }
+  });
+
+  it("registers synthetic local marker keys on the session-scoped authStorage for pi's compact auth gate", async () => {
+    // Post-restart-fix behavior: pi's compact() auth gate
+    // (_getRequiredRequestAuth) refuses to summarize without a resolvable
+    // key. For local providers (ollama-local/*) the synthesized marker key
+    // MUST be registered on the compaction session's authStorage (a fresh
+    // per-resolution instance) so the gate passes; the request routes by the
+    // model's own baseUrl (see ollama stream cross-provider routing), so the
+    // marker Bearer only reaches the local server, which ignores it.
+    const setRuntimeApiKey = vi.fn();
+    resolveModelMock.mockImplementation((provider = "ollama-local", modelId = "lfm2.5-2.6b") => ({
+      model: { provider, api: "ollama", id: modelId, input: [] },
+      error: null,
+      authStorage: { setRuntimeApiKey },
+      modelRegistry: {},
+    }));
+    getApiKeyForModelMock.mockResolvedValue({ apiKey: "ollama-local", mode: "api-key" });
+
+    const result = await compactEmbeddedPiSessionDirect({
+      sessionId: TEST_SESSION_ID,
+      sessionKey: TEST_SESSION_KEY,
+      sessionFile: TEST_SESSION_FILE,
+      workspaceDir: TEST_WORKSPACE_DIR,
+      provider: "ollama-local",
+      model: "lfm2.5-2.6b",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(setRuntimeApiKey).toHaveBeenCalledWith("ollama-local", "ollama-local");
   });
 
   it("keeps compaction fallback selection ephemeral", async () => {

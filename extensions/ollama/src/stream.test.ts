@@ -238,7 +238,9 @@ describe("createOllamaStreamFn thinking events", () => {
           model: "qwen3.5",
           messages: [{ role: "user", content: "test" }],
           stream: true,
-          options: {},
+          // Local requests resolve num_ctx from model metadata (contextWindow)
+          // instead of leaving Ollama's silent 4096 server default in place.
+          options: { num_ctx: 65536 },
         }),
       },
       policy: {

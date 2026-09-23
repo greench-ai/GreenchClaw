@@ -49,6 +49,7 @@ import { recordReplyEngineNoop } from "./reply-engine-verdict.js";
 import { createReplyRunOutcomeRecorder } from "./reply-run-outcome.js";
 import { initSessionState } from "./session.js";
 import {
+  isStaleAutoModelOverrideAcrossRestart,
   isStaleHeartbeatAutoFallbackOverride,
   resolveStoredModelOverride,
 } from "./stored-model-override.js";
@@ -616,16 +617,26 @@ export async function getReplyFromConfig(
     primaryProvider,
     primaryModel,
   });
+  // Auto fallback overrides persisted by a previous gateway process must not
+  // survive the restart — skip them here so the early selection re-resolves
+  // from the configured primary (createModelSelectionState additionally clears
+  // the stale fields from the session entry).
+  const staleRestartAutoFallbackOverride = isStaleAutoModelOverrideAcrossRestart({
+    storedOverride: storedModelOverride,
+  });
   if (
     storedModelOverride?.model &&
     !hasResolvedHeartbeatModelOverride &&
-    !staleHeartbeatAutoFallbackOverride
+    !staleHeartbeatAutoFallbackOverride &&
+    !staleRestartAutoFallbackOverride
   ) {
     provider = storedModelOverride.provider ?? defaultProvider;
     model = storedModelOverride.model;
   }
   const hasEffectiveSessionModelOverride =
-    hasSessionModelOverride && !staleHeartbeatAutoFallbackOverride;
+    hasSessionModelOverride &&
+    !staleHeartbeatAutoFallbackOverride &&
+    !staleRestartAutoFallbackOverride;
   if (
     !hasResolvedHeartbeatModelOverride &&
     !hasEffectiveSessionModelOverride &&

@@ -569,16 +569,21 @@ async function compactEmbeddedPiSessionDirectOnce(
       }
       if (isNonSecretApiKeyMarker(runtimeApiKey)) {
         // Synthetic local marker (e.g. ollama-local, custom-local) — not a real
-        // credential. Registering it as a runtime API key makes the pi ollama
-        // client treat the provider as a keyed cloud account and route requests
-        // to ollama.com (401), instead of hitting the model's local baseUrl
-        // unauthenticated. Local servers need a keyless client.
+        // credential, but pi's compact() auth gate (_getRequiredRequestAuth)
+        // refuses to summarize without a resolvable key, and model
+        // resolution synthesizes this marker for local providers. Register it
+        // on the session-scoped authStorage (a fresh per-resolution instance —
+        // overrides never leak to other sessions or the gateway process), so
+        // the summarizer request carries a harmless Bearer to the local
+        // server. The request URL routes by the model's own baseUrl (shared
+        // api-registry entries re-route cross-provider requests — see
+        // resolveRequestOllamaEndpoint in the ollama extension), so the marker
+        // never reaches ollama.com.
         log.info(
-          `[compact] skipping runtime API key registration for "${runtimeModel.provider}": synthetic local marker`,
+          `[compact] registering synthetic local marker for "${runtimeModel.provider}" on the session-scoped authStorage (pi compact auth gate requires a key)`,
         );
-      } else {
-        authStorage.setRuntimeApiKey(runtimeModel.provider, runtimeApiKey);
       }
+      authStorage.setRuntimeApiKey(runtimeModel.provider, runtimeApiKey);
     }
   } catch (err) {
     const reason = formatErrorMessage(err);
