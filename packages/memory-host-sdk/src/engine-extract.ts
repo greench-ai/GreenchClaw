@@ -130,9 +130,7 @@ export async function extractFactsFromTurn(params: {
       .map((m, i) => ({
         id: m.id || `extracted-${now}-${i}`,
         text: m.text.slice(0, 500),
-        attributed_to: (m.attributed_to === "assistant" ? "assistant" : "user") as
-          | "user"
-          | "assistant",
+        attributed_to: (m.attributed_to === "assistant" ? "assistant" : "user"),
         created_at: now,
         importance: 0.5,
         metadata: {},

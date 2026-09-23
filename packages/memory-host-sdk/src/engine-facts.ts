@@ -120,7 +120,7 @@ export function searchFacts(params: {
   let ftsQuery = query;
   try {
     // Sanitize for FTS5 — escape special chars
-    ftsQuery = query.replace(/['\"*]/g, " ");
+    ftsQuery = query.replace(/['"*]/g, " ");
     const ftsSql = `
       SELECT f.id, f.text, f.attributed_to, f.agent_id, f.session_id, f.user_id, f.created_at, f.importance,
              bm25(agent_facts_fts) AS text_score,
@@ -155,7 +155,7 @@ export function searchFacts(params: {
     }>;
     for (const row of ftsRows) {
       const textScore = Math.max(0, -row.text_score / 10);
-      if (textScore < minScore) continue;
+      if (textScore < minScore) {continue;}
       results.push({
         id: row.id,
         text: row.text,
@@ -297,7 +297,7 @@ export function countFacts(params: { db: DatabaseSync; agent_id?: string }): num
 // ── Cosine Similarity ───────────────────────────────────────────────────────
 
 export function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) return 0;
+  if (a.length !== b.length) {return 0;}
   let dot = 0;
   let normA = 0;
   let normB = 0;

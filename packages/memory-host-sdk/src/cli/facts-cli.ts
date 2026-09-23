@@ -157,13 +157,13 @@ if (cmd === "extract") {
   const agent_id = process.env.FACTS_AGENT_ID;
   const session_id = process.env.FACTS_SESSION_ID;
   const user_id = process.env.FACTS_USER_ID;
-  const limit = parseInt(process.env.FACTS_LIMIT || "10", 10);
+  const limit = Number.parseInt(process.env.FACTS_LIMIT || "10", 10);
   await cmdSearch(query, { agent_id, session_id, user_id, limit });
 } else if (cmd === "list") {
   const agent_id = process.env.FACTS_AGENT_ID;
   const session_id = process.env.FACTS_SESSION_ID;
   const user_id = process.env.FACTS_USER_ID;
-  const limit = parseInt(process.env.FACTS_LIMIT || "50", 10);
+  const limit = Number.parseInt(process.env.FACTS_LIMIT || "50", 10);
   await cmdList({ agent_id, session_id, user_id, limit });
 } else if (cmd === "count") {
   const agent_id = process.env.FACTS_AGENT_ID;
