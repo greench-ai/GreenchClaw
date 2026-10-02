@@ -8,7 +8,7 @@
  *   rag_delete  — remove a document from the index
  */
 
-import { definePluginEntry, type GreenchClawPluginApi } from "GreenchClaw/plugin-sdk/plugin-entry";
+import { definePluginEntry, type AnyAgentTool, type GreenchClawPluginApi } from "GreenchClaw/plugin-sdk/plugin-entry";
 
 // ── RAG Config ────────────────────────────────────────────────────────────────
 
@@ -30,17 +30,17 @@ function getRAGConfig(api: GreenchClawPluginApi): RAGConfig {
   ) as Record<string, unknown> | undefined;
   return {
     qdrant: {
-      host: String(cfg?.qdrant?.host ?? "localhost"),
-      port: Number(cfg?.qdrant?.port ?? 6333),
-      collection: String(cfg?.qdrant?.collection ?? "greench_documents"),
+      host: (cfg?.qdrant as { host?: string } | undefined)?.host ?? "localhost",
+      port: (cfg?.qdrant as { port?: number } | undefined)?.port ?? 6333,
+      collection: (cfg?.qdrant as { collection?: string } | undefined)?.collection ?? "greench_documents",
     },
     ollama: {
-      baseUrl: String(cfg?.ollama?.baseUrl ?? "http://localhost:11434"),
-      embeddingModel: String(cfg?.ollama?.embeddingModel ?? "nomic-embed-text:v1.5"),
+      baseUrl: (cfg?.ollama as { baseUrl?: string } | undefined)?.baseUrl ?? "http://localhost:11434",
+      embeddingModel: (cfg?.ollama as { embeddingModel?: string } | undefined)?.embeddingModel ?? "nomic-embed-text:v1.5",
     },
     chunking: {
-      chunkSize: Number(cfg?.chunking?.chunkSize ?? 500),
-      chunkOverlap: Number(cfg?.chunking?.chunkOverlap ?? 100),
+      chunkSize: (cfg?.chunking as { chunkSize?: number } | undefined)?.chunkSize ?? 500,
+      chunkOverlap: (cfg?.chunking as { chunkOverlap?: number } | undefined)?.chunkOverlap ?? 100,
     },
   };
 }
@@ -56,12 +56,16 @@ async function parseDocument(buffer: Buffer, fileType: string): Promise<string> 
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
-      parts.push(content.items.map((item: { str?: string }) => item.str ?? "").join(" "));
+      parts.push(
+        content.items
+          .map((item) => ("str" in item ? (item.str ?? "") : ""))
+          .join(" "),
+      );
     }
     return parts.join("\n\n");
   } else if (fileType === "docx" || fileType === "doc") {
-    const { extractSingleImage } = await import("mammoth");
-    const result = await extractSingleImage({ buffer });
+    const { extractRawText } = await import("mammoth");
+    const result = await extractRawText({ buffer });
     return result.value;
   }
     return buffer.toString("utf-8");
@@ -195,7 +199,7 @@ async function indexDocument(
   let buffer: Buffer;
   try {
     const stat = readFileSync(filePath);
-    if (stat.size > MAX_FILE_SIZE) {
+    if (stat.length > MAX_FILE_SIZE) {
       return {
         success: false,
         output: "",
@@ -324,29 +328,31 @@ export default definePluginEntry({
     "Document RAG pipeline — parse, chunk, embed, and search PDFs, DOCX, and TXT files via Qdrant + Ollama.",
   register(api: GreenchClawPluginApi) {
     api.registerTool(
-      () => ({
+      {
         name: "rag_index",
+        label: "Rag Index",
         description:
           "Index a document (PDF, DOCX, or TXT) for semantic search. Parses, chunks, embeds via Ollama, and stores in Qdrant.",
-        inputSchema: {
+        parameters: {
           type: "object",
           properties: {
             file_path: { type: "string", description: "Absolute path to the document file" },
           },
           required: ["file_path"],
         },
-        execute: async (toolCallId, toolParams) => {
+        execute: async (_toolCallId: string, toolParams: unknown) => {
           return indexDocument(api, toolParams as { file_path: string });
         },
-      }),
-      { names: ["rag_index"] },
+      } as unknown as AnyAgentTool,
+      { name: "rag_index" },
     );
 
     api.registerTool(
-      () => ({
+      {
         name: "rag_search",
+        label: "Rag Search",
         description: "Semantic search across indexed documents.",
-        inputSchema: {
+        parameters: {
           type: "object",
           properties: {
             query: { type: "string", description: "Search query" },
@@ -354,71 +360,43 @@ export default definePluginEntry({
           },
           required: ["query"],
         },
-        execute: async (_toolCallId, toolParams) => {
+        execute: async (_toolCallId: string, toolParams: unknown) => {
           return searchDocuments(api, toolParams as { query: string; top_k?: number });
         },
-      }),
-      { names: ["rag_search"] },
+      } as unknown as AnyAgentTool,
+      { name: "rag_search" },
     );
 
     api.registerTool(
-      () => ({
+      {
         name: "rag_list",
+        label: "Rag List",
         description: "List all indexed documents.",
-        inputSchema: { type: "object", properties: {} },
+        parameters: { type: "object", properties: {} },
         execute: async () => listDocuments(api, {}),
-      }),
-      { names: ["rag_list"] },
+      } as unknown as AnyAgentTool,
+      { name: "rag_list" },
     );
 
     api.registerTool(
-      () => ({
+      {
         name: "rag_delete",
+        label: "Rag Delete",
         description: "Delete an indexed document by its doc_id.",
-        inputSchema: {
+        parameters: {
           type: "object",
           properties: {
             doc_id: { type: "string", description: "Document ID returned from rag_index" },
           },
           required: ["doc_id"],
         },
-        execute: async (_toolCallId, toolParams) => {
+        execute: async (_toolCallId: string, toolParams: unknown) => {
           return deleteDocument(api, toolParams as { doc_id: string });
         },
-      }),
-      { names: ["rag_delete"] },
+      } as unknown as AnyAgentTool,
+      { name: "rag_delete" },
     );
 
     api.logger.info?.("greench-rag: registered");
-  },
-  tools: {
-    rag_index: {
-      description: "Index a document for semantic search.",
-      inputSchema: {
-        type: "object",
-        properties: { file_path: { type: "string" } },
-        required: ["file_path"],
-      },
-    },
-    rag_search: {
-      description: "Search indexed documents.",
-      inputSchema: {
-        type: "object",
-        properties: { query: { type: "string" }, top_k: { type: "number" } },
-        required: ["query"],
-      },
-    },
-    rag_list: {
-      description: "List all indexed documents.",
-      inputSchema: { type: "object", properties: {} },
-    },
-    rag_delete: {
-      description: "Delete a document by ID.",
-      inputSchema: {
-        type: "object",
-        properties: { doc_id: { type: "string" } },
-        required: ["doc_id"],
-      },
-    },
   },
 });
