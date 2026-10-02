@@ -478,7 +478,21 @@ function npmUpdateFailureSpec(params: {
 }
 
 function resolveNpmSpecPackageName(spec: string | undefined): string | undefined {
-  return spec ? parseRegistryNpmSpec(spec)?.name : undefined;
+  if (!spec) {
+    return undefined;
+  }
+  const parsed = parseRegistryNpmSpec(spec);
+  if (parsed) {
+    return parsed.name;
+  }
+  // GreenchClaw's own scoped packages (e.g. `@GreenchClaw/codex`) are
+  // GitHub/private and never resolved from the npm registry; the strict
+  // registry parser (lowercase-only) rejects them. Fall back to a name-only
+  // shape for scoped specs so official-install matching still works.
+  const nameOnly = spec.trim().replace(/@[^/@]+$/, "");
+  return /^@[A-Za-z0-9][A-Za-z0-9._~-]*\/[A-Za-z0-9][A-Za-z0-9._~-]*$/.test(nameOnly)
+    ? nameOnly
+    : undefined;
 }
 
 function resolveExactNpmSpecVersion(spec: string | undefined): string | undefined {

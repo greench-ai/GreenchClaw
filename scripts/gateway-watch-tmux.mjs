@@ -141,7 +141,7 @@ export const resolveGatewayWatchTmuxSessionName = ({ args = [], env = process.en
     "watch",
     sanitizeSessionPart(profile ?? DEFAULT_PROFILE_NAME),
   ];
-  if (port && port !== "19500") {
+  if (port && port !== "19500" && port !== "18789") {
     parts.push(sanitizeSessionPart(port));
   }
   return parts.join("-");
