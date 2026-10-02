@@ -54,8 +54,12 @@ function parseRegistryNpmSpecInternal(
   const name = hasSelector ? spec.slice(0, at) : spec;
   const selector = hasSelector ? spec.slice(at + 1) : "";
 
-  const unscopedName = /^[a-z0-9][a-z0-9-._~]*$/;
-  const scopedName = /^@[a-z0-9][a-z0-9-._~]*\/[a-z0-9][a-z0-9-._~]*$/;
+  // Registry name charset. Historically lowercase-only, but GreenchClaw's own
+  // packages use a mixed-case scope (`@GreenchClaw/*`) that is never resolved
+  // from the npm registry, so allow A-Z in names while keeping the structural
+  // guarantees (no protocol/whitespace/path separators) intact.
+  const unscopedName = /^[a-zA-Z0-9][a-zA-Z0-9-._~]*$/;
+  const scopedName = /^@[a-zA-Z0-9][a-zA-Z0-9-._~]*\/[a-zA-Z0-9][a-zA-Z0-9-._~]*$/;
   const isValidName = name.startsWith("@") ? scopedName.test(name) : unscopedName.test(name);
   if (!isValidName) {
     return {
