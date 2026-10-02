@@ -2,7 +2,7 @@
  * GreenchFocus — focus modes that shape agent behavior.
  */
 
-import { definePluginEntry, type GreenchClawPluginApi } from "GreenchClaw/plugin-sdk/plugin-entry";
+import { definePluginEntry, type AnyAgentTool, type GreenchClawPluginApi } from "GreenchClaw/plugin-sdk/plugin-entry";
 
 // ── Mode Definitions ─────────────────────────────────────────────────────────
 
@@ -78,10 +78,11 @@ export default definePluginEntry({
   description: "Focus modes — copilot / academic / writing / coding / agent.",
   register(api: GreenchClawPluginApi) {
     api.registerTool(
-      () => ({
+      {
         name: "focus_mode",
+        label: "Focus Mode",
         description: "Set or clear the active focus mode.",
-        inputSchema: {
+        parameters: {
           type: "object",
           properties: {
             mode: {
@@ -91,7 +92,7 @@ export default definePluginEntry({
           },
           required: ["mode"],
         },
-        execute: async (_toolCallId, toolParams) => {
+        execute: async (_toolCallId: string, toolParams: unknown) => {
           const { mode } = toolParams as { mode: string };
           if (mode === "off") {
             activeMode = null;
@@ -109,15 +110,16 @@ export default definePluginEntry({
             { mode: m.id },
           );
         },
-      }),
-      { names: ["focus_mode"] },
+      } as unknown as AnyAgentTool,
+      { name: "focus_mode" },
     );
 
     api.registerTool(
-      () => ({
+      {
         name: "focus_modes_list",
+        label: "Focus Modes List",
         description: "List all available focus modes.",
-        inputSchema: { type: "object", properties: {} },
+        parameters: { type: "object", properties: {} },
         execute: async () => {
           const cur = activeMode?.id ?? "none";
           const lines = FOCUS_MODES.map(
@@ -128,31 +130,12 @@ export default definePluginEntry({
             current: cur,
           });
         },
-      }),
-      { names: ["focus_modes_list"] },
+      } as unknown as AnyAgentTool,
+      { name: "focus_modes_list" },
     );
 
-    api.logger.info?.("greench-focus: registered", {
-      modes: FOCUS_MODES.map((m) => m.id).join(", "),
-    });
-  },
-  tools: {
-    focus_mode: {
-      description: "Set focus mode.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          mode: {
-            type: "string",
-            enum: ["copilot", "academic", "writing", "coding", "agent", "off"],
-          },
-        },
-        required: ["mode"],
-      },
-    },
-    focus_modes_list: {
-      description: "List modes.",
-      inputSchema: { type: "object", properties: {} },
-    },
+    api.logger.info?.(
+      `greench-focus: registered (modes: ${FOCUS_MODES.map((m) => m.id).join(", ")})`,
+    );
   },
 });
