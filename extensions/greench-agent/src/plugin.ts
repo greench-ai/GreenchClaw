@@ -3,7 +3,7 @@
  */
 
 import { parseModelRef } from "GreenchClaw/plugin-sdk/agent-runtime";
-import { definePluginEntry, type GreenchClawPluginApi } from "GreenchClaw/plugin-sdk/plugin-entry";
+import { definePluginEntry, type AnyAgentTool, type GreenchClawPluginApi } from "GreenchClaw/plugin-sdk/plugin-entry";
 
 const MAX_ITERATIONS = 8;
 const REPETITION_LIMIT = 3;
@@ -244,7 +244,9 @@ async function runCompletion(
     /* fall through */
   }
 
-  const { provider, modelId } = parseModelRef(params.model);
+  const parsed = parseModelRef(params.model, "openai");
+  if (!parsed) {throw new Error(`Invalid model ref: ${params.model}`);}
+  const { provider, model: modelId } = parsed;
   const cfg =
     (((api.config.models?.providers as Record<string, unknown> | undefined) ?? {})[
       provider
@@ -391,37 +393,31 @@ export default definePluginEntry({
     buildTools();
 
     api.registerTool(
-      () => ({
+      {
         name: "agent_run",
+        label: "Agent Run",
         description: "Run an autonomous agent for complex tasks. Visible thought process.",
-        inputSchema: {
+        parameters: {
           type: "object",
           properties: { task: { type: "string" }, model: { type: "string" } },
           required: ["task"],
         },
-        execute: async (_toolCallId, toolParams, _signal) => {
+        execute: async (_toolCallId: string, toolParams: unknown, _signal?: AbortSignal) => {
           const { task, model: modelArg } = toolParams as { task: string; model?: string };
-          const model = modelArg ?? activeApi.runtime.agent.model?.() ?? "minimax/MiniMax-M2.7";
+          const model =
+            modelArg ?? activeApi.runtime.agent.defaults.model ?? "minimax/MiniMax-M2.7";
           const { output } = await runAgent(task, model);
           return {
             content: [{ type: "text" as const, text: output }],
             details: { success: true },
           };
         },
-      }),
-      { names: ["agent_run"] },
+      } as unknown as AnyAgentTool,
+      { name: "agent_run" },
     );
 
-    api.logger.info?.("greench-agent: registered", { tools: [...toolRegistry.keys()].join(", ") });
-  },
-  tools: {
-    agent_run: {
-      description: "Autonomous agent run.",
-      inputSchema: {
-        type: "object",
-        properties: { task: { type: "string" }, model: { type: "string" } },
-        required: ["task"],
-      },
-    },
+    api.logger.info?.(
+      `greench-agent: registered (tools: ${[...toolRegistry.keys()].join(", ")})`,
+    );
   },
 });
