@@ -105,8 +105,7 @@ function readTranscriptMessages(sessionPath: string): ExtractionMessage[] {
 // ── Session discovery ─────────────────────────────────────────────────────────
 
 function getRecentSessionFiles(sessionsDir: string, lookbackMs: number): string[] {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { readdirSync, statSync } = require("node:fs") as typeof import("node:fs");
+    const { readdirSync, statSync } = require("node:fs") as typeof import("node:fs");
   const cutoff = Date.now() - lookbackMs;
   const files: string[] = [];
   try {
@@ -240,7 +239,7 @@ export async function runFactsExtraction(params: {
   try {
     db = openMemoryDatabaseAtPath(dbPath, /* allowExtension */ false);
   } catch (err) {
-    logger.warn(`[facts-extract] could not open memory DB: ${err}, skipping`);
+    logger.warn(`[facts-extract] could not open memory DB: ${String(err)}, skipping`);
     return result;
   }
 
@@ -290,7 +289,7 @@ export async function runFactsExtraction(params: {
       logger.info(`[facts-extract] session=${session.id} facts_stored=${count}`);
     } catch (err) {
       result.errors++;
-      logger.warn(`[facts-extract] session=${session.id} error=${err}`);
+      logger.warn(`[facts-extract] session=${session.id} error=${String(err)}`);
     }
   }
 
@@ -401,7 +400,7 @@ export function startFactsExtractionRunner(params: {
     try {
       await runFactsExtractionForAllAgents({ cfg: getConfig(), logger });
     } catch (err) {
-      logger.error(`[facts-extract] run failed: ${err}`);
+      logger.error(`[facts-extract] run failed: ${String(err)}`);
     }
   }, intervalMs);
 }
