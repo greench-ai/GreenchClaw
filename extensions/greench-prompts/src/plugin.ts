@@ -5,7 +5,7 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { definePluginEntry, type GreenchClawPluginApi } from "GreenchClaw/plugin-sdk/plugin-entry";
+import { definePluginEntry, type AnyAgentTool, type GreenchClawPluginApi } from "GreenchClaw/plugin-sdk/plugin-entry";
 
 interface Prompt {
   id: number;
@@ -59,10 +59,12 @@ export default definePluginEntry({
   description: "JSON file-backed prompt template manager with variable interpolation.",
   register(api: GreenchClawPluginApi) {
     api.registerTool(
-      () => ({
+      {
+
         name: "prompts_list",
+        label: "Prompts List",
         description: "List all saved prompt templates.",
-        inputSchema: { type: "object", properties: {} },
+        parameters: { type: "object", properties: {} },
         execute: async () => {
           try {
             const prompts = loadPrompts();
@@ -76,15 +78,17 @@ export default definePluginEntry({
             return makeResult(`Error: ${String(e)}`, { success: false, error: String(e) });
           }
         },
-      }),
-      { names: ["prompts_list"] },
+      } as unknown as AnyAgentTool,
+      { name: "prompts_list" },
     );
 
     api.registerTool(
-      () => ({
+      {
+
         name: "prompts_get",
+        label: "Prompts Get",
         description: "Get a prompt template with optional variable interpolation.",
-        inputSchema: {
+        parameters: {
           type: "object",
           properties: {
             name: { type: "string" },
@@ -92,7 +96,7 @@ export default definePluginEntry({
           },
           required: ["name"],
         },
-        execute: async (_toolCallId, toolParams) => {
+        execute: async (_toolCallId: string, toolParams: unknown) => {
           try {
             const { name, variables = {} } = toolParams as {
               name: string;
@@ -110,15 +114,17 @@ export default definePluginEntry({
             return makeResult(`Error: ${String(e)}`, { success: false, error: String(e) });
           }
         },
-      }),
-      { names: ["prompts_get"] },
+      } as unknown as AnyAgentTool,
+      { name: "prompts_get" },
     );
 
     api.registerTool(
-      () => ({
+      {
+
         name: "prompts_create",
+        label: "Prompts Create",
         description: "Create or update a prompt template.",
-        inputSchema: {
+        parameters: {
           type: "object",
           properties: {
             name: { type: "string" },
@@ -128,7 +134,7 @@ export default definePluginEntry({
           },
           required: ["name", "content"],
         },
-        execute: async (_toolCallId, toolParams) => {
+        execute: async (_toolCallId: string, toolParams: unknown) => {
           try {
             const {
               name,
@@ -172,20 +178,22 @@ export default definePluginEntry({
             return makeResult(`Error: ${String(e)}`, { success: false, error: String(e) });
           }
         },
-      }),
-      { names: ["prompts_create"] },
+      } as unknown as AnyAgentTool,
+      { name: "prompts_create" },
     );
 
     api.registerTool(
-      () => ({
+      {
+
         name: "prompts_delete",
+        label: "Prompts Delete",
         description: "Delete a prompt template.",
-        inputSchema: {
+        parameters: {
           type: "object",
           properties: { name: { type: "string" } },
           required: ["name"],
         },
-        execute: async (_toolCallId, toolParams) => {
+        execute: async (_toolCallId: string, toolParams: unknown) => {
           try {
             const { name } = toolParams as { name: string };
             const prompts = loadPrompts();
@@ -198,41 +206,10 @@ export default definePluginEntry({
             return makeResult(`Error: ${String(e)}`, { success: false, error: String(e) });
           }
         },
-      }),
-      { names: ["prompts_delete"] },
+      } as unknown as AnyAgentTool,
+      { name: "prompts_delete" },
     );
 
     api.logger.info?.("greench-prompts: registered");
-  },
-  tools: {
-    prompts_list: { description: "List prompts.", inputSchema: { type: "object", properties: {} } },
-    prompts_get: {
-      description: "Get a prompt.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          name: { type: "string" },
-          variables: { type: "object", additionalProperties: { type: "string" } },
-        },
-        required: ["name"],
-      },
-    },
-    prompts_create: {
-      description: "Create a prompt.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          name: { type: "string" },
-          content: { type: "string" },
-          description: { type: "string" },
-          variables: { type: "array", items: { type: "string" } },
-        },
-        required: ["name", "content"],
-      },
-    },
-    prompts_delete: {
-      description: "Delete a prompt.",
-      inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
-    },
   },
 });
