@@ -99,9 +99,9 @@ export const EXPECTED_CODEX_STATUS_COMMAND_TEXT = [
 export function isExpectedCodexStatusCommandText(text: string): boolean {
   const normalized = text.toLowerCase();
   const mentionsGreenchClawStatus =
-    normalized.includes("GreenchClaw is running on") ||
-    /GreenchClaw\s+\S+\s+is running on/u.test(normalized) ||
-    normalized.includes("GreenchClaw status:") ||
+    normalized.includes("greenchclaw is running on") ||
+    /greenchclaw\s+\S+\s+is running on/u.test(normalized) ||
+    normalized.includes("greenchclaw status:") ||
     normalized.includes("status: running on") ||
     normalized.includes("session status: running on");
   const mentionsHarnessSession =
@@ -202,7 +202,7 @@ export function isExpectedCodexModelsCommandText(text: string): boolean {
   const mentionsSessionModel =
     normalized.includes("current session is using") ||
     normalized.includes("current session model") ||
-    normalized.includes("current session model from GreenchClaw status") ||
+    normalized.includes("current session model from greenchclaw status") ||
     normalized.includes("visible session model") ||
     normalized.includes("the current session is using");
   const mentionsConfigSummary =
@@ -211,7 +211,7 @@ export function isExpectedCodexModelsCommandText(text: string): boolean {
     normalized.includes("registered models") ||
     normalized.includes("only listed model") ||
     normalized.includes("single codex model") ||
-    normalized.includes("live GreenchClaw config shows") ||
+    normalized.includes("live greenchclaw config shows") ||
     normalized.includes("current gateway config");
   const isSessionConfigFallback =
     (text.includes("`openai/") || text.includes("`codex/")) &&
