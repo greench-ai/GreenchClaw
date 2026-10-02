@@ -5,7 +5,7 @@
  */
 
 import crypto from "node:crypto";
-import { definePluginEntry, type GreenchClawPluginApi } from "GreenchClaw/plugin-sdk/plugin-entry";
+import { definePluginEntry, type AnyAgentTool, type GreenchClawPluginApi } from "GreenchClaw/plugin-sdk/plugin-entry";
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
@@ -210,7 +210,7 @@ async function brainGetAll(
 async function brainDeleteMemory(
   api: GreenchClawPluginApi,
   memoryId: string,
-  userId: string = "default",
+  _userId: string = "default",
 ): Promise<boolean> {
   const cfg = getBrainConfig(api);
   const pointId = Math.abs(
@@ -231,28 +231,12 @@ export default definePluginEntry({
   name: "GreenchBrain",
   description: "Semantic memory brain — persistent, searchable memory using Qdrant.",
   register(api: GreenchClawPluginApi) {
-    const makeTool = (
-      name: string,
-      desc: string,
-      schema: Record<string, unknown>,
-      execute: (
-        _id: unknown,
-        p: Record<string, unknown>,
-      ) => Promise<{ success: boolean; output: string; error: string | null }>,
-    ) => ({
-      name,
-      description: desc,
-      inputSchema: schema,
-      execute: async (toolCallId: unknown, toolParams: Record<string, unknown>) =>
-        execute(toolCallId, toolParams),
-    });
-
     api.registerTool(
-      () =>
-        makeTool(
-          "brain_add",
-          "Add a memory to the brain.",
-          {
+      {
+        name: "brain_add",
+        label: "Brain Add",
+        description: "Add a memory to the brain.",
+        parameters: {
             type: "object",
             properties: {
               text: { type: "string" },
@@ -261,7 +245,7 @@ export default definePluginEntry({
             },
             required: ["text"],
           },
-          async (_id, params) => {
+        execute: async (_id: string, params: Record<string, unknown>) => {
             try {
               const result = await brainAddMemory(
                 api,
@@ -274,16 +258,16 @@ export default definePluginEntry({
               return { success: false, output: "", error: String(err) };
             }
           },
-        ),
-      { names: ["brain_add"] },
+      } as unknown as AnyAgentTool,
+      { name: "brain_add" },
     );
 
     api.registerTool(
-      () =>
-        makeTool(
-          "brain_search",
-          "Search the brain for relevant memories.",
-          {
+      {
+        name: "brain_search",
+        label: "Brain Search",
+        description: "Search the brain for relevant memories.",
+        parameters: {
             type: "object",
             properties: {
               query: { type: "string" },
@@ -292,7 +276,7 @@ export default definePluginEntry({
             },
             required: ["query"],
           },
-          async (_id, params) => {
+        execute: async (_id: string, params: Record<string, unknown>) => {
             try {
               const results = await brainSearch(
                 api,
@@ -311,20 +295,20 @@ export default definePluginEntry({
               return { success: false, output: "", error: String(err) };
             }
           },
-        ),
-      { names: ["brain_search"] },
+      } as unknown as AnyAgentTool,
+      { name: "brain_search" },
     );
 
     api.registerTool(
-      () =>
-        makeTool(
-          "brain_list",
-          "List all memories in the brain.",
-          {
+      {
+        name: "brain_list",
+        label: "Brain List",
+        description: "List all memories in the brain.",
+        parameters: {
             type: "object",
             properties: { user_id: { type: "string" }, limit: { type: "number" } },
           },
-          async (_id, params) => {
+        execute: async (_id: string, params: Record<string, unknown>) => {
             try {
               const memories = await brainGetAll(
                 api,
@@ -342,21 +326,21 @@ export default definePluginEntry({
               return { success: false, output: "", error: String(err) };
             }
           },
-        ),
-      { names: ["brain_list"] },
+      } as unknown as AnyAgentTool,
+      { name: "brain_list" },
     );
 
     api.registerTool(
-      () =>
-        makeTool(
-          "brain_delete",
-          "Delete a specific memory by ID.",
-          {
+      {
+        name: "brain_delete",
+        label: "Brain Delete",
+        description: "Delete a specific memory by ID.",
+        parameters: {
             type: "object",
             properties: { memory_id: { type: "string" }, user_id: { type: "string" } },
             required: ["memory_id"],
           },
-          async (_id, params) => {
+        execute: async (_id: string, params: Record<string, unknown>) => {
             try {
               const deleted = await brainDeleteMemory(
                 api,
@@ -372,51 +356,10 @@ export default definePluginEntry({
               return { success: false, output: "", error: String(err) };
             }
           },
-        ),
-      { names: ["brain_delete"] },
+      } as unknown as AnyAgentTool,
+      { name: "brain_delete" },
     );
 
     api.logger.info?.("greench-brain: registered");
-  },
-  tools: {
-    brain_add: {
-      description: "Add a memory.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          text: { type: "string" },
-          user_id: { type: "string" },
-          metadata: { type: "object", additionalProperties: true },
-        },
-        required: ["text"],
-      },
-    },
-    brain_search: {
-      description: "Search memories.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          query: { type: "string" },
-          user_id: { type: "string" },
-          limit: { type: "number" },
-        },
-        required: ["query"],
-      },
-    },
-    brain_list: {
-      description: "List all memories.",
-      inputSchema: {
-        type: "object",
-        properties: { user_id: { type: "string" }, limit: { type: "number" } },
-      },
-    },
-    brain_delete: {
-      description: "Delete a memory.",
-      inputSchema: {
-        type: "object",
-        properties: { memory_id: { type: "string" }, user_id: { type: "string" } },
-        required: ["memory_id"],
-      },
-    },
   },
 });
