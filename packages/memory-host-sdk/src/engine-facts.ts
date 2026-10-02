@@ -116,7 +116,6 @@ export function searchFacts(params: {
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
   // FTS5 keyword search
-  let ftsScore = 0;
   let ftsQuery = query;
   try {
     // Sanitize for FTS5 — escape special chars
