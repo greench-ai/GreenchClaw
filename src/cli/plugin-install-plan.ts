@@ -109,26 +109,44 @@ export function resolveOfficialExternalNpmPackageTrust(params: {
   expectedIntegrity?: string;
   trustedSourceLinkedOfficialInstall: true;
 } | null {
-  const parsed = parseRegistryNpmSpec(params.npmSpec);
-  if (!parsed) {
-    return null;
-  }
-  const entry = params.findOfficialExternalPackage(parsed.name);
-  if (!entry?.pluginId) {
-    return null;
-  }
-  const catalogSpec = entry.npmSpec?.trim();
-  const catalogPackageName = catalogSpec ? parseRegistryNpmSpec(catalogSpec)?.name : undefined;
-  if (catalogPackageName && catalogPackageName !== parsed.name) {
-    return null;
-  }
-  return {
-    pluginId: entry.pluginId,
-    ...(entry.expectedIntegrity && catalogSpec === params.npmSpec.trim()
-      ? { expectedIntegrity: entry.expectedIntegrity }
-      : {}),
-    trustedSourceLinkedOfficialInstall: true,
+  const trust = (name: string): ReturnType<typeof resolveOfficialExternalNpmPackageTrust> => {
+    const entry = params.findOfficialExternalPackage(name);
+    if (!entry?.pluginId) {
+      return null;
+    }
+    return {
+      pluginId: entry.pluginId,
+      ...(entry.expectedIntegrity && entry.npmSpec?.trim() === params.npmSpec.trim()
+        ? { expectedIntegrity: entry.expectedIntegrity }
+        : {}),
+      trustedSourceLinkedOfficialInstall: true,
+    };
   };
+
+  const parsed = parseRegistryNpmSpec(params.npmSpec);
+  if (parsed) {
+    const entry = params.findOfficialExternalPackage(parsed.name);
+    if (!entry?.pluginId) {
+      return null;
+    }
+    const catalogSpec = entry.npmSpec?.trim();
+    const catalogPackageName = catalogSpec ? parseRegistryNpmSpec(catalogSpec)?.name : undefined;
+    if (catalogPackageName && catalogPackageName !== parsed.name) {
+      return null;
+    }
+    return trust(parsed.name);
+  }
+
+  // The registry-spec parser is intentionally strict (lowercase-only), which
+  // rejects GreenchClaw's own scoped packages (e.g. `@GreenchClaw/discord`).
+  // Those are internal/catalog packages, never resolved from the npm registry,
+  // so fall back to a name-only catalog lookup — the catalog entry is the
+  // source of truth (it supplies the canonical pluginId + integrity).
+  const nameOnly = params.npmSpec.trim().replace(/@[^/@]+$/, "");
+  if (nameOnly.startsWith("@")) {
+    return trust(nameOnly);
+  }
+  return null;
 }
 
 export function resolveBundledInstallPlanForNpmFailure(params: {
