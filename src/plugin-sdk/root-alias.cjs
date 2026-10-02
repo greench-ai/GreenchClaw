@@ -7,7 +7,7 @@ let monolithicSdk = null;
 let diagnosticEventsModule = null;
 const moduleLoaders = new Map();
 const pluginSdkSubpathsCache = new Map();
-const pluginSdkPackageNames = ["openclaw/plugin-sdk", "@openclaw/plugin-sdk"];
+const pluginSdkPackageNames = ["GreenchClaw/plugin-sdk", "@GreenchClaw/plugin-sdk"];
 const pluginSdkSourceExtensions = [".ts", ".mts", ".js", ".mjs", ".cts", ".cjs"];
 const isDistRootAlias = __filename.includes(
   `${path.sep}dist${path.sep}plugin-sdk${path.sep}root-alias.cjs`,
@@ -19,7 +19,7 @@ const shouldPreferSourceGraph =
   !isDistRootAlias &&
   (process.env.NODE_ENV !== "production" ||
     Boolean(process.env.VITEST) ||
-    process.env.OPENCLAW_PLUGIN_SDK_SOURCE_IN_TESTS === "1");
+    process.env.GREENCHCLAW_PLUGIN_SDK_SOURCE_IN_TESTS === "1");
 
 function emptyPluginConfigSchema() {
   function error(message) {
@@ -79,7 +79,7 @@ function resolveControlCommandGate(params) {
 function onDiagnosticEvent(listener) {
   const diagnosticEvents = loadDiagnosticEventsModule();
   if (!diagnosticEvents || typeof diagnosticEvents.onDiagnosticEvent !== "function") {
-    throw new Error("openclaw/plugin-sdk root alias could not resolve onDiagnosticEvent");
+    throw new Error("GreenchClaw/plugin-sdk root alias could not resolve onDiagnosticEvent");
   }
   return diagnosticEvents.onDiagnosticEvent(listener);
 }
@@ -106,7 +106,7 @@ function findDistChunkByPrefix(prefix) {
 
 function listPluginSdkExportedSubpaths() {
   const packageRoot = getPackageRoot();
-  const cacheKey = `${packageRoot}::privateQa=${process.env.OPENCLAW_ENABLE_PRIVATE_QA_CLI === "1" ? "1" : "0"}`;
+  const cacheKey = `${packageRoot}::privateQa=${process.env.GREENCHCLAW_ENABLE_PRIVATE_QA_CLI === "1" ? "1" : "0"}`;
   if (pluginSdkSubpathsCache.has(cacheKey)) {
     return pluginSdkSubpathsCache.get(cacheKey);
   }
@@ -129,7 +129,7 @@ function listPluginSdkExportedSubpaths() {
 }
 
 function listPrivateLocalOnlyPluginSdkSubpaths() {
-  if (process.env.OPENCLAW_ENABLE_PRIVATE_QA_CLI !== "1") {
+  if (process.env.GREENCHCLAW_ENABLE_PRIVATE_QA_CLI !== "1") {
     return [];
   }
   try {
