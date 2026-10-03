@@ -14,8 +14,8 @@ function safeMath(expr: string): string {
   const s = expr.replace(/\s+/g, "");
   if (!/^[\d+\-*/().%]+$/.test(s)) {throw new Error("Invalid characters");}
   if (/\+\+|--|\.\.|\*\/|\/\*|\+-|-\+|\(\*|\(\/|\)\(/.test(s)) {throw new Error("Invalid syntax");}
-  // eslint-disable-next-line no-new-func
-  return String(new Function(`return (${s})`)());
+  // eslint-disable-next-line typescript/no-implied-eval
+  return String(new Function(`return (${s})`) as () => unknown);
 }
 
 // ── Tool Registry ─────────────────────────────────────────────────────────────
@@ -34,7 +34,7 @@ function buildTools(): void {
 
   reg("calculator", async (a) => {
     try {
-      return { success: true, output: safeMath(String(a.expression ?? "")), error: null };
+      return { success: true, output: safeMath((a.expression as string) ?? ""), error: null };
     } catch (e) {
       return { success: false, output: "", error: String(e) };
     }
@@ -45,7 +45,7 @@ function buildTools(): void {
       const { readFileSync } = await import("node:fs");
       return {
         success: true,
-        output: readFileSync(String(a.path ?? ""), "utf-8").slice(0, 8000),
+        output: readFileSync((a.path as string) ?? "", "utf-8").slice(0, 8000),
         error: null,
       };
     } catch (e) {
@@ -56,7 +56,7 @@ function buildTools(): void {
   reg("ls", async (a) => {
     try {
       const { readdirSync, statSync } = await import("node:fs");
-      const dir = String(a.path ?? ".");
+      const dir = (a.path as string) ?? ".";
       const entries = readdirSync(dir, { withFileTypes: true });
       const lines = entries.map((e) => {
         let size = "";
@@ -76,10 +76,10 @@ function buildTools(): void {
   reg("grep", async (a) => {
     try {
       const { readFileSync } = await import("node:fs");
-      const content = readFileSync(String(a.path ?? ""), "utf-8");
+      const content = readFileSync((a.path as string) ?? "", "utf-8");
       const matches = content
         .split("\n")
-        .filter((l) => new RegExp(String(a.pattern ?? ""), "gi").test(l));
+        .filter((l) => new RegExp((a.pattern as string) ?? "", "gi").test(l));
       return {
         success: true,
         output: matches.length ? matches.join("\n") : "(no matches)",
@@ -92,7 +92,7 @@ function buildTools(): void {
 
   reg("fetch_url", async (a) => {
     try {
-      const resp = await fetch(String(a.url ?? ""), {
+      const resp = await fetch((a.url as string) ?? "", {
         headers: { "User-Agent": "GreenchClaw/1.0" },
         signal: AbortSignal.timeout(10000),
       });
@@ -112,7 +112,7 @@ function buildTools(): void {
       };}
     try {
       const resp = await fetch(
-        `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(String(a.query ?? ""))}&count=5`,
+        `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent((a.query as string) ?? "")}&count=5`,
         {
           headers: { Accept: "application/json", "X-Subscription-Token": key },
           signal: AbortSignal.timeout(10000),
@@ -138,14 +138,14 @@ function buildTools(): void {
   reg("wikipedia", async (a) => {
     try {
       const resp = await fetch(
-        `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(String(a.topic ?? "").trim())}`,
+        `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(((a.topic as string) ?? "").trim())}`,
         { headers: { "User-Agent": "GreenchClaw/1.0" }, signal: AbortSignal.timeout(5000) },
       );
       if (!resp.ok) {return { success: false, output: "", error: `HTTP ${resp.status}` };}
       const d = (await resp.json()) as { title?: string; extract?: string };
       return {
         success: true,
-        output: `**${d.title ?? a.topic}**\n\n${d.extract ?? "No summary."}`,
+        output: `**${d.title ?? (a.topic as string)}**\n\n${d.extract ?? "No summary."}`,
         error: null,
       };
     } catch (e) {
@@ -158,7 +158,7 @@ function buildTools(): void {
       const { execFile } = await import("node:child_process");
       const out: string = await new Promise((res, rej) =>
         execFile(
-          String(a.command ?? ""),
+          (a.command as string) ?? "",
           { timeout: 15000, maxBuffer: 512_000 },
           (err, stdout, stderr) => (err ? rej(new Error(stderr || err.message)) : res(stdout)),
         ),
@@ -249,9 +249,9 @@ async function runCompletion(
     (((api.config.models?.providers as Record<string, unknown> | undefined) ?? {})[
       provider
     ] as Record<string, unknown>) ?? {};
-  const baseUrl = String(cfg["baseUrl"] ?? "");
-  const apiKey = String(cfg["apiKey"] ?? "");
-  const apiStyle = String(cfg["api"] ?? "openai");
+  const baseUrl = (cfg["baseUrl"] as string) ?? "";
+  const apiKey = (cfg["apiKey"] as string) ?? "";
+  const apiStyle = (cfg["api"] as string) ?? "openai";
 
   if (!baseUrl) {throw new Error(`No baseUrl for: ${provider}`);}
 
@@ -287,7 +287,7 @@ async function runCompletion(
 
 // ── Agent Run ────────────────────────────────────────────────────────────────
 
-let _api: GreenchClawPluginApi;
+let activeApi: GreenchClawPluginApi;
 
 async function runAgent(task: string, model: string): Promise<{ output: string }> {
   const steps: string[] = [];
@@ -320,7 +320,7 @@ async function runAgent(task: string, model: string): Promise<{ output: string }
     try {
       responseText = await runCompletion(
         { model, messages: conversation, maxTokens: 2048, temperature: 0.3 },
-        _api,
+        activeApi,
         abortController.signal,
       );
     } catch (e) {
@@ -365,7 +365,7 @@ async function runAgent(task: string, model: string): Promise<{ output: string }
 
     steps.push(`**Action:** ${toolName} ${JSON.stringify(toolInput)}`);
     toolCalls++;
-    const result = await toolRegistry.get(toolName)!(toolInput, _api);
+    const result = await toolRegistry.get(toolName)!(toolInput, activeApi);
     const truncated =
       result.output.length > 300 ? result.output.slice(0, 300) + "..." : result.output;
     steps.push(`**Result (${toolName}):** ${result.error ? `ERROR: ${result.error}` : truncated}`);
@@ -387,7 +387,7 @@ export default definePluginEntry({
   name: "GreenchAgent",
   description: "Autonomous agent with visible reasoning — think → act → observe loop with 8 tools.",
   register(api: GreenchClawPluginApi) {
-    _api = api;
+    activeApi = api;
     buildTools();
 
     api.registerTool(
@@ -401,7 +401,7 @@ export default definePluginEntry({
         },
         execute: async (_toolCallId, toolParams, _signal) => {
           const { task, model: modelArg } = toolParams as { task: string; model?: string };
-          const model = modelArg ?? _api.runtime.agent.model?.() ?? "minimax/MiniMax-M2.7";
+          const model = modelArg ?? activeApi.runtime.agent.model?.() ?? "minimax/MiniMax-M2.7";
           const { output } = await runAgent(task, model);
           return {
             content: [{ type: "text" as const, text: output }],

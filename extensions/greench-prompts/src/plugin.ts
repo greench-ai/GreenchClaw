@@ -73,7 +73,7 @@ export default definePluginEntry({
             );
             return makeResult(lines.join("\n"), { count: prompts.length });
           } catch (e) {
-            return makeResult(`Error: ${e}`, { success: false, error: String(e) });
+            return makeResult(`Error: ${String(e)}`, { success: false, error: String(e) });
           }
         },
       }),
@@ -107,7 +107,7 @@ export default definePluginEntry({
               { name: prompt.name, filled, variables: prompt.variables },
             );
           } catch (e) {
-            return makeResult(`Error: ${e}`, { success: false, error: String(e) });
+            return makeResult(`Error: ${String(e)}`, { success: false, error: String(e) });
           }
         },
       }),
@@ -169,7 +169,7 @@ export default definePluginEntry({
               { name, variables: vars },
             );
           } catch (e) {
-            return makeResult(`Error: ${e}`, { success: false, error: String(e) });
+            return makeResult(`Error: ${String(e)}`, { success: false, error: String(e) });
           }
         },
       }),
@@ -195,7 +195,7 @@ export default definePluginEntry({
             savePrompts(prompts);
             return makeResult(`Prompt "${name}" deleted.`, { name });
           } catch (e) {
-            return makeResult(`Error: ${e}`, { success: false, error: String(e) });
+            return makeResult(`Error: ${String(e)}`, { success: false, error: String(e) });
           }
         },
       }),

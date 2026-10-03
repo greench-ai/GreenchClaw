@@ -84,7 +84,7 @@ Returns the number of records indexed and any errors encountered.`,
               };
             } catch (e) {
               return {
-                content: [{ type: "text", text: `Index failed: ${e}` }],
+                content: [{ type: "text", text: `Index failed: ${String(e)}` }],
                 isError: true,
               };
             }
@@ -177,7 +177,7 @@ The index must be built before first search. If results are empty or seem stale,
                 };
               }
               return {
-                content: [{ type: "text", text: `Search failed: ${e}` }],
+                content: [{ type: "text", text: `Search failed: ${String(e)}` }],
                 isError: true,
               };
             }
@@ -231,7 +231,7 @@ The index must be built before first search. If results are empty or seem stale,
               return { content: [{ type: "text", text: lines.join("\n") }] };
             } catch (e) {
               return {
-                content: [{ type: "text", text: `Preview failed: ${e}` }],
+                content: [{ type: "text", text: `Preview failed: ${String(e)}` }],
                 isError: true,
               };
             }
@@ -263,7 +263,7 @@ The index must be built before first search. If results are empty or seem stale,
                 content: [
                   {
                     type: "text",
-                    text: `Stats unavailable — index may need building. Run session_index first. Error: ${e}`,
+                    text: `Stats unavailable — index may need building. Run session_index first. Error: ${String(e)}`,
                   },
                 ],
               };

@@ -2481,6 +2481,13 @@ export function createDiagnosticsOtelService(): GreenchClawPluginService {
             case "model.failover":
               recordModelFailover(evt, metadata);
               return;
+            case "agentTurn.overlap":
+              // Second concurrent turn on a session lane (2026-09-17 concurrency
+              // alarm). Not exported to OTel yet; handled to keep the switch
+              // exhaustive over DiagnosticEventPayload.
+              return;
+            default:
+              return;
           }
         } catch (err) {
           ctx.logger.error(

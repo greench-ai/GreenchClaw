@@ -52,7 +52,7 @@ export default definePluginEntry({
             );
             return makeResult(stdout || "(no output)", { success: true });
           } catch (e) {
-            return makeResult(`Error: ${e}`, { success: false, error: String(e) });
+            return makeResult(`Error: ${String(e)}`, { success: false, error: String(e) });
           }
         },
       }),

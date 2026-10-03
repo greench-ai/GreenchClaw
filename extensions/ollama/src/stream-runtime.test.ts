@@ -2152,7 +2152,7 @@ describe("createOllamaStreamFn shared api-registry routing (cross-provider dispa
 describe("createOllamaStreamFn native num_ctx resolution", () => {
   function readNumCtx(fetchMock: typeof fetchWithSsrFGuardMock): unknown {
     const init = getGuardedFetchCall(fetchMock).init ?? {};
-    const body = JSON.parse(String(init.body)) as { options?: Record<string, unknown> };
+    const body = JSON.parse(typeof init.body === "string" ? init.body : "{}") as { options?: Record<string, unknown> };
     return body.options?.num_ctx;
   }
 

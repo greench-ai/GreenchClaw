@@ -68,11 +68,10 @@ function buildMinimaxCatalog(): ModelDefinitionConfig[] {
     });
     // M3 advertises a 1M-token context window; override the default.
     if (id === "MiniMax-M3") {
-      return {
-        ...entry,
+      return Object.assign({}, entry, {
         contextWindow: MINIMAX_M3_CONTEXT_WINDOW,
         maxTokens: MINIMAX_M3_MAX_TOKENS,
-      };
+      });
     }
     return entry;
   });

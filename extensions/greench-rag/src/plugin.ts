@@ -121,7 +121,7 @@ function qdrantUrl(cfg: RAGConfig, path: string): string {
 async function qdrantRequest<T>(url: string, opts: RequestInit = {}): Promise<T> {
   const resp = await fetch(url, {
     ...opts,
-    headers: { "Content-Type": "application/json", ...opts.headers },
+    headers: { "Content-Type": "application/json", ...(opts.headers as Record<string, string> | undefined) },
   });
   if (!resp.ok) {throw new Error(`Qdrant ${resp.status}: ${await resp.text().catch(() => "")}`);}
   return resp.json() as Promise<T>;
@@ -204,7 +204,7 @@ async function indexDocument(
     }
     buffer = stat;
   } catch (err) {
-    return { success: false, output: "", error: `Could not read file: ${err}` };
+    return { success: false, output: "", error: `Could not read file: ${String(err)}` };
   }
 
   const text = await parseDocument(buffer, fileType);

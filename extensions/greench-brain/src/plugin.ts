@@ -35,11 +35,11 @@ function getBrainConfig(api: GreenchClawPluginApi): BrainConfig {
       : raw
   ) as Record<string, unknown> | undefined;
   return {
-    qdrantHost: String(cfg?.qdrantHost ?? DEFAULT_BRAIN_CONFIG.qdrantHost),
+    qdrantHost: (cfg?.qdrantHost as string) ?? DEFAULT_BRAIN_CONFIG.qdrantHost,
     qdrantPort: Number(cfg?.qdrantPort ?? DEFAULT_BRAIN_CONFIG.qdrantPort),
-    ollamaUrl: String(cfg?.ollamaUrl ?? DEFAULT_BRAIN_CONFIG.ollamaUrl),
-    embeddingModel: String(cfg?.embeddingModel ?? DEFAULT_BRAIN_CONFIG.embeddingModel),
-    collection: String(cfg?.collection ?? DEFAULT_BRAIN_CONFIG.collection),
+    ollamaUrl: (cfg?.ollamaUrl as string) ?? DEFAULT_BRAIN_CONFIG.ollamaUrl,
+    embeddingModel: (cfg?.embeddingModel as string) ?? DEFAULT_BRAIN_CONFIG.embeddingModel,
+    collection: (cfg?.collection as string) ?? DEFAULT_BRAIN_CONFIG.collection,
   };
 }
 
@@ -66,7 +66,7 @@ function qdrantUrl(cfg: BrainConfig, path: string): string {
 async function qdrantRequest<T>(url: string, opts: RequestInit = {}): Promise<T> {
   const resp = await fetch(url, {
     ...opts,
-    headers: { "Content-Type": "application/json", ...opts.headers },
+    headers: { "Content-Type": "application/json", ...(opts.headers as Record<string, string> | undefined) },
   });
   if (!resp.ok) {throw new Error(`Qdrant ${resp.status}: ${await resp.text().catch(() => "")}`);}
   return resp.json() as Promise<T>;
@@ -130,7 +130,7 @@ async function brainFetchAll(cfg: BrainConfig, userId: string, limit: number) {
   }>(qdrantUrl(cfg, `/collections/${cfg.collection}/points/query`), {
     method: "POST",
     body: JSON.stringify({
-      query: new Array(768).fill(0),
+      query: Array.from({ length: 768 }, () => 0),
       limit,
       filter: { must: [{ key: "user_id", match: { value: userId } }] },
     }),
@@ -265,8 +265,8 @@ export default definePluginEntry({
             try {
               const result = await brainAddMemory(
                 api,
-                String(params.text ?? ""),
-                String(params.user_id ?? "default"),
+                (params.text as string) ?? "",
+                (params.user_id as string) ?? "default",
                 (params.metadata as Record<string, unknown>) ?? {},
               );
               return { success: true, output: `Memory added: ${result.memory_id}`, error: null };
@@ -296,8 +296,8 @@ export default definePluginEntry({
             try {
               const results = await brainSearch(
                 api,
-                String(params.query ?? ""),
-                String(params.user_id ?? "default"),
+                (params.query as string) ?? "",
+                (params.user_id as string) ?? "default",
                 Number(params.limit ?? 10),
               );
               if (!results.length)
@@ -328,7 +328,7 @@ export default definePluginEntry({
             try {
               const memories = await brainGetAll(
                 api,
-                String(params.user_id ?? "default"),
+                (params.user_id as string) ?? "default",
                 Number(params.limit ?? 100),
               );
               if (!memories.length)
@@ -361,11 +361,11 @@ export default definePluginEntry({
               const deleted = await brainDeleteMemory(
                 api,
                 String(params.memory_id),
-                String(params.user_id ?? "default"),
+                (params.user_id as string) ?? "default",
               );
               return {
                 success: true,
-                output: deleted ? `Deleted "${params.memory_id}".` : "Not found.",
+                output: deleted ? `Deleted "${params.memory_id as string}".` : "Not found.",
                 error: null,
               };
             } catch (err) {
