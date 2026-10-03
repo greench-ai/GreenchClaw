@@ -7,7 +7,7 @@
 import { spawn } from "node:child_process";
 import { resolve as pathResolve } from "node:path";
 import { homedir } from "node:os";
-import { definePluginEntry, makeTool, type GreenchClawPluginApi } from "GreenchClaw/plugin-sdk/plugin-entry";
+import { definePluginEntry, type GreenchClawPluginApi, type AnyAgentTool } from "GreenchClaw/plugin-sdk/plugin-entry";
 
 // ── Python runner (synchronous) ─────────────────────────────────────────────
 
@@ -45,11 +45,35 @@ export default definePluginEntry({
   name: "Session Search",
   description: "FTS5 full-text search over GreenchClaw session history.",
   register(api: GreenchClawPluginApi) {
+    type ToolParams = {
+      type: "object";
+      properties?: Record<string, unknown>;
+      required?: string[];
+    };
+    const defTool = (
+      name: string,
+      label: string,
+      description: string,
+      parameters: ToolParams,
+      execute: (
+        params: Record<string, unknown>,
+      ) => Promise<{ content: { type: "text"; text: string }[]; isError?: boolean }>,
+    ): AnyAgentTool =>
+      ({
+        name,
+        label,
+        description,
+        parameters,
+        execute: async (_toolCallId: string, toolParams: unknown) =>
+          execute((toolParams ?? {}) as Record<string, unknown>),
+      }) as unknown as AnyAgentTool;
+
     // Index all sessions
     api.registerTool(
       () =>
-        makeTool(
+        defTool(
           "session_index",
+          "Session Index",
           `Index all GreenchClaw sessions into FTS5. Run this:
 - After session_search returns stale/no results (index may be outdated)
 - After installing this plugin for the first time
@@ -66,7 +90,7 @@ Returns the number of records indexed and any errors encountered.`,
               },
             },
           },
-          async (_id, params) => {
+          async (params) => {
             try {
               const args = ["index"];
               if (params.force) {args.push("--force");}
@@ -95,8 +119,9 @@ Returns the number of records indexed and any errors encountered.`,
     // Search sessions
     api.registerTool(
       () =>
-        makeTool(
+        defTool(
           "session_search",
+          "Session Search",
           `Search GreenchClaw session history using full-text search.
 Returns matching messages with session labels, roles, snippets, and timestamps.
 
@@ -123,9 +148,9 @@ The index must be built before first search. If results are empty or seem stale,
             },
             required: ["query"],
           },
-          async (_id, params) => {
+          async (params) => {
             try {
-              const query = String(params.query ?? "");
+              const query = typeof params.query === "string" ? params.query : "";
               const limit = Math.min(Number(params.limit ?? 10), 50);
               const result = await runPython(["search", query, String(limit)]);
               const hits = JSON.parse(result);
@@ -188,8 +213,9 @@ The index must be built before first search. If results are empty or seem stale,
     // Preview a specific session
     api.registerTool(
       () =>
-        makeTool(
+        defTool(
           "session_preview",
+          "Session Preview",
           `Get recent messages from a specific session (by session_id returned from session_search). Useful for diving deeper into a match.`,
           {
             type: "object",
@@ -206,7 +232,7 @@ The index must be built before first search. If results are empty or seem stale,
             },
             required: ["session_id"],
           },
-          async (_id, params) => {
+          async (params) => {
             try {
               const limit = Math.min(Number(params.limit ?? 5), 20);
               const result = await runPython([
@@ -242,10 +268,11 @@ The index must be built before first search. If results are empty or seem stale,
     // Index stats
     api.registerTool(
       () =>
-        makeTool(
+        defTool(
           "session_stats",
+          "Session Stats",
           "Return FTS5 session index statistics: total records, sessions, and files indexed.",
-          {},
+          { type: "object", properties: {} },
           async () => {
             try {
               const result = await runPython(["stats"]);

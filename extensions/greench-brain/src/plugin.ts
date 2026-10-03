@@ -5,7 +5,11 @@
  */
 
 import crypto from "node:crypto";
-import { definePluginEntry, type GreenchClawPluginApi } from "GreenchClaw/plugin-sdk/plugin-entry";
+import {
+  definePluginEntry,
+  type GreenchClawPluginApi,
+  type AnyAgentTool,
+} from "GreenchClaw/plugin-sdk/plugin-entry";
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
@@ -16,6 +20,10 @@ interface BrainConfig {
   embeddingModel: string;
   collection: string;
 }
+
+// Vector dimensionality for the configured embedding model.
+// qwen3-embedding:0.6b = 1024. Change here if the embed model changes.
+const EMBEDDING_DIMS = 1024;
 
 const DEFAULT_BRAIN_CONFIG: BrainConfig = {
   qdrantHost: "localhost",
@@ -46,15 +54,15 @@ function getBrainConfig(api: GreenchClawPluginApi): BrainConfig {
 // ── Ollama Embedding ─────────────────────────────────────────────────────────
 
 async function embedText(text: string, baseUrl: string, model: string): Promise<number[]> {
-  const resp = await fetch(`${baseUrl}/api/embeddings`, {
+  const resp = await fetch(`${baseUrl}/api/embed`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model, prompt: text }),
+    body: JSON.stringify({ model, input: text }),
     signal: AbortSignal.timeout(30_000),
   });
   if (!resp.ok) {throw new Error(`Embedding failed: ${resp.status}`);}
-  const data = (await resp.json()) as { embedding?: number[] };
-  return data.embedding ?? [];
+  const data = (await resp.json()) as { embeddings?: number[][] };
+  return data.embeddings?.[0] ?? [];
 }
 
 // ── Qdrant REST API ──────────────────────────────────────────────────────────
@@ -80,7 +88,7 @@ async function ensureBrainCollection(cfg: BrainConfig): Promise<void> {
     if (!data.collections.some((c) => c.name === cfg.collection)) {
       await qdrantRequest(qdrantUrl(cfg, `/collections/${cfg.collection}`), {
         method: "PUT",
-        body: JSON.stringify({ vectors: { size: 768, distance: "Cosine" } }),
+        body: JSON.stringify({ vectors: { size: EMBEDDING_DIMS, distance: "Cosine" } }),
       });
     }
   } catch {
@@ -210,7 +218,6 @@ async function brainGetAll(
 async function brainDeleteMemory(
   api: GreenchClawPluginApi,
   memoryId: string,
-  userId: string = "default",
 ): Promise<boolean> {
   const cfg = getBrainConfig(api);
   const pointId = Math.abs(
@@ -231,26 +238,34 @@ export default definePluginEntry({
   name: "GreenchBrain",
   description: "Semantic memory brain — persistent, searchable memory using Qdrant.",
   register(api: GreenchClawPluginApi) {
-    const makeTool = (
+    type ToolParams = {
+      type: "object";
+      properties?: Record<string, unknown>;
+      required?: string[];
+    };
+    const defTool = (
       name: string,
-      desc: string,
-      schema: Record<string, unknown>,
+      label: string,
+      description: string,
+      parameters: ToolParams,
       execute: (
-        _id: unknown,
-        p: Record<string, unknown>,
-      ) => Promise<{ success: boolean; output: string; error: string | null }>,
-    ) => ({
-      name,
-      description: desc,
-      inputSchema: schema,
-      execute: async (toolCallId: unknown, toolParams: Record<string, unknown>) =>
-        execute(toolCallId, toolParams),
-    });
+        params: Record<string, unknown>,
+      ) => Promise<{ content: { type: "text"; text: string }[]; isError?: boolean }>,
+    ): AnyAgentTool =>
+      ({
+        name,
+        label,
+        description,
+        parameters,
+        execute: async (_toolCallId: string, toolParams: unknown) =>
+          execute((toolParams ?? {}) as Record<string, unknown>),
+      }) as unknown as AnyAgentTool;
 
     api.registerTool(
       () =>
-        makeTool(
+        defTool(
           "brain_add",
+          "Brain Add",
           "Add a memory to the brain.",
           {
             type: "object",
@@ -261,7 +276,7 @@ export default definePluginEntry({
             },
             required: ["text"],
           },
-          async (_id, params) => {
+          async (params) => {
             try {
               const result = await brainAddMemory(
                 api,
@@ -269,9 +284,14 @@ export default definePluginEntry({
                 (params.user_id as string) ?? "default",
                 (params.metadata as Record<string, unknown>) ?? {},
               );
-              return { success: true, output: `Memory added: ${result.memory_id}`, error: null };
+              return {
+                content: [{ type: "text" as const, text: `Memory added: ${result.memory_id}` }],
+              };
             } catch (err) {
-              return { success: false, output: "", error: String(err) };
+              return {
+                content: [{ type: "text" as const, text: `Failed: ${String(err)}` }],
+                isError: true,
+              };
             }
           },
         ),
@@ -280,8 +300,9 @@ export default definePluginEntry({
 
     api.registerTool(
       () =>
-        makeTool(
+        defTool(
           "brain_search",
+          "Brain Search",
           "Search the brain for relevant memories.",
           {
             type: "object",
@@ -292,7 +313,7 @@ export default definePluginEntry({
             },
             required: ["query"],
           },
-          async (_id, params) => {
+          async (params) => {
             try {
               const results = await brainSearch(
                 api,
@@ -301,14 +322,17 @@ export default definePluginEntry({
                 Number(params.limit ?? 10),
               );
               if (!results.length)
-                {return { success: true, output: "No memories found.", error: null };}
+                {return { content: [{ type: "text" as const, text: "No memories found." }] };}
               const lines = results.map(
                 (r, i) =>
                   `[${i + 1}] (score: ${r.score.toFixed(3)}) ${r.text}${Object.keys(r.metadata).length ? ` | ${JSON.stringify(r.metadata)}` : ""}`,
               );
-              return { success: true, output: lines.join("\n\n"), error: null };
+              return { content: [{ type: "text" as const, text: lines.join("\n\n") }] };
             } catch (err) {
-              return { success: false, output: "", error: String(err) };
+              return {
+                content: [{ type: "text" as const, text: `Search failed: ${String(err)}` }],
+                isError: true,
+              };
             }
           },
         ),
@@ -317,14 +341,15 @@ export default definePluginEntry({
 
     api.registerTool(
       () =>
-        makeTool(
+        defTool(
           "brain_list",
+          "Brain List",
           "List all memories in the brain.",
           {
             type: "object",
             properties: { user_id: { type: "string" }, limit: { type: "number" } },
           },
-          async (_id, params) => {
+          async (params) => {
             try {
               const memories = await brainGetAll(
                 api,
@@ -332,14 +357,20 @@ export default definePluginEntry({
                 Number(params.limit ?? 100),
               );
               if (!memories.length)
-                {return { success: true, output: "No memories stored.", error: null };}
+                {return { content: [{ type: "text" as const, text: "No memories stored." }] };}
               return {
-                success: true,
-                output: memories.map((m, i) => `[${i + 1}] ${m.text}`).join("\n"),
-                error: null,
+                content: [
+                  {
+                    type: "text" as const,
+                    text: memories.map((m, i) => `[${i + 1}] ${m.text}`).join("\n"),
+                  },
+                ],
               };
             } catch (err) {
-              return { success: false, output: "", error: String(err) };
+              return {
+                content: [{ type: "text" as const, text: `List failed: ${String(err)}` }],
+                isError: true,
+              };
             }
           },
         ),
@@ -348,28 +379,31 @@ export default definePluginEntry({
 
     api.registerTool(
       () =>
-        makeTool(
+        defTool(
           "brain_delete",
+          "Brain Delete",
           "Delete a specific memory by ID.",
           {
             type: "object",
             properties: { memory_id: { type: "string" }, user_id: { type: "string" } },
             required: ["memory_id"],
           },
-          async (_id, params) => {
+          async (params) => {
             try {
-              const deleted = await brainDeleteMemory(
-                api,
-                String(params.memory_id),
-                (params.user_id as string) ?? "default",
-              );
+              const deleted = await brainDeleteMemory(api, String(params.memory_id));
               return {
-                success: true,
-                output: deleted ? `Deleted "${params.memory_id as string}".` : "Not found.",
-                error: null,
+                content: [
+                  {
+                    type: "text" as const,
+                    text: deleted ? `Deleted "${params.memory_id as string}".` : "Not found.",
+                  },
+                ],
               };
             } catch (err) {
-              return { success: false, output: "", error: String(err) };
+              return {
+                content: [{ type: "text" as const, text: `Delete failed: ${String(err)}` }],
+                isError: true,
+              };
             }
           },
         ),
@@ -377,46 +411,5 @@ export default definePluginEntry({
     );
 
     api.logger.info?.("greench-brain: registered");
-  },
-  tools: {
-    brain_add: {
-      description: "Add a memory.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          text: { type: "string" },
-          user_id: { type: "string" },
-          metadata: { type: "object", additionalProperties: true },
-        },
-        required: ["text"],
-      },
-    },
-    brain_search: {
-      description: "Search memories.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          query: { type: "string" },
-          user_id: { type: "string" },
-          limit: { type: "number" },
-        },
-        required: ["query"],
-      },
-    },
-    brain_list: {
-      description: "List all memories.",
-      inputSchema: {
-        type: "object",
-        properties: { user_id: { type: "string" }, limit: { type: "number" } },
-      },
-    },
-    brain_delete: {
-      description: "Delete a memory.",
-      inputSchema: {
-        type: "object",
-        properties: { memory_id: { type: "string" }, user_id: { type: "string" } },
-        required: ["memory_id"],
-      },
-    },
   },
 });
