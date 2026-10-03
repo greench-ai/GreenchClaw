@@ -245,7 +245,7 @@ function parsePidsFromLsofOutput(stdout: string, spawnTimeoutMs: number): number
     if (excluded.has(entry.pid)) {
       continue;
     }
-    if (entry.cmd && normalizeLowercaseStringOrEmpty(entry.cmd).includes("GreenchClaw")) {
+    if (entry.cmd && normalizeLowercaseStringOrEmpty(entry.cmd).includes("greenchclaw")) {
       pids.push(entry.pid);
       continue;
     }
