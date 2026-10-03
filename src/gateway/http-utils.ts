@@ -52,7 +52,10 @@ export function resolveAgentIdFromModel(
     return undefined;
   }
   const lowered = normalizeLowercaseStringOrEmpty(raw);
-  if (lowered === GREENCHCLAW_MODEL_ID || lowered === GREENCHCLAW_DEFAULT_MODEL_ID) {
+  if (
+    lowered === GREENCHCLAW_MODEL_ID.toLowerCase() ||
+    lowered === GREENCHCLAW_DEFAULT_MODEL_ID.toLowerCase()
+  ) {
     return resolveDefaultAgentId(cfg);
   }
 
