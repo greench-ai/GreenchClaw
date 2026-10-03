@@ -483,7 +483,21 @@ function recordMatchesBundledPackage(
 
 function recordNpmPackageName(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
-  return trimmed ? parseRegistryNpmSpec(trimmed)?.name : undefined;
+  if (!trimmed) {
+    return undefined;
+  }
+  const parsed = parseRegistryNpmSpec(trimmed);
+  if (parsed) {
+    return parsed.name;
+  }
+  // GreenchClaw's own scoped packages (e.g. `@GreenchClaw/matrix`) are
+  // GitHub/private and never resolved from the npm registry; the strict
+  // registry parser (lowercase-only) rejects them. Fall back to a name-only
+  // shape so bundled-package record matching still works.
+  const nameOnly = trimmed.replace(/@[^/@]+$/, "");
+  return /^@[A-Za-z0-9][A-Za-z0-9._~-]*\/[A-Za-z0-9][A-Za-z0-9._~-]*$/.test(nameOnly)
+    ? nameOnly
+    : undefined;
 }
 
 function recordClawHubPackageName(value: string | undefined): string | undefined {

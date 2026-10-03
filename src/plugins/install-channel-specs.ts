@@ -12,7 +12,14 @@ export type ChannelInstallSpecs = {
 function isDefaultNpmSpecForBetaChannel(spec: string): { name: string } | null {
   const parsed = parseRegistryNpmSpec(spec);
   if (!parsed) {
-    return null;
+    // GreenchClaw's own scoped packages (e.g. `@GreenchClaw/brave-plugin`) are
+    // GitHub/private and never resolved from the npm registry; the strict
+    // registry parser (lowercase-only) rejects them. Fall back to a name-only
+    // shape so beta-channel resolution still appends the `@beta` tag.
+    const nameOnly = spec.trim().replace(/@[^/@]+$/, "");
+    return /^@[A-Za-z0-9][A-Za-z0-9._~-]*\/[A-Za-z0-9][A-Za-z0-9._~-]*$/.test(nameOnly)
+      ? { name: nameOnly }
+      : null;
   }
   if (parsed.selectorKind === "none") {
     return { name: parsed.name };
