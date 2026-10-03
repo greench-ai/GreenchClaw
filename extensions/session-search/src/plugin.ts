@@ -7,7 +7,7 @@
 import { spawn } from "node:child_process";
 import { resolve as pathResolve } from "node:path";
 import { homedir } from "node:os";
-import { definePluginEntry, makeTool, type GreenchClawPluginApi } from "GreenchClaw/plugin-sdk/plugin-entry";
+import { definePluginEntry, type AnyAgentTool, type GreenchClawPluginApi } from "GreenchClaw/plugin-sdk/plugin-entry";
 
 // ── Python runner (synchronous) ─────────────────────────────────────────────
 
@@ -47,16 +47,16 @@ export default definePluginEntry({
   register(api: GreenchClawPluginApi) {
     // Index all sessions
     api.registerTool(
-      () =>
-        makeTool(
-          "session_index",
-          `Index all GreenchClaw sessions into FTS5. Run this:
+      {
+        name: "session_index",
+        label: "Session Index",
+        description: `Index all GreenchClaw sessions into FTS5. Run this:
 - After session_search returns stale/no results (index may be outdated)
 - After installing this plugin for the first time
 - After encountering odd results (re-index to be sure)
 
 Returns the number of records indexed and any errors encountered.`,
-          {
+        parameters: {
             type: "object",
             properties: {
               force: {
@@ -66,7 +66,7 @@ Returns the number of records indexed and any errors encountered.`,
               },
             },
           },
-          async (_id, params) => {
+        execute: async (_id: string, params: Record<string, unknown>) => {
             try {
               const args = ["index"];
               if (params.force) {args.push("--force");}
@@ -88,16 +88,17 @@ Returns the number of records indexed and any errors encountered.`,
                 isError: true,
               };
             }
-          }
-        )
+          },
+      } as unknown as AnyAgentTool,
+      { name: "session_index" },
     );
 
     // Search sessions
     api.registerTool(
-      () =>
-        makeTool(
-          "session_search",
-          `Search GreenchClaw session history using full-text search.
+      {
+        name: "session_search",
+        label: "Session Search",
+        description: `Search GreenchClaw session history using full-text search.
 Returns matching messages with session labels, roles, snippets, and timestamps.
 
 Use natural language or keywords. Works best with specific terms:
@@ -107,7 +108,7 @@ Use natural language or keywords. Works best with specific terms:
 - "kernel patch" — finds kernel CVE discussions
 
 The index must be built before first search. If results are empty or seem stale, run session_index first.`,
-          {
+        parameters: {
             type: "object",
             properties: {
               query: {
@@ -123,9 +124,9 @@ The index must be built before first search. If results are empty or seem stale,
             },
             required: ["query"],
           },
-          async (_id, params) => {
+        execute: async (_id: string, params: Record<string, unknown>) => {
             try {
-              const query = String(params.query ?? "");
+              const query = (params.query as string) ?? "";
               const limit = Math.min(Number(params.limit ?? 10), 50);
               const result = await runPython(["search", query, String(limit)]);
               const hits = JSON.parse(result);
@@ -181,17 +182,18 @@ The index must be built before first search. If results are empty or seem stale,
                 isError: true,
               };
             }
-          }
-        )
+          },
+      } as unknown as AnyAgentTool,
+      { name: "session_search" },
     );
 
     // Preview a specific session
     api.registerTool(
-      () =>
-        makeTool(
-          "session_preview",
-          `Get recent messages from a specific session (by session_id returned from session_search). Useful for diving deeper into a match.`,
-          {
+      {
+        name: "session_preview",
+        label: "Session Preview",
+        description: `Get recent messages from a specific session (by session_id returned from session_search). Useful for diving deeper into a match.`,
+        parameters: {
             type: "object",
             properties: {
               session_id: {
@@ -206,7 +208,7 @@ The index must be built before first search. If results are empty or seem stale,
             },
             required: ["session_id"],
           },
-          async (_id, params) => {
+        execute: async (_id: string, params: Record<string, unknown>) => {
             try {
               const limit = Math.min(Number(params.limit ?? 5), 20);
               const result = await runPython([
@@ -235,41 +237,44 @@ The index must be built before first search. If results are empty or seem stale,
                 isError: true,
               };
             }
-          }
-        )
+          },
+      } as unknown as AnyAgentTool,
+      { name: "session_preview" },
     );
 
     // Index stats
     api.registerTool(
-      () =>
-        makeTool(
-          "session_stats",
+      {
+        name: "session_stats",
+        label: "Session Stats",
+        description:
           "Return FTS5 session index statistics: total records, sessions, and files indexed.",
-          {},
-          async () => {
-            try {
-              const result = await runPython(["stats"]);
-              const stats = JSON.parse(result);
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: `Session index: ${stats.total_records} messages across ${stats.total_sessions} sessions (${stats.indexed_files} files indexed)\nDB: ${stats.db_path}`,
-                  },
-                ],
-              };
-            } catch (e) {
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: `Stats unavailable — index may need building. Run session_index first. Error: ${String(e)}`,
-                  },
-                ],
-              };
-            }
+        parameters: { type: "object", properties: {} },
+        execute: async () => {
+          try {
+            const result = await runPython(["stats"]);
+            const stats = JSON.parse(result);
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Session index: ${stats.total_records} messages across ${stats.total_sessions} sessions (${stats.indexed_files} files indexed)\nDB: ${stats.db_path}`,
+                },
+              ],
+            };
+          } catch (e) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Stats unavailable — index may need building. Run session_index first. Error: ${String(e)}`,
+                },
+              ],
+            };
           }
-        )
+        },
+      } as unknown as AnyAgentTool,
+      { name: "session_stats" },
     );
   },
 });

@@ -2,7 +2,7 @@
  * GreenchHostTools — host_bash tool for WSL2 host command execution.
  */
 
-import { definePluginEntry, type GreenchClawPluginApi } from "GreenchClaw/plugin-sdk/plugin-entry";
+import { definePluginEntry, type AnyAgentTool, type GreenchClawPluginApi } from "GreenchClaw/plugin-sdk/plugin-entry";
 
 function makeResult(
   text: string,
@@ -17,10 +17,11 @@ export default definePluginEntry({
   description: "Run commands on the Windows host from WSL2 via wsl.exe.",
   register(api: GreenchClawPluginApi) {
     api.registerTool(
-      () => ({
+      {
         name: "host_bash",
+        label: "Host Bash",
         description: "Execute a bash command on the Windows host. Timeout: 30s.",
-        inputSchema: {
+        parameters: {
           type: "object",
           properties: {
             command: { type: "string", description: "Bash command to run on the host" },
@@ -32,7 +33,7 @@ export default definePluginEntry({
           },
           required: ["command"],
         },
-        execute: async (_toolCallId, toolParams, _signal) => {
+        execute: async (_toolCallId: string, toolParams: unknown, _signal?: AbortSignal) => {
           const { command, timeout_ms = 30000 } = toolParams as {
             command: string;
             timeout_ms?: number;
@@ -55,20 +56,10 @@ export default definePluginEntry({
             return makeResult(`Error: ${String(e)}`, { success: false, error: String(e) });
           }
         },
-      }),
-      { names: ["host_bash"] },
+      } as unknown as AnyAgentTool,
+      { name: "host_bash" },
     );
 
     api.logger.info?.("greench-host-tools: registered");
-  },
-  tools: {
-    host_bash: {
-      description: "Run command on Windows host.",
-      inputSchema: {
-        type: "object",
-        properties: { command: { type: "string" }, timeout_ms: { type: "number", default: 30000 } },
-        required: ["command"],
-      },
-    },
   },
 });

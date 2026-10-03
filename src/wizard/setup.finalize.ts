@@ -372,7 +372,16 @@ export async function finalizeSetupWizard(
   // Read the current token from the config file on disk — this reflects any token
   // the wizard just wrote, even if the gateway hasn't restarted yet.
   const currentConfig = await createConfigIO({ pluginValidation: "skip" }).readConfigFileSnapshot();
-  const currentToken = currentConfig.config?.gateway?.auth?.token;
+  const currentTokenRaw = currentConfig.config?.gateway?.auth?.token;
+  const currentToken =
+    currentTokenRaw === undefined
+      ? undefined
+      : ((await resolveSetupSecretInputString({
+          config: currentConfig.config ?? ({} as GreenchClawConfig),
+          value: currentTokenRaw,
+          path: "gateway.auth.token",
+          env: process.env,
+        })) ?? undefined);
   const effectiveToken = settings.authMode === "token" && (currentToken ?? settings.gatewayToken);
   const authedUrl = effectiveToken
     ? `${links.httpUrl}#token=${encodeURIComponent(effectiveToken)}`
