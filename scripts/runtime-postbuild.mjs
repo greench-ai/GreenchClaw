@@ -480,6 +480,21 @@ export function runRuntimePostBuild(params = {}) {
   runPhase("legacy CLI exit compat chunks", () => writeLegacyCliExitCompatChunks(params));
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+if (isInvokedAsMain()) {
   runRuntimePostBuild();
+}
+
+/** Resolve through symlinks so staging-root runs (scripts/ symlinked) still execute. */
+function isInvokedAsMain() {
+  const argv1 = process.argv[1];
+  if (!argv1) {
+    return false;
+  }
+  try {
+    return (
+      fs.realpathSync(fileURLToPath(import.meta.url)) === fs.realpathSync(path.resolve(argv1))
+    );
+  } catch {
+    return import.meta.url === pathToFileURL(argv1).href;
+  }
 }

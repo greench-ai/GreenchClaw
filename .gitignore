@@ -237,3 +237,7 @@ extensions/**/.openclaw-runtime-deps-stamp.json
 /.crabbox-artifacts
 .comux*
 .serena/
+
+# Managed-release build layout (scripts/atomic-dist-swap.mjs)
+/releases/
+/.GreenchClaw-build.lock/
