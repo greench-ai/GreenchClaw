@@ -373,7 +373,9 @@ export async function finalizeSetupWizard(
   // the wizard just wrote, even if the gateway hasn't restarted yet.
   const currentConfig = await createConfigIO({ pluginValidation: "skip" }).readConfigFileSnapshot();
   const currentToken = currentConfig.config?.gateway?.auth?.token;
-  const effectiveToken = settings.authMode === "token" && (currentToken ?? settings.gatewayToken);
+  const currentTokenValue = typeof currentToken === "string" ? currentToken : undefined;
+  const effectiveToken =
+    settings.authMode === "token" && (currentTokenValue ?? settings.gatewayToken);
   const authedUrl = effectiveToken
     ? `${links.httpUrl}#token=${encodeURIComponent(effectiveToken)}`
     : links.httpUrl;
