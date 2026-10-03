@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { pathToFileURL, fileURLToPath } from "node:url";
 import { resolvePnpmRunner } from "./pnpm-runner.mjs";
 
 const nodeBin = process.execPath;
@@ -360,11 +360,36 @@ function isMainModule() {
   if (!argv1) {
     return false;
   }
-  return import.meta.url === pathToFileURL(argv1).href;
+  // Resolve through symlinks before comparing: when this script is invoked from
+  // a staging root (scripts/ is a symlink), import.meta.url is the real path
+  // while argv[1] is the symlinked path — a raw compare would silently skip the
+  // build.
+  const selfPath = fileURLToPath(import.meta.url);
+  let argvPath = argv1;
+  try {
+    argvPath = path.resolve(argv1);
+  } catch {
+    // fall through with the raw value
+  }
+  return fs.realpathSync(selfPath) === fs.realpathSync(argvPath);
 }
 
 if (isMainModule()) {
   const profile = process.argv[2] ?? "full";
+  // Guard: if this repo uses the managed-release layout but dist/ was reverted
+  // to a real directory (a plain build bypassing the wrapper), fail loudly
+  // rather than produce a tree the next release swap throws away. Best-effort:
+  // a failure to load the guard must never break a normal build.
+  try {
+    const { checkManagedLayoutIntact } = await import("./atomic-dist-swap.mjs");
+    const layoutProblem = checkManagedLayoutIntact(process.cwd());
+    if (layoutProblem) {
+      console.error(`[build-all] ${layoutProblem}`);
+      process.exit(1);
+    }
+  } catch {
+    // Guard unavailable; proceed with the normal build.
+  }
   for (const step of resolveBuildAllSteps(profile)) {
     const cacheState = resolveBuildAllStepCacheState(step);
     if (process.env.GREENCHCLAW_BUILD_CACHE !== "0" && cacheState.fresh) {

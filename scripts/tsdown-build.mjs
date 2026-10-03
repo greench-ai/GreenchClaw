@@ -3,7 +3,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { BUNDLED_PLUGIN_PATH_PREFIX } from "./lib/bundled-plugin-paths.mjs";
 import { resolvePnpmRunner } from "./pnpm-runner.mjs";
 import {
@@ -383,7 +383,13 @@ function isMainModule() {
   if (!argv1) {
     return false;
   }
-  return import.meta.url === pathToFileURL(argv1).href;
+  // Resolve through symlinks: under a staging root (scripts/ symlinked) the
+  // real import.meta.url differs from the symlinked argv[1] path.
+  try {
+    return fs.realpathSync(fileURLToPath(import.meta.url)) === fs.realpathSync(path.resolve(argv1));
+  } catch {
+    return import.meta.url === pathToFileURL(argv1).href;
+  }
 }
 
 if (isMainModule()) {
