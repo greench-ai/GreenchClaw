@@ -1,5 +1,5 @@
 # Opt-in plugin dependencies at build time (space- or comma-separated directory names).
-# Example: docker build --build-arg OPENCLAW_EXTENSIONS="diagnostics-otel,matrix" .
+# Example: docker build --build-arg GREENCHCLAW_EXTENSIONS="diagnostics-otel,matrix" .
 #
 # Multi-stage build produces a minimal runtime image without build tools,
 # source code, or Bun. Works with Docker, Buildx, and Podman.
@@ -7,14 +7,14 @@
 # build layer is not invalidated by unrelated source changes.
 #
 # Build stages use full bookworm; the runtime image is always bookworm-slim.
-ARG OPENCLAW_EXTENSIONS=""
-ARG OPENCLAW_BUNDLED_PLUGIN_DIR=extensions
-ARG OPENCLAW_NODE_BOOKWORM_IMAGE="node:24-bookworm@sha256:3a09aa6354567619221ef6c45a5051b671f953f0a1924d1f819ffb236e520e6b"
-ARG OPENCLAW_NODE_BOOKWORM_SLIM_IMAGE="node:24-bookworm-slim@sha256:e8e2e91b1378f83c5b2dd15f0247f34110e2fe895f6ca7719dbb780f929368eb"
-ARG OPENCLAW_NODE_BOOKWORM_SLIM_DIGEST="sha256:e8e2e91b1378f83c5b2dd15f0247f34110e2fe895f6ca7719dbb780f929368eb"
+ARG GREENCHCLAW_EXTENSIONS=""
+ARG GREENCHCLAW_BUNDLED_PLUGIN_DIR=extensions
+ARG GREENCHCLAW_NODE_BOOKWORM_IMAGE="node:24-bookworm@sha256:3a09aa6354567619221ef6c45a5051b671f953f0a1924d1f819ffb236e520e6b"
+ARG GREENCHCLAW_NODE_BOOKWORM_SLIM_IMAGE="node:24-bookworm-slim@sha256:e8e2e91b1378f83c5b2dd15f0247f34110e2fe895f6ca7719dbb780f929368eb"
+ARG GREENCHCLAW_NODE_BOOKWORM_SLIM_DIGEST="sha256:e8e2e91b1378f83c5b2dd15f0247f34110e2fe895f6ca7719dbb780f929368eb"
 # Keep in sync with .github/actions/setup-node-env/action.yml bun-version.
 # To update: docker buildx imagetools inspect oven/bun:<version> and use the manifest-list digest.
-ARG OPENCLAW_BUN_IMAGE="oven/bun:1.3.13@sha256:87416c977a612a204eb54ab9f3927023c2a3c971f4f345a01da08ea6262ae30e"
+ARG GREENCHCLAW_BUN_IMAGE="oven/bun:1.3.13@sha256:87416c977a612a204eb54ab9f3927023c2a3c971f4f345a01da08ea6262ae30e"
 
 # Base images are pinned to SHA256 digests for reproducible builds.
 # Dependabot refreshes these blessed digests; release builds consume the
@@ -23,13 +23,13 @@ ARG OPENCLAW_BUN_IMAGE="oven/bun:1.3.13@sha256:87416c977a612a204eb54ab9f3927023c
 # node:24-bookworm-slim (or podman) and replace the digests below with the
 # current multi-arch manifest list entries.
 
-FROM ${OPENCLAW_NODE_BOOKWORM_IMAGE} AS workspace-deps
-ARG OPENCLAW_EXTENSIONS
-ARG OPENCLAW_BUNDLED_PLUGIN_DIR
+FROM ${GREENCHCLAW_NODE_BOOKWORM_IMAGE} AS workspace-deps
+ARG GREENCHCLAW_EXTENSIONS
+ARG GREENCHCLAW_BUNDLED_PLUGIN_DIR
 # Copy package.json files for workspace packages used by the install layer.
 RUN --mount=type=bind,source=packages,target=/tmp/packages,readonly \
-    --mount=type=bind,source=${OPENCLAW_BUNDLED_PLUGIN_DIR},target=/tmp/${OPENCLAW_BUNDLED_PLUGIN_DIR},readonly \
-    mkdir -p /out/packages "/out/${OPENCLAW_BUNDLED_PLUGIN_DIR}" && \
+    --mount=type=bind,source=${GREENCHCLAW_BUNDLED_PLUGIN_DIR},target=/tmp/${GREENCHCLAW_BUNDLED_PLUGIN_DIR},readonly \
+    mkdir -p /out/packages "/out/${GREENCHCLAW_BUNDLED_PLUGIN_DIR}" && \
     for manifest in /tmp/packages/*/package.json; do \
       [ -f "$manifest" ] || continue; \
       pkg_dir="${manifest%/package.json}"; \
@@ -37,17 +37,17 @@ RUN --mount=type=bind,source=packages,target=/tmp/packages,readonly \
       mkdir -p "/out/packages/$pkg_name" && \
       cp "$manifest" "/out/packages/$pkg_name/package.json"; \
     done && \
-    for ext in $(printf '%s\n' "$OPENCLAW_EXTENSIONS" | tr ',' ' '); do \
-      if [ -f "/tmp/${OPENCLAW_BUNDLED_PLUGIN_DIR}/$ext/package.json" ]; then \
-        mkdir -p "/out/${OPENCLAW_BUNDLED_PLUGIN_DIR}/$ext" && \
-        cp "/tmp/${OPENCLAW_BUNDLED_PLUGIN_DIR}/$ext/package.json" "/out/${OPENCLAW_BUNDLED_PLUGIN_DIR}/$ext/package.json"; \
+    for ext in $(printf '%s\n' "$GREENCHCLAW_EXTENSIONS" | tr ',' ' '); do \
+      if [ -f "/tmp/${GREENCHCLAW_BUNDLED_PLUGIN_DIR}/$ext/package.json" ]; then \
+        mkdir -p "/out/${GREENCHCLAW_BUNDLED_PLUGIN_DIR}/$ext" && \
+        cp "/tmp/${GREENCHCLAW_BUNDLED_PLUGIN_DIR}/$ext/package.json" "/out/${GREENCHCLAW_BUNDLED_PLUGIN_DIR}/$ext/package.json"; \
       fi; \
     done
 
 # ── Stage 2: Build ──────────────────────────────────────────────
-FROM ${OPENCLAW_BUN_IMAGE} AS bun-binary
-FROM ${OPENCLAW_NODE_BOOKWORM_IMAGE} AS build
-ARG OPENCLAW_BUNDLED_PLUGIN_DIR
+FROM ${GREENCHCLAW_BUN_IMAGE} AS bun-binary
+FROM ${GREENCHCLAW_NODE_BOOKWORM_IMAGE} AS build
+ARG GREENCHCLAW_BUNDLED_PLUGIN_DIR
 
 # Copy pinned Bun binary from the official image instead of fetching via curl.
 COPY --from=bun-binary /usr/local/bin/bun /usr/local/bin/bun
@@ -57,18 +57,18 @@ RUN corepack enable
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-COPY openclaw.mjs ./
+COPY GreenchClaw.mjs ./
 COPY ui/package.json ./ui/package.json
 COPY patches ./patches
 COPY scripts/postinstall-bundled-plugins.mjs scripts/setup-hooks.mjs scripts/npm-runner.mjs scripts/windows-cmd-helpers.mjs ./scripts/
 COPY scripts/lib/package-dist-imports.mjs ./scripts/lib/package-dist-imports.mjs
 
 COPY --from=workspace-deps /out/packages/ ./packages/
-COPY --from=workspace-deps /out/${OPENCLAW_BUNDLED_PLUGIN_DIR}/ ./${OPENCLAW_BUNDLED_PLUGIN_DIR}/
+COPY --from=workspace-deps /out/${GREENCHCLAW_BUNDLED_PLUGIN_DIR}/ ./${GREENCHCLAW_BUNDLED_PLUGIN_DIR}/
 
 # Reduce OOM risk on low-memory hosts during dependency installation.
 # Docker builds on small VMs may otherwise fail with "Killed" (exit 137).
-RUN --mount=type=cache,id=openclaw-pnpm-store,target=/root/.local/share/pnpm/store,sharing=locked \
+RUN --mount=type=cache,id=GreenchClaw-pnpm-store,target=/root/.local/share/pnpm/store,sharing=locked \
     NODE_OPTIONS=--max-old-space-size=2048 pnpm install --frozen-lockfile \
       --config.supportedArchitectures.os=linux \
       --config.supportedArchitectures.cpu="$(node -p 'process.arch')" \
@@ -94,7 +94,7 @@ COPY . .
 
 # Normalize extension paths now so runtime COPY preserves safe modes
 # without adding a second full extensions layer.
-RUN for dir in /app/${OPENCLAW_BUNDLED_PLUGIN_DIR} /app/.agent /app/.agents; do \
+RUN for dir in /app/${GREENCHCLAW_BUNDLED_PLUGIN_DIR} /app/.agent /app/.agents; do \
       if [ -d "$dir" ]; then \
         find "$dir" -type d -exec chmod 755 {} +; \
         find "$dir" -type f -exec chmod 644 {} +; \
@@ -109,49 +109,49 @@ RUN pnpm_config_verify_deps_before_run=false pnpm canvas:a2ui:bundle || \
      mkdir -p extensions/canvas/src/host/a2ui && \
      echo "/* A2UI bundle unavailable in this build */" > extensions/canvas/src/host/a2ui/a2ui.bundle.js && \
      echo "stub" > extensions/canvas/src/host/a2ui/.bundle.hash && \
-     rm -rf vendor/a2ui apps/shared/OpenClawKit/Tools/CanvasA2UI)
+     rm -rf vendor/a2ui apps/shared/GreenchClawKit/Tools/CanvasA2UI)
 RUN NODE_OPTIONS=--max-old-space-size=8192 pnpm_config_verify_deps_before_run=false pnpm build:docker
 # Force pnpm for UI build (Bun may fail on ARM/Synology architectures)
-ENV OPENCLAW_PREFER_PNPM=1
+ENV GREENCHCLAW_PREFER_PNPM=1
 RUN pnpm_config_verify_deps_before_run=false pnpm ui:build
 RUN pnpm_config_verify_deps_before_run=false pnpm qa:lab:build
 
 # Prune dev dependencies and strip build-only metadata before copying
 # runtime assets into the final image.
 FROM build AS runtime-assets
-ARG OPENCLAW_EXTENSIONS
-ARG OPENCLAW_BUNDLED_PLUGIN_DIR
-RUN --mount=type=cache,id=openclaw-pnpm-store,target=/root/.local/share/pnpm/store,sharing=locked \
+ARG GREENCHCLAW_EXTENSIONS
+ARG GREENCHCLAW_BUNDLED_PLUGIN_DIR
+RUN --mount=type=cache,id=GreenchClaw-pnpm-store,target=/root/.local/share/pnpm/store,sharing=locked \
     CI=true pnpm prune --prod \
       --config.offline=true \
       --config.supportedArchitectures.os=linux \
       --config.supportedArchitectures.cpu="$(node -p 'process.arch')" \
       --config.supportedArchitectures.libc=glibc && \
     node scripts/postinstall-bundled-plugins.mjs && \
-    OPENCLAW_EXTENSIONS="$OPENCLAW_EXTENSIONS" node scripts/prune-docker-plugin-dist.mjs && \
+    GREENCHCLAW_EXTENSIONS="$GREENCHCLAW_EXTENSIONS" node scripts/prune-docker-plugin-dist.mjs && \
     find dist -type f \( -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' -o -name '*.map' \) -delete && \
     node scripts/check-package-dist-imports.mjs /app
 
 # ── Runtime base image ──────────────────────────────────────────
-FROM ${OPENCLAW_NODE_BOOKWORM_SLIM_IMAGE} AS base-runtime
-ARG OPENCLAW_NODE_BOOKWORM_SLIM_DIGEST
+FROM ${GREENCHCLAW_NODE_BOOKWORM_SLIM_IMAGE} AS base-runtime
+ARG GREENCHCLAW_NODE_BOOKWORM_SLIM_DIGEST
 LABEL org.opencontainers.image.base.name="docker.io/library/node:24-bookworm-slim" \
-  org.opencontainers.image.base.digest="${OPENCLAW_NODE_BOOKWORM_SLIM_DIGEST}"
+  org.opencontainers.image.base.digest="${GREENCHCLAW_NODE_BOOKWORM_SLIM_DIGEST}"
 
 # ── Stage 3: Runtime ────────────────────────────────────────────
 FROM base-runtime
-ARG OPENCLAW_BUNDLED_PLUGIN_DIR
+ARG GREENCHCLAW_BUNDLED_PLUGIN_DIR
 
 # OCI base-image metadata for downstream image consumers.
 # If you change these annotations, also update:
 # - docs/install/docker.md ("Base image metadata" section)
-# - https://docs.openclaw.ai/install/docker
-LABEL org.opencontainers.image.source="https://github.com/openclaw/openclaw" \
-  org.opencontainers.image.url="https://openclaw.ai" \
-  org.opencontainers.image.documentation="https://docs.openclaw.ai/install/docker" \
+# - https://github.com/greench-ai/GreenchClaw
+LABEL org.opencontainers.image.source="https://github.com/greench-ai/GreenchClaw" \
+  org.opencontainers.image.url="https://github.com/greench-ai/GreenchClaw" \
+  org.opencontainers.image.documentation="https://github.com/greench-ai/GreenchClaw" \
   org.opencontainers.image.licenses="MIT" \
-  org.opencontainers.image.title="OpenClaw" \
-  org.opencontainers.image.description="OpenClaw gateway and CLI runtime container image"
+  org.opencontainers.image.title="GreenchClaw" \
+  org.opencontainers.image.description="GreenchClaw gateway and CLI runtime container image"
 
 WORKDIR /app
 
@@ -160,8 +160,8 @@ WORKDIR /app
 # so it must be installed explicitly here. Without it `/etc/ssl/certs/`
 # stays empty and every HTTPS outbound dies at TLS handshake with
 # `error setting certificate file`.
-RUN --mount=type=cache,id=openclaw-bookworm-apt-cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,id=openclaw-bookworm-apt-lists,target=/var/lib/apt,sharing=locked \
+RUN --mount=type=cache,id=GreenchClaw-bookworm-apt-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=GreenchClaw-bookworm-apt-lists,target=/var/lib/apt,sharing=locked \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
       ca-certificates curl git hostname lsof openssl procps python3 tini && \
@@ -174,8 +174,8 @@ COPY --from=runtime-assets --chown=node:node /app/node_modules ./node_modules
 COPY --from=runtime-assets --chown=node:node /app/package.json .
 COPY --from=runtime-assets --chown=node:node /app/pnpm-workspace.yaml .
 COPY --from=runtime-assets --chown=node:node /app/patches ./patches
-COPY --from=runtime-assets --chown=node:node /app/openclaw.mjs .
-COPY --from=runtime-assets --chown=node:node /app/${OPENCLAW_BUNDLED_PLUGIN_DIR} ./${OPENCLAW_BUNDLED_PLUGIN_DIR}
+COPY --from=runtime-assets --chown=node:node /app/GreenchClaw.mjs .
+COPY --from=runtime-assets --chown=node:node /app/${GREENCHCLAW_BUNDLED_PLUGIN_DIR} ./${GREENCHCLAW_BUNDLED_PLUGIN_DIR}
 COPY --from=runtime-assets --chown=node:node /app/skills ./skills
 COPY --from=runtime-assets --chown=node:node /app/docs ./docs
 COPY --from=runtime-assets --chown=node:node /app/qa ./qa
@@ -198,24 +198,24 @@ RUN install -d -m 0755 "$COREPACK_HOME" && \
     chmod -R a+rX "$COREPACK_HOME"
 
 # Install additional system packages needed by your skills or extensions.
-# Example: docker build --build-arg OPENCLAW_DOCKER_APT_PACKAGES="python3 wget" .
-ARG OPENCLAW_DOCKER_APT_PACKAGES=""
-RUN --mount=type=cache,id=openclaw-bookworm-apt-cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,id=openclaw-bookworm-apt-lists,target=/var/lib/apt,sharing=locked \
-    if [ -n "$OPENCLAW_DOCKER_APT_PACKAGES" ]; then \
+# Example: docker build --build-arg GREENCHCLAW_DOCKER_APT_PACKAGES="python3 wget" .
+ARG GREENCHCLAW_DOCKER_APT_PACKAGES=""
+RUN --mount=type=cache,id=GreenchClaw-bookworm-apt-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=GreenchClaw-bookworm-apt-lists,target=/var/lib/apt,sharing=locked \
+    if [ -n "$GREENCHCLAW_DOCKER_APT_PACKAGES" ]; then \
       apt-get update && \
-      DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $OPENCLAW_DOCKER_APT_PACKAGES; \
+      DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $GREENCHCLAW_DOCKER_APT_PACKAGES; \
     fi
 
 # Optionally install Chromium and Xvfb for browser automation.
-# Build with: docker build --build-arg OPENCLAW_INSTALL_BROWSER=1 ...
+# Build with: docker build --build-arg GREENCHCLAW_INSTALL_BROWSER=1 ...
 # Adds ~300MB but eliminates the 60-90s Playwright install on every container start.
 # Must run after node_modules COPY so playwright-core is available.
-ARG OPENCLAW_INSTALL_BROWSER=""
+ARG GREENCHCLAW_INSTALL_BROWSER=""
 ENV PLAYWRIGHT_BROWSERS_PATH=/home/node/.cache/ms-playwright
-RUN --mount=type=cache,id=openclaw-bookworm-apt-cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,id=openclaw-bookworm-apt-lists,target=/var/lib/apt,sharing=locked \
-    if [ -n "$OPENCLAW_INSTALL_BROWSER" ]; then \
+RUN --mount=type=cache,id=GreenchClaw-bookworm-apt-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=GreenchClaw-bookworm-apt-lists,target=/var/lib/apt,sharing=locked \
+    if [ -n "$GREENCHCLAW_INSTALL_BROWSER" ]; then \
       apt-get update && \
       DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends xvfb && \
       mkdir -p "$PLAYWRIGHT_BROWSERS_PATH" && \
@@ -224,14 +224,14 @@ RUN --mount=type=cache,id=openclaw-bookworm-apt-cache,target=/var/cache/apt,shar
     fi
 
 # Optionally install Docker CLI for sandbox container management.
-# Build with: docker build --build-arg OPENCLAW_INSTALL_DOCKER_CLI=1 ...
+# Build with: docker build --build-arg GREENCHCLAW_INSTALL_DOCKER_CLI=1 ...
 # Adds ~50MB. Only the CLI is installed — no Docker daemon.
 # Required for agents.defaults.sandbox to function in Docker deployments.
-ARG OPENCLAW_INSTALL_DOCKER_CLI=""
-ARG OPENCLAW_DOCKER_GPG_FINGERPRINT="9DC858229FC7DD38854AE2D88D81803C0EBFCD88"
-RUN --mount=type=cache,id=openclaw-bookworm-apt-cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,id=openclaw-bookworm-apt-lists,target=/var/lib/apt,sharing=locked \
-    if [ -n "$OPENCLAW_INSTALL_DOCKER_CLI" ]; then \
+ARG GREENCHCLAW_INSTALL_DOCKER_CLI=""
+ARG GREENCHCLAW_DOCKER_GPG_FINGERPRINT="9DC858229FC7DD38854AE2D88D81803C0EBFCD88"
+RUN --mount=type=cache,id=GreenchClaw-bookworm-apt-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=GreenchClaw-bookworm-apt-lists,target=/var/lib/apt,sharing=locked \
+    if [ -n "$GREENCHCLAW_INSTALL_DOCKER_CLI" ]; then \
       apt-get update && \
       DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         ca-certificates curl gnupg && \
@@ -239,9 +239,9 @@ RUN --mount=type=cache,id=openclaw-bookworm-apt-cache,target=/var/cache/apt,shar
       # Verify Docker apt signing key fingerprint before trusting it as a root key.
       # Require exactly one primary key (`pub` in --with-colons; subkeys use `sub`) so we
       # never pin the first fingerprint while apt trusts extra keys from the same file.
-      # Update OPENCLAW_DOCKER_GPG_FINGERPRINT when Docker rotates release keys.
+      # Update GREENCHCLAW_DOCKER_GPG_FINGERPRINT when Docker rotates release keys.
       curl -fsSL https://download.docker.com/linux/debian/gpg -o /tmp/docker.gpg.asc && \
-      expected_fingerprint="$(printf '%s' "$OPENCLAW_DOCKER_GPG_FINGERPRINT" | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')" && \
+      expected_fingerprint="$(printf '%s' "$GREENCHCLAW_DOCKER_GPG_FINGERPRINT" | tr '[:lower:]' '[:upper:]' | tr -d '[:space:]')" && \
       docker_gpg_pub_count="$(gpg --batch --show-keys --with-colons /tmp/docker.gpg.asc | awk -F: '$1 == "pub" { c++ } END { print c+0 }')" && \
       if [ "$docker_gpg_pub_count" != "1" ]; then \
         echo "ERROR: Docker apt key must contain exactly one public key (found $docker_gpg_pub_count); refusing a multi-key file." >&2; \
@@ -263,13 +263,13 @@ RUN --mount=type=cache,id=openclaw-bookworm-apt-cache,target=/var/cache/apt,shar
     fi
 
 # Expose the CLI binary without requiring npm global writes as non-root.
-RUN ln -sf /app/openclaw.mjs /usr/local/bin/openclaw \
- && chmod 755 /app/openclaw.mjs
+RUN ln -sf /app/GreenchClaw.mjs /usr/local/bin/GreenchClaw \
+ && chmod 755 /app/GreenchClaw.mjs
 
 # Pre-create the default state dir so first-run Docker named volumes mounted
 # here inherit node ownership instead of root-owned state.
-RUN install -d -m 0700 -o node -g node /home/node/.openclaw && \
-    stat -c '%U:%G %a' /home/node/.openclaw | grep -qx 'node:node 700'
+RUN install -d -m 0700 -o node -g node /home/node/.GreenchClaw && \
+    stat -c '%U:%G %a' /home/node/.GreenchClaw | grep -qx 'node:node 700'
 
 ENV NODE_ENV=production
 
@@ -293,4 +293,4 @@ USER node
 HEALTHCHECK --interval=3m --timeout=10s --start-period=15s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:18789/healthz').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 ENTRYPOINT ["tini", "-s", "--"]
-CMD ["node", "openclaw.mjs", "gateway", "--allow-unconfigured"]
+CMD ["node", "GreenchClaw.mjs", "gateway", "--allow-unconfigured"]
