@@ -238,7 +238,6 @@ function parseGreenchThemeQueryUrl(parsed: URL): ImportedCustomTheme {
   const input = hex("b") || "#710cea";
   const ring = c;
   const primary = c;
-  const primaryForeground = background;
   const secondary = hex("s1") || "#432600";
   const secondaryForeground = raw("txt2") ? `#${raw("txt2")}` : "#02ff00";
   const destructive = "#ff4444";
