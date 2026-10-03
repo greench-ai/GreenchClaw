@@ -2,7 +2,7 @@
  * GreenchFocus — focus modes that shape agent behavior.
  */
 
-import { definePluginEntry, type GreenchClawPluginApi } from "GreenchClaw/plugin-sdk/plugin-entry";
+import { definePluginEntry, type GreenchClawPluginApi, type AnyAgentTool } from "GreenchClaw/plugin-sdk/plugin-entry";
 
 // ── Mode Definitions ─────────────────────────────────────────────────────────
 
@@ -78,81 +78,66 @@ export default definePluginEntry({
   description: "Focus modes — copilot / academic / writing / coding / agent.",
   register(api: GreenchClawPluginApi) {
     api.registerTool(
-      () => ({
-        name: "focus_mode",
-        description: "Set or clear the active focus mode.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            mode: {
-              type: "string",
-              enum: ["copilot", "academic", "writing", "coding", "agent", "off"],
+      () =>
+        ({
+          name: "focus_mode",
+          label: "Focus Mode",
+          description: "Set or clear the active focus mode.",
+          parameters: {
+            type: "object",
+            properties: {
+              mode: {
+                type: "string",
+                enum: ["copilot", "academic", "writing", "coding", "agent", "off"],
+              },
             },
+            required: ["mode"],
           },
-          required: ["mode"],
-        },
-        execute: async (_toolCallId, toolParams) => {
-          const { mode } = toolParams as { mode: string };
-          if (mode === "off") {
-            activeMode = null;
-            return makeResult("Focus mode cleared.");
-          }
-          const m = FOCUS_MODES.find((f) => f.id === mode);
-          if (!m)
-            {return makeResult(
-              `Unknown mode. Available: ${FOCUS_MODES.map((f) => f.id).join(", ")}`,
-              { success: false },
-            );}
-          activeMode = m;
-          return makeResult(
-            `${m.emoji} Focus mode: **${m.name}**\n\n${m.description}\n\nRelevant tools: ${m.relevantTools.join(", ")}`,
-            { mode: m.id },
-          );
-        },
-      }),
+          execute: async (_toolCallId: string, toolParams: unknown) => {
+            const { mode } = toolParams as { mode: string };
+            if (mode === "off") {
+              activeMode = null;
+              return makeResult("Focus mode cleared.");
+            }
+            const m = FOCUS_MODES.find((f) => f.id === mode);
+            if (!m)
+              {return makeResult(
+                `Unknown mode. Available: ${FOCUS_MODES.map((f) => f.id).join(", ")}`,
+                { success: false },
+              );}
+            activeMode = m;
+            return makeResult(
+              `${m.emoji} Focus mode: **${m.name}**\n\n${m.description}\n\nRelevant tools: ${m.relevantTools.join(", ")}`,
+              { mode: m.id },
+            );
+          },
+        }) as unknown as AnyAgentTool,
       { names: ["focus_mode"] },
     );
 
     api.registerTool(
-      () => ({
-        name: "focus_modes_list",
-        description: "List all available focus modes.",
-        inputSchema: { type: "object", properties: {} },
-        execute: async () => {
-          const cur = activeMode?.id ?? "none";
-          const lines = FOCUS_MODES.map(
-            (m) =>
-              `${m.id === cur ? "→" : " "} **${m.emoji} ${m.name}** (\`${m.id}\`)\n   ${m.description}\n   tools: ${m.relevantTools.join(", ")}`,
-          );
-          return makeResult(`**Focus Modes** (current: ${cur})\n\n${lines.join("\n\n")}`, {
-            current: cur,
-          });
-        },
-      }),
+      () =>
+        ({
+          name: "focus_modes_list",
+          label: "Focus Modes List",
+          description: "List all available focus modes.",
+          parameters: { type: "object", properties: {} },
+          execute: async () => {
+            const cur = activeMode?.id ?? "none";
+            const lines = FOCUS_MODES.map(
+              (m) =>
+                `${m.id === cur ? "→" : " "} **${m.emoji} ${m.name}** (\`${m.id}\`)\n   ${m.description}\n   tools: ${m.relevantTools.join(", ")}`,
+            );
+            return makeResult(`**Focus Modes** (current: ${cur})\n\n${lines.join("\n\n")}`, {
+              current: cur,
+            });
+          },
+        }) as unknown as AnyAgentTool,
       { names: ["focus_modes_list"] },
     );
 
-    api.logger.info?.("greench-focus: registered", {
-      modes: FOCUS_MODES.map((m) => m.id).join(", "),
-    });
-  },
-  tools: {
-    focus_mode: {
-      description: "Set focus mode.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          mode: {
-            type: "string",
-            enum: ["copilot", "academic", "writing", "coding", "agent", "off"],
-          },
-        },
-        required: ["mode"],
-      },
-    },
-    focus_modes_list: {
-      description: "List modes.",
-      inputSchema: { type: "object", properties: {} },
-    },
+    api.logger.info?.(
+      `greench-focus: registered (modes: ${FOCUS_MODES.map((m) => m.id).join(", ")})`,
+    );
   },
 });
