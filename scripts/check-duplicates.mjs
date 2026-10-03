@@ -27,7 +27,9 @@ const sourceExtensions = new Set([".ts", ".tsx", ".js", ".mjs", ".cjs"]);
 const sourcePattern = "**/*.{ts,tsx,js,mjs,cjs}";
 const testPattern = "**/*.{test,e2e.test,live.test}.{ts,tsx,js,mjs,cjs}";
 // Keep local agent support trees and vendored snapshots classified but outside jscpd.
-const intentionallyUnscannedPrefixes = [".agents/", "vendor/"];
+// `skills/` holds self-contained, bundled skill packages (upstream scripts) that are
+// intentionally outside the app's jscpd scan surface.
+const intentionallyUnscannedPrefixes = [".agents/", "vendor/", "skills/"];
 
 const generatedIgnores = [
   "extensions/qa-matrix/src/shared/**",
