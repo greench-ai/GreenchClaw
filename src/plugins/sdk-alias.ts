@@ -74,7 +74,7 @@ function hasTrustedGreenchClawRootIndicator(params: {
   const hasCliEntryExport = Object.prototype.hasOwnProperty.call(packageExports, "./cli-entry");
   const hasGreenchClawBin =
     (typeof params.packageJson.bin === "string" &&
-      normalizeLowercaseStringOrEmpty(params.packageJson.bin).includes("GreenchClaw")) ||
+      normalizeLowercaseStringOrEmpty(params.packageJson.bin).includes("greenchclaw")) ||
     (typeof params.packageJson.bin === "object" &&
       params.packageJson.bin !== null &&
       typeof params.packageJson.bin.GreenchClaw === "string");
