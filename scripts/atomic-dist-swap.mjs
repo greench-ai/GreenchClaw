@@ -350,7 +350,13 @@ export async function buildRelease(rootDir, opts = {}, params = {}) {
 function createStagingRoot(fsImpl, rootDir, stagingRoot, _releaseDir) {
   fsImpl.rmSync(stagingRoot, { force: true, recursive: true });
   fsImpl.mkdirSync(stagingRoot, { recursive: true });
-  const redirected = new Set([...LIVE_ROOTS, RELEASES_DIR, MANAGED_MARKER, BUILD_LOCK]);
+  const redirected = new Set([
+    ...LIVE_ROOTS,
+    RELEASES_DIR,
+    "node_modules",
+    MANAGED_MARKER,
+    BUILD_LOCK,
+  ]);
   for (const entry of fsImpl.readdirSync(rootDir)) {
     if (redirected.has(entry)) {
       continue;
@@ -360,7 +366,26 @@ function createStagingRoot(fsImpl, rootDir, stagingRoot, _releaseDir) {
   for (const root of LIVE_ROOTS) {
     fsImpl.mkdirSync(path.join(stagingRoot, root), { recursive: true });
   }
+  // node_modules must be a REAL tree here, never a symlink: pnpm follows a
+  // symlinked node_modules and purges/reinstalls THROUGH the link, destroying
+  // the real install. A hardlink clone (same filesystem, ~0.5s) gives pnpm a
+  // real tree that shares blobs with the original — cheap and safe.
+  cloneNodeModules(fsImpl, path.join(rootDir, "node_modules"), path.join(stagingRoot, "node_modules"));
   return stagingRoot;
+}
+
+/** Hardlink-clone node_modules into the staging root (same-filesystem only). */
+function cloneNodeModules(fsImpl, from, to) {
+  if (!fsImpl.existsSync(from)) {
+    return;
+  }
+  const result = spawnSync("cp", ["-al", from, to], { stdio: ["ignore", "ignore", "pipe"] });
+  if (result.status === 0) {
+    return;
+  }
+  // Cross-device or partial: fall back to a real recursive copy without
+  // following symlinks into the pnpm store.
+  fsImpl.cpSync(from, to, { recursive: true, dereference: false });
 }
 
 /** Move the freshly built dist/ + dist-runtime from staging into the release. */
