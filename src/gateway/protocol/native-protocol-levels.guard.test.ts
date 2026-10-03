@@ -17,6 +17,15 @@ async function readRepoFile(relativePath: string): Promise<string> {
   return fs.readFile(path.join(process.cwd(), relativePath), "utf8");
 }
 
+async function repoFileExists(relativePath: string): Promise<boolean> {
+  try {
+    await fs.access(path.join(process.cwd(), relativePath));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function extractInteger(
   content: string,
   pattern: RegExp,
@@ -104,6 +113,10 @@ describe("native Gateway protocol levels", () => {
       "apps/macos/Sources/GreenchClawMacCLI/WizardCommand.swift",
     ];
     for (const relativePath of swiftConnectFiles) {
+      // macOS is not a supported platform for GreenchClaw (Greench 2026-10-02).
+      if (!(await repoFileExists(relativePath))) {
+        continue;
+      }
       const content = await readRepoFile(relativePath);
       assertPattern(
         content,

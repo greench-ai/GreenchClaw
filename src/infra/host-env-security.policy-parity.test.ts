@@ -25,6 +25,11 @@ describe("host env security policy parity", () => {
       repoRoot,
       "apps/macos/Sources/GreenchClaw/HostEnvSecurityPolicy.generated.swift",
     );
+    // macOS is not a supported platform for GreenchClaw (Greench 2026-10-02): the
+    // macOS Swift app is not built/shipped, so skip this parity check when absent.
+    if (!fs.existsSync(generatedSwiftPath)) {
+      return;
+    }
     const sanitizerSwiftPath = path.join(
       repoRoot,
       "apps/macos/Sources/GreenchClaw/HostEnvSanitizer.swift",
