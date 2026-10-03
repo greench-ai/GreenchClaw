@@ -7,7 +7,6 @@ import type { GreenchClawConfig } from "../../config/types.GreenchClaw.js";
 import { createSubsystemLogger } from "../../logging/subsystem.js";
 import { compileConfigRegexes, type ConfigRegexRejectReason } from "../../security/config-regex.js";
 import {
-  normalizeLowercaseStringOrEmpty,
   normalizeOptionalLowercaseString,
   normalizeOptionalString,
 } from "../../shared/string-coerce.js";
@@ -140,9 +139,20 @@ export function buildMentionRegexes(
   });
 }
 
+const LEGACY_MENTION_BRAND = "openclaw";
+const CANONICAL_MENTION_BRAND = "GreenchClaw";
+
 export function normalizeMentionText(text: string): string {
-  return normalizeLowercaseStringOrEmpty(
-    (text ?? "").replace(/[\u200b-\u200f\u202a-\u202e\u2060-\u206f]/g, ""),
+  const cleaned = (text ?? "").replace(/[\u200b-\u200f\u202a-\u202e\u2060-\u206f]/g, "");
+  if (!cleaned) {
+    return "";
+  }
+  // Map the legacy brand token to the canonical name (word-boundary safe,
+  // case-insensitive) so mention regexes and identity matching treat them as
+  // equivalent across the rename.
+  return cleaned.replace(
+    new RegExp(`(^|[^a-zA-Z0-9])${LEGACY_MENTION_BRAND}(?=$|[^a-zA-Z0-9])`, "gi"),
+    (_m, prefix: string) => `${prefix}${CANONICAL_MENTION_BRAND}`,
   );
 }
 

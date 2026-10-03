@@ -73,7 +73,21 @@ function normalizeExpectedPackageName(value: string | null | undefined): string 
   if (!expected) {
     return undefined;
   }
-  return parseRegistryNpmSpec(expected)?.name ?? expected;
+  return parseRegistryNpmSpec(expected)?.name ?? stripScopedSelector(expected) ?? expected;
+}
+
+/**
+ * GreenchClaw's own scoped packages (e.g. `@GreenchClaw/discord`) are
+ * GitHub/private + path-aliased and never resolved from the npm registry, but
+ * the strict registry-spec parser is lowercase-only and rejects them. For
+ * scoped specs whose parse fails, fall back to a name-only shape so the
+ * catalog install metadata is still described. Returns the raw string when the
+ * spec is not a scoped name.
+ */
+const SCOPED_NAME_SPEC = /^@[A-Za-z0-9][A-Za-z0-9._~-]*\/[A-Za-z0-9][A-Za-z0-9._~-]*$/;
+function stripScopedSelector(raw: string): string | null {
+  const nameOnly = raw.trim().replace(/@[^/@]+$/, "");
+  return SCOPED_NAME_SPEC.test(nameOnly) ? nameOnly : null;
 }
 
 export function describePluginInstallSource(
@@ -138,7 +152,26 @@ export function describePluginInstallSource(
         ...(expectedIntegrity ? { expectedIntegrity } : {}),
       };
     } else {
-      warnings.push("invalid-npm-spec");
+      const scopedName = stripScopedSelector(npmSpec);
+      if (scopedName) {
+        // Internal/@GreenchClaw scoped spec: describe it from the name alone.
+        if (expectedPackageName && scopedName !== expectedPackageName) {
+          warnings.push("npm-spec-package-name-mismatch");
+        }
+        npm = {
+          spec: npmSpec,
+          packageName: scopedName,
+          ...(expectedPackageName && scopedName !== expectedPackageName
+            ? { expectedPackageName }
+            : {}),
+          selectorKind: "none",
+          exactVersion: false,
+          pinState: resolveNpmPinState({ exactVersion: false, hasIntegrity: Boolean(expectedIntegrity) }),
+          ...(expectedIntegrity ? { expectedIntegrity } : {}),
+        };
+      } else {
+        warnings.push("invalid-npm-spec");
+      }
     }
   }
   if (defaultChoice === "clawhub" && !clawhub) {
