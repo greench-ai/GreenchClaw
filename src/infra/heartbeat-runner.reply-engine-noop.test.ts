@@ -72,7 +72,7 @@ const createReplyEngineThatNoops = (params: ReplyEngineMockParams) =>
   });
 
 const runWakeHeartbeatCase = async (params: {
-  getReplyFromConfig: ReturnType<typeof vi.fn>;
+  getReplyFromConfig: typeof import("./heartbeat-runner.runtime.js").getReplyFromConfig;
 }): Promise<{
   result: Awaited<ReturnType<typeof runHeartbeatOnce>>;
   sendTelegram: ReturnType<typeof vi.fn>;

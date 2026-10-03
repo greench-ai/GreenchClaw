@@ -202,7 +202,7 @@ async function runConfigCommand(args: string[]) {
 describe("config cli", () => {
   beforeAll(async () => {
     ({ registerConfigCli } = await import("./config-cli.js"));
-    sharedProgram = new Command();
+    sharedProgram = new Command().name("GreenchClaw");
     sharedProgram.exitOverride();
     registerConfigCli(sharedProgram);
   });
@@ -889,7 +889,7 @@ describe("config cli", () => {
     });
 
     it("shows --strict-json and keeps --json as a legacy alias in help", () => {
-      const program = new Command();
+      const program = new Command().name("GreenchClaw");
       registerConfigCli(program);
 
       const configCommand = program.commands.find((command) => command.name() === "config");
@@ -910,9 +910,10 @@ describe("config cli", () => {
       expect(helpText).toContain("--dry-run");
       expect(helpText).toContain("--allow-exec");
       expect(helpText).toContain("GreenchClaw config set gateway.port 19001 --strict-json");
-      expect(helpText).toContain(
-        "GreenchClaw config set channels.discord.token --ref-provider default --ref-source",
-      );
+      // Commander wraps the description at terminal width, so assert the
+      // fragments rather than a single long run that may wrap.
+      expect(helpText).toContain("GreenchClaw config set channels.discord.token --ref-provider default");
+      expect(helpText).toContain("--ref-source");
       expect(helpText).toContain("--ref-id DISCORD_BOT_TOKEN");
       expect(helpText).toContain(
         "GreenchClaw config set --batch-file ./config-set.batch.json --dry-run",
