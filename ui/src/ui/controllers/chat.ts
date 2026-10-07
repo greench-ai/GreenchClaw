@@ -19,6 +19,11 @@ import {
 } from "./scope-errors.ts";
 
 const SILENT_REPLY_PATTERN = /^\s*NO_REPLY\s*$/;
+// A streamed message can arrive as a PARTIAL token before the full NO_REPLY lands
+// (e.g. "NO_REP", "NO_REPL"). Those partials must be suppressed while streaming, else the
+// fragment renders on screen and is never replaced (the final message is correctly hidden).
+// Treat any PREFIX of the silent token (optionally followed by trailing whitespace) as silent.
+const SILENT_REPLY_PREFIX_PATTERN = /^\s*N?O?_?R?E?P?L?Y?\s*$/;
 const SYNTHETIC_TRANSCRIPT_REPAIR_RESULT =
   "[GreenchClaw] missing tool result in session history; inserted synthetic error result for transcript repair.";
 const CHAT_HISTORY_REQUEST_LIMIT = 60;
@@ -49,6 +54,19 @@ function shouldApplyChatHistoryResult(
 
 function isSilentReplyStream(text: string): boolean {
   return SILENT_REPLY_PATTERN.test(text);
+}
+
+/** True while a message is still a growing prefix of the NO_REPLY token (not yet complete).
+ *  Suppresses partial tokens like "NO_REP"/"NO_REPL" during streaming so they never render. */
+function isSilentReplyPrefixStream(text: string): boolean {
+  if (isSilentReplyStream(text)) {
+    return true;
+  }
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return true; // empty stream → hide (nothing to show yet)
+  }
+  return SILENT_REPLY_PREFIX_PATTERN.test(trimmed);
 }
 
 /** Client-side defense-in-depth: detect assistant messages whose text is purely NO_REPLY. */
@@ -660,18 +678,20 @@ export function handleChatEvent(state: ChatState, payload?: ChatEventPayload) {
     const next = extractText(payload.message);
     if (
       typeof next === "string" &&
-      !isSilentReplyStream(next) &&
+      !isSilentReplyPrefixStream(next) &&
       !isAssistantHeartbeatAckForDisplay(payload.message)
     ) {
       state.chatStream = next;
     }
+    // else: a silent token or a partial prefix of it → leave the existing stream untouched
+    // (do NOT render the fragment; do NOT clobber real text that was already streaming)
   } else if (payload.state === "final") {
     const finalMessage = normalizeFinalAssistantMessage(payload.message);
     if (finalMessage && !shouldHideAssistantChatMessage(finalMessage)) {
       state.chatMessages = [...state.chatMessages, finalMessage];
     } else if (
       state.chatStream?.trim() &&
-      !isSilentReplyStream(state.chatStream) &&
+      !isSilentReplyPrefixStream(state.chatStream) &&
       !isHeartbeatAckStream(state.chatStream)
     ) {
       state.chatMessages = [
@@ -694,7 +714,7 @@ export function handleChatEvent(state: ChatState, payload?: ChatEventPayload) {
       const streamedText = state.chatStream ?? "";
       if (
         streamedText.trim() &&
-        !isSilentReplyStream(streamedText) &&
+        !isSilentReplyPrefixStream(streamedText) &&
         !isHeartbeatAckStream(streamedText)
       ) {
         state.chatMessages = [

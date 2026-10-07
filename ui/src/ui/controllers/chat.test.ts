@@ -214,6 +214,30 @@ describe("handleChatEvent", () => {
     expect(state.chatStream).toBe("Hello");
   });
 
+  it("does not leak partial NO_REPLY token while streaming (regression: visible 'NO_REPL')", () => {
+    const state = createState({ sessionKey: "main", chatRunId: "run-1" });
+    // the token arrives character-by-character during deltas
+    for (const partial of ["N", "NO", "NO_", "NO_RE", "NO_REP", "NO_REPL"]) {
+      const payload: ChatEventPayload = {
+        runId: "run-1",
+        sessionKey: "main",
+        state: "delta",
+        message: { role: "assistant", content: [{ type: "text", text: partial }] },
+      };
+      handleChatEvent(state, payload);
+      expect(state.chatStream).toBeNull();
+    }
+    // the completed token is still silent
+    const done: ChatEventPayload = {
+      runId: "run-1",
+      sessionKey: "main",
+      state: "delta",
+      message: { role: "assistant", content: [{ type: "text", text: "NO_REPLY" }] },
+    };
+    handleChatEvent(state, done);
+    expect(state.chatStream).toBeNull();
+  });
+
   it("appends final payload from another run without clearing active stream", () => {
     const state = createState({
       sessionKey: "main",
