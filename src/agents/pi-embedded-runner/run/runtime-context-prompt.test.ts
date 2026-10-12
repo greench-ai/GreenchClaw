@@ -3,6 +3,7 @@ import {
   buildCurrentTurnPrompt,
   buildCurrentTurnPromptContextPrefix,
   buildRuntimeContextSystemContext,
+  isRuntimeEventUserPrompt,
   queueRuntimeContextForNextTurn,
   resolveRuntimeContextPromptParts,
 } from "./runtime-context-prompt.js";
@@ -57,7 +58,7 @@ describe("runtime context prompt submission", () => {
     });
 
     expect(parts).toEqual({
-      prompt: "Continue the GreenchClaw runtime event.",
+      prompt: ["GreenchClaw runtime event.", "Continue the GreenchClaw runtime event."].join("\n"),
       runtimeContext: "internal event",
       runtimeOnly: true,
       runtimeSystemContext: [
@@ -67,6 +68,16 @@ describe("runtime context prompt submission", () => {
         "internal event",
       ].join("\n"),
     });
+  });
+
+  it("flags runtime-only event prompts as non-user so history replay can spot them", () => {
+    const parts = resolveRuntimeContextPromptParts({
+      effectivePrompt: "internal event",
+      transcriptPrompt: "",
+    });
+    expect(isRuntimeEventUserPrompt(parts.prompt)).toBe(true);
+    expect(isRuntimeEventUserPrompt("what is the weather?")).toBe(false);
+    expect(isRuntimeEventUserPrompt(undefined)).toBe(false);
   });
 
   it("uses current-turn context as prompt-local text", () => {
