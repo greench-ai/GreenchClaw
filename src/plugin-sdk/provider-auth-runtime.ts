@@ -179,8 +179,50 @@ const RUNTIME_MODEL_AUTH_CANDIDATES = [
 ] as const;
 const RUNTIME_MODEL_AUTH_EXTENSIONS = [".js", ".ts", ".mjs", ".mts", ".cjs", ".cts"] as const;
 
-function resolveRuntimeModelAuthModuleHref(): string {
-  const baseDir = path.dirname(fileURLToPath(import.meta.url));
+const RUNTIME_MODEL_AUTH_HASH_SUFFIX_PATTERN = /-[A-Za-z0-9_-]+\.js$/u;
+
+/**
+ * Pick a hashed sibling when the stable (unhashed) alias is missing, e.g. when a
+ * release was built without the runtime-postbuild alias phase. The bundler emits a
+ * real chunk plus a thin re-export wrapper (imports a sibling, no `//#region`); the
+ * wrapper is the public entry the runtime expects, so prefer it. Falls back to the
+ * first candidate in deterministic sorted order.
+ */
+function resolveHashedRuntimeModelAuthCandidate(candidateDir: string, baseName: string): string | null {
+  let entries: string[];
+  try {
+    entries = fs.readdirSync(candidateDir);
+  } catch {
+    return null;
+  }
+  const matches = entries
+    .filter((name) => name.startsWith(`${baseName}-`) && RUNTIME_MODEL_AUTH_HASH_SUFFIX_PATTERN.test(name))
+    .toSorted((left, right) => left.localeCompare(right));
+  if (matches.length === 0) {
+    return null;
+  }
+  if (matches.length === 1) {
+    return path.join(candidateDir, matches[0]);
+  }
+  const wrappers = matches.filter((name) => {
+    let source: string;
+    try {
+      source = fs.readFileSync(path.join(candidateDir, name), "utf8");
+    } catch {
+      return false;
+    }
+    const importsSibling = matches.some(
+      (other) => other !== name && source.includes(`"./${other}"`),
+    );
+    return importsSibling && !source.includes("\n//#region ");
+  });
+  if (wrappers.length === 1) {
+    return path.join(candidateDir, wrappers[0]);
+  }
+  return path.join(candidateDir, matches[0]);
+}
+
+function resolveRuntimeModelAuthModuleHref(baseDir = path.dirname(fileURLToPath(import.meta.url))): string {
   for (const relativeBase of RUNTIME_MODEL_AUTH_CANDIDATES) {
     for (const ext of RUNTIME_MODEL_AUTH_EXTENSIONS) {
       const candidate = path.resolve(baseDir, `${relativeBase}${ext}`);
@@ -188,8 +230,22 @@ function resolveRuntimeModelAuthModuleHref(): string {
         return pathToFileURL(candidate).href;
       }
     }
+    // Stable alias missing (release built without the postbuild alias phase):
+    // fall back to a hashed sibling so model auth (and every embedding-backed
+    // feature) still resolves instead of throwing at runtime.
+    const candidateDir = path.resolve(baseDir, path.dirname(relativeBase));
+    const baseName = path.basename(relativeBase);
+    const hashed = resolveHashedRuntimeModelAuthCandidate(candidateDir, baseName);
+    if (hashed) {
+      return pathToFileURL(hashed).href;
+    }
   }
   throw new Error(`Unable to resolve runtime model auth module from ${import.meta.url}`);
+}
+
+/** Test-only hook: exercise the hashed-fallback resolution against a fixture directory. */
+export function __resolveRuntimeModelAuthModuleHrefForTest(baseDir: string): string {
+  return resolveRuntimeModelAuthModuleHref(baseDir);
 }
 
 async function loadRuntimeModelAuthModule(): Promise<RuntimeModelAuthModule> {
