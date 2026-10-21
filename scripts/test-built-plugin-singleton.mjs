@@ -146,3 +146,10 @@ const result = await match.command.handler({ args: match.args });
 assert.deepEqual(result, { text: "paired:now" });
 
 process.stdout.write("[build-smoke] built plugin singleton smoke passed\n");
+
+// Loading the built plugin registry also starts long-lived sidecars (e.g.
+// memory-core's facts-extract setInterval at 30 minutes). Those keep the Node
+// event loop alive, so a passing run would never terminate and the CI job
+// would sit until its 20-minute timeout. Exit explicitly: every assertion is
+// already complete at this point.
+process.exit(0);
