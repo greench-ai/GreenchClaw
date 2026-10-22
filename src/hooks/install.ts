@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { MANIFEST_KEY } from "../compat/legacy-names.js";
+import { LEGACY_MANIFEST_KEYS, MANIFEST_KEY } from "../compat/legacy-names.js";
 import { resolveSafeInstallDir, unscopedPackageName } from "../infra/install-safe-path.js";
 import { type NpmIntegrityDrift, type NpmSpecResolution } from "../infra/install-source-utils.js";
 import type { InstallSafetyOverrides } from "../plugins/install-security-scan.js";
@@ -102,7 +102,16 @@ export function resolveHookInstallDir(hookId: string, hooksDir?: string): string
 }
 
 async function ensureGreenchClawHooks(manifest: HookPackageManifest) {
-  const hooks = manifest[MANIFEST_KEY]?.hooks;
+  // Accept the current manifest key plus pre-rebrand keys (clawdbot, openclaw) so hook
+  // packs published under the upstream name keep installing.
+  let hooks: unknown;
+  for (const key of [MANIFEST_KEY, ...LEGACY_MANIFEST_KEYS]) {
+    const candidate = (manifest as Record<string, { hooks?: unknown } | undefined>)[key]?.hooks;
+    if (candidate !== undefined) {
+      hooks = candidate;
+      break;
+    }
+  }
   if (!Array.isArray(hooks)) {
     throw new Error("package.json missing GreenchClaw.hooks");
   }

@@ -162,7 +162,7 @@ describe("sessions", () => {
         id: "123",
         key: "discord:group:123",
       }),
-    ).toBe("discord:friends-of-GreenchClaw#general");
+    ).toBe("discord:friends-of-greenchclaw#general");
   });
 
   const resolveSessionKeyCases = [
