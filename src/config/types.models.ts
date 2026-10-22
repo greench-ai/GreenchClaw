@@ -50,6 +50,9 @@ type SupportedAnthropicMessagesCompatFields = Pick<
   "supportsEagerToolInputStreaming" | "supportsLongCacheRetention"
 >;
 
+// Union of the pi-ai thinking formats plus the two GreenchClaw-only aliases.
+// pi-ai adds formats over time (e.g. "ant-ling" in 0.75+); the union keeps the
+// config type assignable from pi-ai's own provider compat types.
 type SupportedThinkingFormat =
   | NonNullable<OpenAICompletionsCompat["thinkingFormat"]>
   | "deepseek"

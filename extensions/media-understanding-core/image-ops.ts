@@ -48,9 +48,10 @@ async function loadSharp(maxInputPixels: number): Promise<SharpFactory> {
         return ((buffer, options) =>
           sharp(buffer, {
             ...options,
-            failOnError: false,
+            // sharp >=0.35 moved failOnError to create(); older versions accept it as an option.
+            ...("failOnError" in (options ?? {}) ? {} : { failOnError: false }),
             limitInputPixels: maxInputPixels,
-          })) as SharpFactory;
+          } as Parameters<SharpFactory>[1] & { failOnError?: boolean })) as SharpFactory;
       })
       .catch((err) => {
         sharpFactoryPromise = null;
