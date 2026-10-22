@@ -70,7 +70,9 @@ type Marker = (typeof EXTRA_MARKERS)[number];
 function detectMarker(content: string): Marker | null {
   const lower = normalizeLowercaseStringOrEmpty(content);
   for (const marker of EXTRA_MARKERS) {
-    if (lower.includes(marker)) {
+    // `lower` is lowercased; markers keep brand casing. Compare both sides
+    // lowercased or this can never match (same class as the client-ID bug).
+    if (lower.includes(normalizeLowercaseStringOrEmpty(marker))) {
       return marker;
     }
   }
@@ -112,7 +114,9 @@ export function detectMarkerLineWithGateway(contents: string): Marker | null {
       continue;
     }
     for (const marker of EXTRA_MARKERS) {
-      if (trimmed.includes(marker)) {
+      // `trimmed` is lowercased; the markers keep their brand casing, so a raw
+      // `includes(marker)` can never match. Compare both sides lowercased.
+      if (trimmed.includes(normalizeLowercaseStringOrEmpty(marker))) {
         return marker;
       }
     }
@@ -177,7 +181,8 @@ function detectLaunchdGatewayExecutionMarker(contents: string): Marker | null {
     [...program, ...programArguments].filter(Boolean).join("\n"),
   );
   for (const marker of EXTRA_MARKERS) {
-    if (launchCommand.includes(marker)) {
+    // `launchCommand` is lowercased; markers keep brand casing.
+    if (launchCommand.includes(normalizeLowercaseStringOrEmpty(marker))) {
       return marker;
     }
   }
