@@ -6,6 +6,7 @@ import { formatDocsLink } from "../../terminal/links.js";
 import { theme } from "../../terminal/theme.js";
 import { parsePort } from "../daemon-cli/shared.js";
 import { formatHelpExamples } from "../help-format.js";
+import { DEFAULT_GATEWAY_PORT } from "../../config/paths.js";
 import {
   runNodeDaemonInstall,
   runNodeDaemonRestart,
@@ -29,7 +30,7 @@ export function registerNodeCli(program: Command) {
       () =>
         `\n${theme.heading("Examples:")}\n${formatHelpExamples([
           [
-            "GreenchClaw node run --host 127.0.0.1 --port 18789",
+            `GreenchClaw node run --host 127.0.0.1 --port ${DEFAULT_GATEWAY_PORT}`,
             "Run the node host in the foreground.",
           ],
           ["GreenchClaw node status", "Check node host service status."],

@@ -1,6 +1,7 @@
 import { formatCliCommand } from "./command-format.js";
+import { DEFAULT_GATEWAY_PORT } from "../config/paths.js";
 
-const DEFAULT_GATEWAY_PORT_EXAMPLE = 18789;
+const DEFAULT_GATEWAY_PORT_EXAMPLE = DEFAULT_GATEWAY_PORT;
 
 function formatInlineCliCommand(command: string): string {
   return `\`${formatCliCommand(command)}\``;
@@ -57,7 +58,7 @@ export function formatStrictJsonParseFailure(params: { value: string; cause: unk
     `Could not parse ${JSON.stringify(preview)} as JSON for --strict-json.`,
     `${cause}.`,
     `Use valid JSON, for example ${formatInlineCliCommand(
-      "GreenchClaw config set gateway.port 18789 --strict-json",
+      `GreenchClaw config set gateway.port ${DEFAULT_GATEWAY_PORT} --strict-json`,
     )}.`,
     "For plain strings, omit --strict-json.",
   ].join(" ");

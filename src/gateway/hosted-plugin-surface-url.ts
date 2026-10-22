@@ -1,4 +1,5 @@
 import { isLoopbackHost } from "./net.js";
+import { DEFAULT_GATEWAY_PORT } from "../config/paths.js";
 
 type HostSource = string | null | undefined;
 
@@ -87,7 +88,7 @@ export function resolveHostedPluginSurfaceUrl(params: HostedPluginSurfaceUrlPara
   }
 
   let exposedPort = port;
-  if (!override && (forwardedHost || requestHost) && port === 18789) {
+  if (!override && (forwardedHost || requestHost) && port === DEFAULT_GATEWAY_PORT) {
     if (advertisedHost.port && advertisedHost.port > 0) {
       exposedPort = advertisedHost.port;
     } else if (scheme === "https") {
