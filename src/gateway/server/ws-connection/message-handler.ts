@@ -137,6 +137,7 @@ import {
   resolveHandshakeBrowserSecurityContext,
   resolvePairingLocality,
   resolveUnauthorizedHandshakeContext,
+  scopeUpgradeRequiresApproval,
   shouldAllowSilentLocalPairing,
   shouldSkipLocalBackendSelfPairing,
 } from "./handshake-auth-helpers.js";
@@ -1049,17 +1050,27 @@ export function attachGatewayWsMessageHandler(params: GatewayWsMessageHandlerPar
             const bootstrapPairingRoles = bootstrapProfileForSilentApproval
               ? Array.from(new Set([role, ...bootstrapProfileForSilentApproval.roles]))
               : undefined;
+            const pairedScopesForPolicy = Array.isArray(existingPairedDevice?.approvedScopes)
+              ? existingPairedDevice.approvedScopes
+              : Array.isArray(existingPairedDevice?.scopes)
+                ? existingPairedDevice.scopes
+                : [];
+            const privilegedScopeUpgrade =
+              reason === "scope-upgrade" &&
+              scopeUpgradeRequiresApproval(scopes, pairedScopesForPolicy);
             const pairing = await requestDevicePairing({
               deviceId: device.id,
               publicKey: devicePublicKey,
               ...clientPairingMetadata,
               ...(bootstrapPairingRoles ? { roles: bootstrapPairingRoles } : {}),
               silent:
-                reason === "scope-upgrade" && !allowSilentLocalPairing
+                privilegedScopeUpgrade
                   ? false
-                  : allowSilentLocalPairing ||
-                    allowSilentBootstrapPairing ||
-                    allowSilentTrustedCidrsNodePairing,
+                  : reason === "scope-upgrade" && !allowSilentLocalPairing
+                    ? false
+                    : allowSilentLocalPairing ||
+                      allowSilentBootstrapPairing ||
+                      allowSilentTrustedCidrsNodePairing,
             });
             const context = buildRequestContext();
             let approved: Awaited<ReturnType<typeof approveDevicePairing>> | undefined;

@@ -1385,6 +1385,11 @@ export function registerControlUiAndPairingSuite(): void {
     const nodeConnect = await connectWithNonce("node", []);
     expect(nodeConnect.ok).toBe(true);
 
+    // The node-role pairing approved above carries no scopes. Asking for
+    // operator.read/write is therefore a privileged upgrade from an
+    // unauthenticated baseline: it must go to explicit approval, never be
+    // auto-approved silently, even on a local connection (a device that was
+    // only ever approved as a node must not bootstrap itself into an operator).
     const operatorConnect = await connectWithNonce("operator", ["operator.read", "operator.write"]);
     expect(operatorConnect.ok).toBe(false);
     expect(operatorConnect.error?.message ?? "").toContain("pairing required");

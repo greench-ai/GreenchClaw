@@ -8,6 +8,7 @@ import {
   resolveHandshakeBrowserSecurityContext,
   resolvePairingLocality,
   resolveUnauthorizedHandshakeContext,
+  scopeUpgradeRequiresApproval,
   shouldAllowSilentLocalPairing,
   shouldSkipLocalBackendSelfPairing,
 } from "./handshake-auth-helpers.js";
@@ -769,5 +770,31 @@ describe("handshake auth helpers", () => {
         authMethod: "token",
       }),
     ).toBe("cli_container_local");
+  });
+});
+
+describe("scopeUpgradeRequiresApproval", () => {
+  it("requires approval for gateway-control scopes", () => {
+    for (const scope of [
+      "operator.admin",
+      "operator.approvals",
+      "operator.pairing",
+      "operator.talk.secrets",
+    ]) {
+      expect(scopeUpgradeRequiresApproval([scope], ["operator.read"])).toBe(true);
+      expect(scopeUpgradeRequiresApproval(["operator.read", scope], ["operator.read"])).toBe(true);
+    }
+  });
+
+  it("keeps ordinary read/write recoveries silent when scopes were already approved", () => {
+    expect(
+      scopeUpgradeRequiresApproval(["operator.read", "operator.write"], ["operator.read"]),
+    ).toBe(false);
+  });
+
+  it("requires approval when the paired baseline holds no scopes at all", () => {
+    // Node-role pairings carry no scopes; elevating from that baseline to any
+    // operator scope is bootstrapping new access, not recovering old access.
+    expect(scopeUpgradeRequiresApproval(["operator.read"], [])).toBe(true);
   });
 });

@@ -14,6 +14,38 @@ import { GATEWAY_CLIENT_IDS, GATEWAY_CLIENT_MODES } from "../../protocol/client-
 import type { ConnectParams } from "../../protocol/index.js";
 import type { AuthProvidedKind } from "./auth-messages.js";
 
+/**
+ * Scopes that grant control over the gateway itself (config writes, exec
+ * approval, pairing decisions, secret disclosure).
+ *
+ * A *silent* scope-upgrade that reaches for one of these is an escalation: the
+ * client asking for more access may not also be the one that approves it. The
+ * ordinary operator surface (read/write) keeps its automatic behaviour so a
+ * local client still recovers working scopes after a restart (BUG-001).
+ */
+const PRIVILEGED_UPGRADE_SCOPES: ReadonlySet<string> = new Set([
+  "operator.admin",
+  "operator.approvals",
+  "operator.pairing",
+  "operator.talk.secrets",
+]);
+
+/**
+ * A scope upgrade needs explicit approval when it asks for a gateway-control
+ * scope, or when it elevates from an unpinned baseline (a pairing approved with
+ * no scopes at all - e.g. a node-role pairing): that is the difference between
+ * recovering previously granted access and bootstrapping new access.
+ */
+export function scopeUpgradeRequiresApproval(
+  requestedScopes: readonly string[],
+  approvedScopes: readonly string[] = [],
+): boolean {
+  if (approvedScopes.length === 0) {
+    return true;
+  }
+  return requestedScopes.some((scope) => PRIVILEGED_UPGRADE_SCOPES.has(scope.trim()));
+}
+
 export const BROWSER_ORIGIN_LOOPBACK_RATE_LIMIT_IP = "198.18.0.1";
 export const BROWSER_ORIGIN_RATE_LIMIT_KEY_PREFIX = "browser-origin:";
 export type PairingLocalityKind =
