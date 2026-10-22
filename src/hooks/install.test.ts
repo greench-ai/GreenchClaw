@@ -232,6 +232,25 @@ function expectPathInstallFailureContains(
 }
 
 describe("installHooksFromArchive", () => {
+  it("warns when a pack uses a pre-rebrand manifest key", async () => {
+    const warnings: string[] = [];
+    const { result } = await (async () => {
+      const fixture = writeArchiveFixture({
+        fileName: "hooks.tar",
+        contents: tarHooksBuffer,
+      });
+      const res = await installHooksFromArchive({
+        archivePath: fixture.archivePath,
+        hooksDir: fixture.hooksDir,
+        logger: { info: () => {}, warn: (m: string) => warnings.push(m) },
+      });
+      return { fixture, result: res };
+    })();
+    // The fixture pack is keyed "openclaw" (upstream), so it installs AND warns.
+    expect(result.ok).toBe(true);
+    expect(warnings.some((w) => w.includes("openclaw") && w.includes("GreenchClaw"))).toBe(true);
+  });
+
   it.each([
     {
       name: "zip",

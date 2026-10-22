@@ -101,25 +101,34 @@ export function resolveHookInstallDir(hookId: string, hooksDir?: string): string
   return targetDirResult.path;
 }
 
-async function ensureGreenchClawHooks(manifest: HookPackageManifest) {
-  // Accept the current manifest key plus pre-rebrand keys (clawdbot, openclaw) so hook
-  // packs published under the upstream name keep installing.
-  let hooks: unknown;
+/**
+ * Resolve the hook list from the manifest, accepting pre-rebrand keys.
+ *
+ * Packs published under `clawdbot`/`openclaw` keep working, but the caller is
+ * told which legacy key was used so it can warn: the compatibility is meant to
+ * be retired once packs are republished under the current key.
+ */
+function resolveHookEntries(manifest: HookPackageManifest): {
+  hooks: string[];
+  legacyKey?: string;
+} {
   for (const key of [MANIFEST_KEY, ...LEGACY_MANIFEST_KEYS]) {
     const candidate = (manifest as Record<string, { hooks?: unknown } | undefined>)[key]?.hooks;
-    if (candidate !== undefined) {
-      hooks = candidate;
+    if (candidate === undefined) {
+      continue;
+    }
+    if (!Array.isArray(candidate)) {
       break;
     }
+    const list = candidate
+      .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+      .filter(Boolean);
+    if (list.length === 0) {
+      throw new Error("package.json GreenchClaw.hooks is empty");
+    }
+    return key === MANIFEST_KEY ? { hooks: list } : { hooks: list, legacyKey: key };
   }
-  if (!Array.isArray(hooks)) {
-    throw new Error("package.json missing GreenchClaw.hooks");
-  }
-  const list = hooks.map((e) => (typeof e === "string" ? e.trim() : "")).filter(Boolean);
-  if (list.length === 0) {
-    throw new Error("package.json GreenchClaw.hooks is empty");
-  }
-  return list;
+  throw new Error("package.json missing GreenchClaw.hooks");
 }
 
 async function resolveInstallTargetDir(
@@ -236,10 +245,21 @@ async function installHookPackageFromDir(
   }
 
   let hookEntries: string[];
+  let legacyManifestKey: string | undefined;
   try {
-    hookEntries = await ensureGreenchClawHooks(manifest);
+    const resolved = resolveHookEntries(manifest);
+    hookEntries = resolved.hooks;
+    legacyManifestKey = resolved.legacyKey;
   } catch (err) {
     return { ok: false, error: String(err) };
+  }
+  if (legacyManifestKey) {
+    // Accept + warn (Greench, 2026-10-22): the pack installs, but the author is
+    // told to republish under GreenchClaw so this fallback can be retired.
+    logger.warn?.(
+      `hook pack uses the pre-rebrand manifest key "${legacyManifestKey}"; ask the author to ` +
+        `publish under "${MANIFEST_KEY}". It still installs for now.`,
+    );
   }
 
   const pkgName = typeof manifest.name === "string" ? manifest.name : "";
