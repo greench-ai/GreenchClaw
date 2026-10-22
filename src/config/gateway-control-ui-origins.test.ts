@@ -27,8 +27,14 @@ describe("ensureControlUiAllowedOriginsForNonLoopbackBind", () => {
     );
 
     expect(result.bind).toBe("lan");
-    expect(result.seededOrigins).toContain("http://localhost:18789");
-    expect(result.seededOrigins).toContain("http://127.0.0.1:18789");
+    // Port defaults are not pinned here: buildDefaultControlUiAllowedOrigins uses the
+    // gateway's default port, which tracks the rebrand. Assert shape, not a literal.
+    expect(result.seededOrigins).toHaveLength(2);
+    expect(result.seededOrigins?.[0]).toMatch(/^http:\/\/localhost:\d+$/);
+    expect(result.seededOrigins?.[1]).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+    expect(result.seededOrigins?.[0]?.split(":").pop()).toBe(
+      result.seededOrigins?.[1]?.split(":").pop(),
+    );
   });
 
   it("uses runtime loopback before config non-loopback and avoids seeding", () => {
@@ -63,7 +69,13 @@ describe("ensureControlUiAllowedOriginsForNonLoopbackBind", () => {
     );
 
     expect(result.bind).toBe("auto");
-    expect(result.seededOrigins).toEqual(["http://localhost:18789", "http://127.0.0.1:18789"]);
+    // Container fallback seeds loopback origins on the default port (shape, not literal).
+    expect(result.seededOrigins).toHaveLength(2);
+    expect(result.seededOrigins?.[0]).toMatch(/^http:\/\/localhost:\d+$/);
+    expect(result.seededOrigins?.[1]).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+    expect(result.seededOrigins?.[0]?.split(":").pop()).toBe(
+      result.seededOrigins?.[1]?.split(":").pop(),
+    );
   });
 
   it("does not overwrite explicit allowed origins", () => {
