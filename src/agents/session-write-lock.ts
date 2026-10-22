@@ -310,20 +310,22 @@ function isGreenchClawSessionOwnerArgv(args: string[]): boolean {
     return false;
   }
   const exe = (normalized[0] ?? "").replace(/\.(bat|cmd|exe)$/i, "");
+  // `normalized` args are lowercased (normalizeOwnerProcessArg), so compare
+  // against lowercase literals - mixed-case here could never match.
   if (
-    exe === "GreenchClaw" ||
-    exe.endsWith("/GreenchClaw") ||
-    exe.endsWith("/GreenchClaw-gateway")
+    exe === "greenchclaw" ||
+    exe.endsWith("/greenchclaw") ||
+    exe.endsWith("/greenchclaw-gateway")
   ) {
     return true;
   }
   if (
     normalized.some(
       (arg) =>
-        arg === "GreenchClaw" ||
-        arg.endsWith("/GreenchClaw") ||
-        arg === "GreenchClaw.mjs" ||
-        arg.endsWith("/GreenchClaw.mjs"),
+        arg === "greenchclaw" ||
+        arg.endsWith("/greenchclaw") ||
+        arg === "greenchclaw.mjs" ||
+        arg.endsWith("/greenchclaw.mjs"),
     )
   ) {
     return true;

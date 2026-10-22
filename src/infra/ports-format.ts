@@ -6,7 +6,7 @@ export function classifyPortListener(listener: PortListener, port: number): Port
   const raw = normalizeLowercaseStringOrEmpty(
     `${listener.commandLine ?? ""} ${listener.command ?? ""}`,
   );
-  if (raw.includes("GreenchClaw")) {
+  if (raw.includes("greenchclaw")) {
     return "gateway";
   }
   if (raw.includes("ssh")) {
