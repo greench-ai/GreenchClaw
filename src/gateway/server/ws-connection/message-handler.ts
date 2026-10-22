@@ -158,7 +158,9 @@ function resolveTrustedProxyControlUiScopes(params: {
   requestedScopes: string[];
   upgradeReq: IncomingMessage;
 }): string[] {
-  const rawHeader = firstHeaderValue(params.upgradeReq.headers["x-GreenchClaw-scopes"]);
+  // Node lowercases incoming header names, so the lookup key must be lowercase —
+  // the branded `x-GreenchClaw-...` spelling silently returned undefined.
+  const rawHeader = firstHeaderValue(params.upgradeReq.headers["x-greenchclaw-scopes"]);
   if (rawHeader === undefined) {
     return params.requestedScopes;
   }
