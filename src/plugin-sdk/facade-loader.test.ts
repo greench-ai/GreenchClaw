@@ -10,6 +10,7 @@ import {
 } from "./facade-loader.js";
 import { listImportedBundledPluginFacadeIds as listImportedFacadeRuntimeIds } from "./facade-runtime.js";
 import { createPluginSdkTestHarness } from "./test-helpers.js";
+import { resolveExistingBundledPluginRoot } from "../test-utils/bundled-plugin-public-surface.js";
 
 const { createTempDirSync } = createPluginSdkTestHarness();
 const originalBundledPluginsDir = process.env.GREENCHCLAW_BUNDLED_PLUGINS_DIR;
@@ -51,7 +52,9 @@ function nextTrustedPluginId(prefix: string): string {
 }
 
 function createTrustedBundledPluginsRoot(kind: "dist" | "dist-runtime" = "dist"): string {
-  const rootDir = path.join(packageRoot, kind, "extensions");
+  const rootDir = path.join(
+    resolveExistingBundledPluginRoot({ packageRoot, preferredKind: kind }),
+  );
   fs.mkdirSync(rootDir, { recursive: true });
   return rootDir;
 }

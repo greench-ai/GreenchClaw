@@ -12,7 +12,7 @@ import {
 import { createPngBufferWithDimensions } from "./test-helpers.js";
 
 const PNG_1X1_BASE64 =
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGP8z8BQDwAFgwJ/lH3vWQAAAABJRU5ErkJggg==";
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC";
 
 describe("image input pixel guard", () => {
   const oversizedPng = createPngBufferWithDimensions({ width: 8_000, height: 4_000 });

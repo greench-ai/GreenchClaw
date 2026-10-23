@@ -262,7 +262,7 @@ describe("gateway server chat", () => {
       dispatchInboundMessageMock.mockImplementation(async () => dispatchRelease.promise);
 
       const pngB64 =
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/woAAn8B9FD5fHAAAAAASUVORK5CYII=";
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC";
       const params = {
         sessionKey: "main",
         message: "see image",

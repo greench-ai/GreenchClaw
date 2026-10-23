@@ -17,6 +17,7 @@ import {
   resetFacadeRuntimeStateForTest,
 } from "./facade-runtime.js";
 import { createPluginSdkTestHarness } from "./test-helpers.js";
+import { resolveExistingBundledPluginRoot } from "../test-utils/bundled-plugin-public-surface.js";
 
 const { createTempDirSync } = createPluginSdkTestHarness();
 const originalBundledPluginsDir = process.env.GREENCHCLAW_BUNDLED_PLUGINS_DIR;
@@ -24,8 +25,10 @@ const originalDisableBundledPlugins = process.env.GREENCHCLAW_DISABLE_BUNDLED_PL
 const originalStateDir = process.env.GREENCHCLAW_STATE_DIR;
 // Anchor on the repo root derived from this file, not on process.cwd(): vitest may run
 // with a different cwd, and a cwd-relative fixture root is not a trusted bundled dir.
+// Both `dist/extensions` and `dist-runtime/extensions` are trusted roots; `dist-runtime`
+// only exists in a release build, so pick whichever one this checkout actually has.
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const trustedBundledFixturesRoot = path.join(packageRoot, "dist-runtime", "extensions");
+const trustedBundledFixturesRoot = resolveExistingBundledPluginRoot({ packageRoot });
 const trustedBundledFixtureDirs: string[] = [];
 
 function writeJsonFile(filePath: string, value: unknown): void {

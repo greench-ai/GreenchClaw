@@ -15,8 +15,11 @@ import {
 import { resolvePreferredGreenchClawTmpDir } from "../tmp-GreenchClaw-dir.js";
 import { runMessageAction } from "./message-action-runner.js";
 
+// 1x1 PNG with an alpha channel: loadWebMedia only keeps PNG output for images it detects
+// as having alpha, otherwise it re-encodes to JPEG (and reports image/jpeg). The previous
+// fixture was also corrupt, so sharp refused to re-encode it at all.
 const onePixelPng = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5m8gAAAABJRU5ErkJggg==",
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADUlEQVQI12P4z8DwHwAFAAH/cpxSZwAAAABJRU5ErkJggg==",
   "base64",
 );
 

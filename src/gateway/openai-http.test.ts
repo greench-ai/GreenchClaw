@@ -364,7 +364,7 @@ describe("OpenAI-compatible HTTP API (e2e)", () => {
       }
 
       {
-        const imageData = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAA";
+        const imageData = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC";
         mockAgentOnce([{ text: "looks good" }]);
         const res = await postChatCompletions(port, {
           model: "GreenchClaw",
