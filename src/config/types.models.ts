@@ -50,10 +50,16 @@ type SupportedAnthropicMessagesCompatFields = Pick<
   "supportsEagerToolInputStreaming" | "supportsLongCacheRetention"
 >;
 
+// Formats the runtime normalizes in model-catalog/normalize.ts; the upstream compat
+// type only declares a subset, so extend it here instead of tightening the schema.
 type SupportedThinkingFormat =
   | NonNullable<OpenAICompletionsCompat["thinkingFormat"]>
   | "deepseek"
-  | "openrouter";
+  | "openrouter"
+  | "zai"
+  | "together"
+  | "string-thinking"
+  | "ant-ling";
 
 export type ModelCompatConfig = SupportedOpenAICompatFields &
   SupportedOpenAIResponsesCompatFields &
