@@ -231,10 +231,16 @@ export function resolveOpenAiCompatibleHttpOperatorScopes(
   }
   if (requestAuth.authMethod === "none") {
     // The gateway is configured with auth disabled, so every HTTP caller is the
-    // local operator by configuration. Nothing can be self-asserted here (there
-    // is no credential to trust), and refusing the request would disable compat
-    // HTTP entirely on `auth.mode: none` installs, so grant the operator defaults.
-    return [...CLI_DEFAULT_OPERATOR_SCOPES];
+    // local operator by configuration. Refusing the request outright would
+    // disable compat HTTP entirely on `auth.mode: none` installs. Keep the
+    // documented operator defaults when no scope header is declared, but honour
+    // an explicitly declared scope list so per-request narrowing (including the
+    // empty list) still denies as it does on trusted routes.
+    const headerValue = getHeader(req, OPERATOR_SCOPES_HEADER);
+    if (headerValue === undefined) {
+      return [...CLI_DEFAULT_OPERATOR_SCOPES];
+    }
+    return resolveTrustedHttpOperatorScopes(req, { trustDeclaredOperatorScopes: true });
   }
   return resolveTrustedHttpOperatorScopes(req, requestAuth);
 }

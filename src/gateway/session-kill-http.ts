@@ -20,7 +20,6 @@ import {
   resolveTrustedHttpOperatorScopes,
 } from "./http-utils.js";
 import { authorizeOperatorScopesForMethod } from "./method-scopes.js";
-import { isTrustedProxyAddress, resolveRequestClientIp } from "./net.js";
 import { loadSessionEntry } from "./session-utils.js";
 
 // Node lowercases incoming header names, so the lookup key must be lowercase.
@@ -92,19 +91,7 @@ export async function handleSessionKillHttpRequest(
     req.headers[REQUESTER_SESSION_KEY_HEADER]?.toString(),
   );
   const allowLocalAdminKill = isLocalDirectRequest(req, trustedProxies, allowRealIpFallback);
-  const requestedScopes = resolveTrustedHttpOperatorScopes(req, {
-    ...requestAuth,
-    // A configured trusted proxy (or the trusted-proxy auth mode itself) is the
-    // documented operator surface for this route, so its declared scopes are
-    // honored. Shared-secret bearer auth stays untrusted either way.
-    trustDeclaredOperatorScopes:
-      requestAuth.trustDeclaredOperatorScopes ||
-      requestAuth.authMethod === "trusted-proxy" ||
-      isTrustedProxyAddress(
-        resolveRequestClientIp(req, trustedProxies, allowRealIpFallback),
-        trustedProxies,
-      ),
-  });
+  const requestedScopes = resolveTrustedHttpOperatorScopes(req, requestAuth);
 
   if (!requesterSessionKey && !allowLocalAdminKill) {
     sendJson(res, 403, {
