@@ -43,6 +43,8 @@ type PackageJson = {
 const MEMORY_HOST_SDK_EXPORTS = [
   "./engine",
   "./engine-embeddings",
+  "./engine-extract",
+  "./engine-facts",
   "./engine-foundation",
   "./engine-qmd",
   "./engine-storage",
