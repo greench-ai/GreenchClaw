@@ -42,8 +42,8 @@ const CASES: GuidanceCase[] = [
       'STATE_DIR="${GREENCHCLAW_STATE_DIR:-$HOME/.GreenchClaw}"',
     ],
     forbidden: [
-      'SHERPA_ONGREENCH_RUNTIME_DIR: "~/.GreenchClaw/tools/sherpa-onnx-tts/runtime"',
-      'SHERPA_ONGREENCH_MODEL_DIR: "~/.GreenchClaw/tools/sherpa-onnx-tts/models/vits-piper-en_US-lessac-high"',
+      'SHERPA_ONCLAW_RUNTIME_DIR: "~/.GreenchClaw/tools/sherpa-onnx-tts/runtime"',
+      'SHERPA_ONCLAW_MODEL_DIR: "~/.GreenchClaw/tools/sherpa-onnx-tts/models/vits-piper-en_US-lessac-high"',
       "<state-dir>",
     ],
   },

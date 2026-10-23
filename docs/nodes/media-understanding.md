@@ -177,7 +177,7 @@ If `tools.media.<capability>.enabled` is **not** set to `false` and you haven't 
   <Step title="Local CLIs (audio only)">
     Local CLIs (if installed):
 
-    - `sherpa-onnx-offline` (requires `SHERPA_ONGREENCH_MODEL_DIR` with encoder/decoder/joiner/tokens)
+    - `sherpa-onnx-offline` (requires `SHERPA_ONCLAW_MODEL_DIR` with encoder/decoder/joiner/tokens)
     - `whisper-cli` (`whisper-cpp`; uses `WHISPER_CPP_MODEL` or the bundled tiny model)
     - `whisper` (Python CLI; downloads models automatically)
 
