@@ -17,6 +17,13 @@ import { authorizeOperatorScopesForMethod } from "./method-scopes.js";
 
 // Header carrying proxy-declared operator scopes on trusted-proxy surfaces.
 const OPERATOR_SCOPES_HEADER = "x-GreenchClaw-scopes";
+const OPERATOR_SCOPES_HEADER_LEGACY = "x-openclaw-scopes";
+
+function readOperatorScopesHeader(req: IncomingMessage): string | undefined {
+  // Proxies fronting a pre-rebrand install still stamp the legacy header name;
+  // accept both spellings so declared scopes are not silently dropped.
+  return getHeader(req, OPERATOR_SCOPES_HEADER) ?? getHeader(req, OPERATOR_SCOPES_HEADER_LEGACY);
+}
 
 export function getHeader(req: IncomingMessage, name: string): string | undefined {
   const headers = req.headers ?? {};
@@ -198,7 +205,7 @@ export function resolveTrustedHttpOperatorScopes(
     return [];
   }
 
-  const headerValue = getHeader(req, OPERATOR_SCOPES_HEADER);
+  const headerValue = readOperatorScopesHeader(req);
   if (headerValue === undefined) {
     // Trusted clients that did not declare any scope header are NOT granted the
     // full operator scope set. Scope-bearing surfaces (control UI media/avatar,
