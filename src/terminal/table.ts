@@ -178,8 +178,11 @@ function wrapLine(text: string, width: number): string[] {
     lines.push(cleaned);
   };
 
+  // Reset SGR sequences carry no styling. Built from ESC as a string rather than
+  // written as a regex literal so no control character appears in source.
+  const resetAnsiPattern = new RegExp(`^${ESC}\\[[0-9;]*m$`);
   const isResetAnsi = (token: Token | undefined) =>
-    token?.kind === "ansi" && /^\u001b\[[0-9;]*m$/.test(token.value) && token.value.includes("[0m");
+    token?.kind === "ansi" && resetAnsiPattern.test(token.value) && token.value.includes("[0m");
 
   // Wrapping mid-cell leaves the leading SGR (e.g. "\x1b[2m") on the first line only, and the
   // cell's trailing reset then lands at the start of the continuation. Capture the cell-level

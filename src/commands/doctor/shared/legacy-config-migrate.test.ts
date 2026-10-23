@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GreenchClawConfig } from "../../../config/types.js";
+import { DEFAULT_GATEWAY_PORT } from "../../../config/paths.js";
 import { LEGACY_CONFIG_MIGRATIONS } from "./legacy-config-migrations.js";
 
 function migrateLegacyConfigForTest(raw: unknown): {
@@ -672,11 +673,11 @@ describe("legacy migrate controlUi.allowedOrigins seed (issue #29385)", () => {
       },
     });
     expect(res.config?.gateway?.controlUi?.allowedOrigins).toEqual([
-      "http://localhost:18789",
-      "http://127.0.0.1:18789",
+      `http://localhost:${DEFAULT_GATEWAY_PORT}`,
+      `http://127.0.0.1:${DEFAULT_GATEWAY_PORT}`,
     ]);
     expect(res.changes).toStrictEqual([
-      'Seeded gateway.controlUi.allowedOrigins ["http://localhost:18789","http://127.0.0.1:18789"] for bind=lan. Required since v2026.2.26. Add other machine origins to gateway.controlUi.allowedOrigins if needed.',
+      `Seeded gateway.controlUi.allowedOrigins ["http://localhost:${DEFAULT_GATEWAY_PORT}","http://127.0.0.1:${DEFAULT_GATEWAY_PORT}"] for bind=lan. Required since v2026.2.26. Add other machine origins to gateway.controlUi.allowedOrigins if needed.`,
     ]);
   });
 
@@ -703,9 +704,9 @@ describe("legacy migrate controlUi.allowedOrigins seed (issue #29385)", () => {
       },
     });
     expect(res.config?.gateway?.controlUi?.allowedOrigins).toEqual([
-      "http://localhost:18789",
-      "http://127.0.0.1:18789",
-      "http://192.168.1.100:18789",
+      `http://localhost:${DEFAULT_GATEWAY_PORT}`,
+      `http://127.0.0.1:${DEFAULT_GATEWAY_PORT}`,
+      `http://192.168.1.100:${DEFAULT_GATEWAY_PORT}`,
     ]);
   });
 
@@ -744,11 +745,11 @@ describe("legacy migrate controlUi.allowedOrigins seed (issue #29385)", () => {
       },
     });
     expect(res.config?.gateway?.controlUi?.allowedOrigins).toEqual([
-      "http://localhost:18789",
-      "http://127.0.0.1:18789",
+      `http://localhost:${DEFAULT_GATEWAY_PORT}`,
+      `http://127.0.0.1:${DEFAULT_GATEWAY_PORT}`,
     ]);
     expect(res.changes).toStrictEqual([
-      'Seeded gateway.controlUi.allowedOrigins ["http://localhost:18789","http://127.0.0.1:18789"] for bind=lan. Required since v2026.2.26. Add other machine origins to gateway.controlUi.allowedOrigins if needed.',
+      `Seeded gateway.controlUi.allowedOrigins ["http://localhost:${DEFAULT_GATEWAY_PORT}","http://127.0.0.1:${DEFAULT_GATEWAY_PORT}"] for bind=lan. Required since v2026.2.26. Add other machine origins to gateway.controlUi.allowedOrigins if needed.`,
     ]);
   });
 
@@ -773,8 +774,8 @@ describe("legacy migrate controlUi.allowedOrigins seed (issue #29385)", () => {
     });
     expect(res.config?.gateway?.controlUi?.basePath).toBe("/app");
     expect(res.config?.gateway?.controlUi?.allowedOrigins).toEqual([
-      "http://localhost:18789",
-      "http://127.0.0.1:18789",
+      `http://localhost:${DEFAULT_GATEWAY_PORT}`,
+      `http://127.0.0.1:${DEFAULT_GATEWAY_PORT}`,
     ]);
   });
 });
