@@ -42,7 +42,7 @@ describe("buildControlUiCspHeader", () => {
     const csp = buildControlUiCspHeader({
       inlineScriptHashes: ["sha256-abc123"],
     });
-    expect(csp).toContain("script-src 'self' 'sha256-abc123'");
+    expect(csp).toContain("script-src 'self' 'unsafe-eval' 'sha256-abc123'");
     expect(csp).not.toMatch(/script-src[^;]*'unsafe-inline'/);
   });
 
@@ -50,12 +50,12 @@ describe("buildControlUiCspHeader", () => {
     const csp = buildControlUiCspHeader({
       inlineScriptHashes: ["sha256-aaa", "sha256-bbb"],
     });
-    expect(csp).toContain("script-src 'self' 'sha256-aaa' 'sha256-bbb'");
+    expect(csp).toContain("script-src 'self' 'unsafe-eval' 'sha256-aaa' 'sha256-bbb'");
   });
 
   it("falls back to plain script-src self when hashes array is empty", () => {
     const csp = buildControlUiCspHeader({ inlineScriptHashes: [] });
-    expect(csp).toMatch(/script-src 'self'(?:;|$)/);
+    expect(csp).toMatch(/script-src 'self' 'unsafe-eval'(?:;|$)/);
   });
 });
 

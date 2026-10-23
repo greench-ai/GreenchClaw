@@ -222,7 +222,7 @@ describe("abort detection", () => {
       "do not do that",
       "please stop",
       "stop please",
-      "STOP OPENCLAW",
+      "STOP GREENCHCLAW",
       "stop GreenchClaw!!!",
       "stop don’t do anything",
       "detente",
