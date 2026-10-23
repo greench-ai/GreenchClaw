@@ -71,8 +71,12 @@ const createReplyEngineThatNoops = (params: ReplyEngineMockParams) =>
     return params.reply;
   });
 
+type HeartbeatReplyEngineMock = NonNullable<
+  NonNullable<Parameters<typeof runHeartbeatOnce>[0]["deps"]>["getReplyFromConfig"]
+>;
+
 const runWakeHeartbeatCase = async (params: {
-  getReplyFromConfig: ReturnType<typeof vi.fn>;
+  getReplyFromConfig: HeartbeatReplyEngineMock;
 }): Promise<{
   result: Awaited<ReturnType<typeof runHeartbeatOnce>>;
   sendTelegram: ReturnType<typeof vi.fn>;
