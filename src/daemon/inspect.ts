@@ -25,7 +25,13 @@ export type FindExtraGatewayServicesOptions = {
   deep?: boolean;
 };
 
-const EXTRA_MARKERS = ["GreenchClaw", "clawdbot"] as const;
+// Matched against a lowercased copy of the unit file, so markers are lowercase
+// needles that map back to the canonical display marker.
+const MARKER_DISPLAY: Readonly<Record<string, Marker>> = {
+  greenchclaw: "GreenchClaw",
+  clawdbot: "clawdbot",
+};
+const EXTRA_MARKERS: readonly string[] = Object.keys(MARKER_DISPLAY);
 const SYSTEMD_REFERENCE_ONLY_KEYS = new Set([
   "after",
   "before",
@@ -65,13 +71,13 @@ export function renderGatewayServiceCleanupHints(
   }
 }
 
-type Marker = (typeof EXTRA_MARKERS)[number];
+type Marker = "GreenchClaw" | "clawdbot";
 
 function detectMarker(content: string): Marker | null {
   const lower = normalizeLowercaseStringOrEmpty(content);
   for (const marker of EXTRA_MARKERS) {
     if (lower.includes(marker)) {
-      return marker;
+      return MARKER_DISPLAY[marker];
     }
   }
   return null;
@@ -113,7 +119,7 @@ export function detectMarkerLineWithGateway(contents: string): Marker | null {
     }
     for (const marker of EXTRA_MARKERS) {
       if (trimmed.includes(marker)) {
-        return marker;
+        return MARKER_DISPLAY[marker];
       }
     }
   }
@@ -178,7 +184,7 @@ function detectLaunchdGatewayExecutionMarker(contents: string): Marker | null {
   );
   for (const marker of EXTRA_MARKERS) {
     if (launchCommand.includes(marker)) {
-      return marker;
+      return MARKER_DISPLAY[marker];
     }
   }
   return null;
@@ -532,7 +538,7 @@ export async function findExtraGatewayServices(
       let marker: Marker | null = null;
       for (const candidate of EXTRA_MARKERS) {
         if (lowerName.includes(candidate) || lowerCommand.includes(candidate)) {
-          marker = candidate;
+          marker = MARKER_DISPLAY[candidate] ?? null;
           break;
         }
       }

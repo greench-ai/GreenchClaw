@@ -213,24 +213,24 @@ This is the deterministic model-bound layer stack GreenchClaw can snapshot for t
     "roughTokens": 77
   },
   "codexWorkspaceBootstrapConfigInstructions": {
-    "chars": 560,
-    "roughTokens": 140
+    "chars": 572,
+    "roughTokens": 143
   },
   "dynamicToolsJson": {
-    "chars": 42744,
-    "roughTokens": 10686
+    "chars": 42792,
+    "roughTokens": 10698
   },
   "openClawDeveloperInstructions": {
-    "chars": 4412,
-    "roughTokens": 1103
+    "chars": 4421,
+    "roughTokens": 1106
   },
   "totalTextOnly": {
-    "chars": 26992,
-    "roughTokens": 6748
+    "chars": 27013,
+    "roughTokens": 6754
   },
   "totalWithDynamicToolsJson": {
-    "chars": 69738,
-    "roughTokens": 17435
+    "chars": 69807,
+    "roughTokens": 17452
   },
   "userInputText": {
     "chars": 370,

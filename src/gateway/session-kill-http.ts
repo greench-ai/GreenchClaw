@@ -22,7 +22,8 @@ import {
 import { authorizeOperatorScopesForMethod } from "./method-scopes.js";
 import { loadSessionEntry } from "./session-utils.js";
 
-const REQUESTER_SESSION_KEY_HEADER = "x-GreenchClaw-requester-session-key";
+// Node lowercases incoming header names, so the lookup key must be lowercase.
+const REQUESTER_SESSION_KEY_HEADER = "x-greenchclaw-requester-session-key";
 
 type SessionKeyPathResolution =
   | { matched: false }

@@ -157,7 +157,11 @@ export function extractHookToken(req: IncomingMessage): string | undefined {
       return token;
     }
   }
-  const headerToken = normalizeOptionalString(req.headers["x-GreenchClaw-token"]) ?? "";
+  // Node lowercases incoming header names; accept that canonical form and the
+  // title-case spelling used by direct callers (tests, in-process invocations).
+  const headerToken =
+    normalizeOptionalString(req.headers["x-greenchclaw-token"] ?? req.headers["x-GreenchClaw-token"]) ??
+    "";
   if (headerToken) {
     return headerToken;
   }

@@ -102,7 +102,7 @@ describe("status-all format", () => {
           },
         },
       }),
-    ).toBe("http://127.0.0.1:18789/ui/");
+    ).toBe("http://127.0.0.1:18420/ui/");
     expect(
       resolveStatusDashboardUrl({
         cfg: {
@@ -112,7 +112,7 @@ describe("status-all format", () => {
           },
         },
       }),
-    ).toBe("https://127.0.0.1:18789/");
+    ).toBe("https://127.0.0.1:18420/");
     expect(
       resolveStatusDashboardUrl({
         cfg: {
@@ -236,7 +236,7 @@ describe("status-all format", () => {
         decorateWarn: (value) => `warn(${value})`,
       }),
     ).toEqual({
-      dashboardUrl: "http://127.0.0.1:18789/",
+      dashboardUrl: "http://127.0.0.1:18420/",
       gatewayValue:
         "remote · wss://gateway.example.com (config) · ok(reachable 123ms) · auth token · gateway app 1.2.3",
       gatewaySelfValue: "gateway app 1.2.3",
@@ -374,7 +374,7 @@ describe("status-all format", () => {
       }),
     ).toEqual([
       { Item: "Version", Value: "1.0.0" },
-      { Item: "Dashboard", Value: "http://127.0.0.1:18789/" },
+      { Item: "Dashboard", Value: "http://127.0.0.1:18420/" },
       { Item: "Tailscale exposure", Value: "serve · box.tail.ts.net · https://box.tail.ts.net" },
       { Item: "Channel", Value: baseStatusExpectedUpdateChannelLabel },
       { Item: "Git", Value: "main · tag v1.2.3" },

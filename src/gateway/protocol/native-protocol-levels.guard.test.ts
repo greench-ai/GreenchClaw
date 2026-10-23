@@ -101,7 +101,7 @@ describe("native Gateway protocol levels", () => {
   it("uses the min constant for native connect compatibility ranges", async () => {
     const swiftConnectFiles = [
       "apps/shared/GreenchClawKit/Sources/GreenchClawKit/GatewayChannel.swift",
-      "apps/macos/Sources/GreenchClawMacCLI/WizardCommand.swift",
+      "apps/macos/Sources/OpenClawMacCLI/WizardCommand.swift",
     ];
     for (const relativePath of swiftConnectFiles) {
       const content = await readRepoFile(relativePath);

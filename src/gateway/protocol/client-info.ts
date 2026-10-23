@@ -51,7 +51,11 @@ export const GATEWAY_CLIENT_CAPS = {
 
 export type GatewayClientCap = (typeof GATEWAY_CLIENT_CAPS)[keyof typeof GATEWAY_CLIENT_CAPS];
 
-const GATEWAY_CLIENT_ID_SET = new Set<GatewayClientId>(Object.values(GATEWAY_CLIENT_IDS));
+// Canonical ids keep the brand's title case (`GreenchClaw-control-ui`), while inbound
+// client names are compared case-insensitively — so the lookup set is lowercased.
+const GATEWAY_CLIENT_ID_BY_LOWERCASE = new Map<string, GatewayClientId>(
+  Object.values(GATEWAY_CLIENT_IDS).map((id) => [id.toLowerCase(), id]),
+);
 const GATEWAY_CLIENT_MODE_SET = new Set<GatewayClientMode>(Object.values(GATEWAY_CLIENT_MODES));
 
 export function normalizeGatewayClientId(raw?: string | null): GatewayClientId | undefined {
@@ -59,9 +63,7 @@ export function normalizeGatewayClientId(raw?: string | null): GatewayClientId |
   if (!normalized) {
     return undefined;
   }
-  return GATEWAY_CLIENT_ID_SET.has(normalized as GatewayClientId)
-    ? (normalized as GatewayClientId)
-    : undefined;
+  return GATEWAY_CLIENT_ID_BY_LOWERCASE.get(normalized);
 }
 
 export function normalizeGatewayClientName(raw?: string | null): GatewayClientName | undefined {

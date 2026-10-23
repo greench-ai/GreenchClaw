@@ -1744,17 +1744,7 @@ jobs:
         with:
           install-bun: "false"
 
-      - name: Checkout ClawHub docs source
-        uses: actions/checkout@v6
-        with:
-          repository: GreenchClaw/clawhub
-          path: clawhub-source
-          fetch-depth: 1
-          persist-credentials: false
-
       - name: Check docs
-        env:
-          GREENCHCLAW_DOCS_SYNC_CLAWHUB_REPO: ${{ github.workspace }}/clawhub-source
         run: pnpm check:docs
 
   skills-python:

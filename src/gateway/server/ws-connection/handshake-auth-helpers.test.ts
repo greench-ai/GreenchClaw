@@ -93,7 +93,7 @@ describe("handshake auth helpers", () => {
     });
   });
 
-  it("allows silent local pairing for not-paired, scope-upgrade and role-upgrade", () => {
+  it("allows silent direct-local pairing for not-paired and role-upgrade", () => {
     expect(
       shouldAllowSilentLocalPairing({
         locality: "direct_local",
@@ -112,9 +112,30 @@ describe("handshake auth helpers", () => {
         reason: "role-upgrade",
       }),
     ).toBe(true);
+    // Scope upgrades must not auto-widen from plain direct-local locality: any
+    // local process reaching loopback could otherwise self-elevate a read-scoped
+    // pairing to admin. Only first-party credential classes auto-approve.
     expect(
       shouldAllowSilentLocalPairing({
         locality: "direct_local",
+        hasBrowserOriginHeader: false,
+        isControlUi: false,
+        isWebchat: false,
+        reason: "scope-upgrade",
+      }),
+    ).toBe(false);
+    expect(
+      shouldAllowSilentLocalPairing({
+        locality: "cli_container_local",
+        hasBrowserOriginHeader: false,
+        isControlUi: false,
+        isWebchat: false,
+        reason: "scope-upgrade",
+      }),
+    ).toBe(true);
+    expect(
+      shouldAllowSilentLocalPairing({
+        locality: "shared_secret_loopback_local",
         hasBrowserOriginHeader: false,
         isControlUi: false,
         isWebchat: false,

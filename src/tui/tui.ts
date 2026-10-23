@@ -139,7 +139,7 @@ export function resolveLocalAuthSpawnCwd(params: { args: string[]; defaultCwd?: 
     return defaultCwd;
   }
   const entryBase = path.basename(entryArg).toLowerCase();
-  if (entryBase === "GreenchClaw.mjs") {
+  if (entryBase === "greenchclaw.mjs") {
     return path.dirname(entryArg);
   }
   if (entryBase === "run-node.mjs") {
