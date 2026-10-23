@@ -20,8 +20,10 @@ const outputPath = path.join(
   repoRoot,
   "apps",
   "macos",
+  // Swift sources ship under the rebranded target directory (Apps/macos target
+  // name is `OpenClaw`); the generated file must live next to HostEnvSanitizer.
   "Sources",
-  "GreenchClaw",
+  "OpenClaw",
   "HostEnvSecurityPolicy.generated.swift",
 );
 
