@@ -14,7 +14,7 @@ RUN --mount=type=cache,id=GreenchClaw-cleanup-smoke-apt-cache,target=/var/cache/
 
 WORKDIR /repo
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-COPY openclaw.mjs ./
+COPY GreenchClaw.mjs ./
 COPY ui/package.json ./ui/package.json
 COPY packages ./packages
 COPY extensions ./extensions
