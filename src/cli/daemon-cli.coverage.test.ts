@@ -5,6 +5,7 @@ import { Command } from "commander";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureEnv } from "../test-utils/env.js";
 import { registerDaemonCli } from "./daemon-cli/register.js";
+import { DEFAULT_GATEWAY_PORT } from "../config/paths.js";
 
 const probeGatewayStatus = vi.fn(async (..._args: unknown[]) => ({ ok: true }));
 const resolveGatewayProgramArguments = vi.fn(async (_opts?: unknown) => ({
@@ -207,8 +208,10 @@ describe("daemon-cli coverage", () => {
     await runDaemonCommand(["daemon", "status"]);
 
     expect(probeGatewayStatus).toHaveBeenCalledTimes(1);
+    // No service/env port in this case, so the daemon status probe uses the
+    // shipped DEFAULT_GATEWAY_PORT rather than the historical upstream port.
     expect(requireMockCallArg(probeGatewayStatus, "probeGatewayStatus").url).toBe(
-      "ws://127.0.0.1:18789",
+      `ws://127.0.0.1:${DEFAULT_GATEWAY_PORT}`,
     );
     expect(findExtraGatewayServices).not.toHaveBeenCalled();
     expect(inspectPortUsage).toHaveBeenCalledTimes(1);

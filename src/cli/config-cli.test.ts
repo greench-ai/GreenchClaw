@@ -910,10 +910,10 @@ describe("config cli", () => {
       expect(helpText).toContain("--dry-run");
       expect(helpText).toContain("--allow-exec");
       expect(helpText).toContain("GreenchClaw config set gateway.port 19001 --strict-json");
-      expect(helpText).toContain(
-        "GreenchClaw config set channels.discord.token --ref-provider default --ref-source",
-      );
-      expect(helpText).toContain("--ref-id DISCORD_BOT_TOKEN");
+      // Help output hard-wraps long examples, so assert the wrapped fragments
+      // rather than one unbroken line.
+      expect(helpText).toContain("GreenchClaw config set channels.discord.token --ref-provider");
+      expect(helpText).toContain("--ref-source env --ref-id DISCORD_BOT_TOKEN");
       expect(helpText).toContain(
         "GreenchClaw config set --batch-file ./config-set.batch.json --dry-run",
       );
