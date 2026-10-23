@@ -13,8 +13,9 @@ import {
   normalizeOptionalString,
 } from "../../shared/string-coerce.js";
 import { readStringParam } from "./common.js";
+import { DEFAULT_GATEWAY_PORT } from "../../config/paths.js";
 
-export const DEFAULT_GATEWAY_URL = "ws://127.0.0.1:18789";
+export const DEFAULT_GATEWAY_URL = `ws://127.0.0.1:${DEFAULT_GATEWAY_PORT}`;
 
 export type GatewayCallOptions = {
   gatewayUrl?: string;

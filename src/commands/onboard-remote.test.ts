@@ -124,7 +124,7 @@ describe("promptRemoteGatewayConfig", () => {
         "Direct remote access defaults to TLS.",
         "Using: wss://gateway.tailnet.ts.net:18789",
         "TLS pin: sha256:abc123",
-        "If your gateway is loopback-only, choose SSH tunnel and keep ws://127.0.0.1:18789.",
+        "If your gateway is loopback-only, choose SSH tunnel and keep ws://127.0.0.1:18420.",
       ].join("\n"),
       "Direct remote",
     );
@@ -149,7 +149,7 @@ describe("promptRemoteGatewayConfig", () => {
     const manualUrl = "wss://manual.example.com:18789";
     const text: WizardPrompter["text"] = vi.fn(async (params) => {
       if (params.message === "Gateway WebSocket URL") {
-        expect(params.initialValue).toBe("ws://127.0.0.1:18789");
+        expect(params.initialValue).toBe("ws://127.0.0.1:18420");
         return manualUrl;
       }
       return "";
@@ -258,7 +258,7 @@ describe("promptRemoteGatewayConfig", () => {
     });
     const text: WizardPrompter["text"] = vi.fn(async (params) => {
       if (params.message === "Gateway WebSocket URL") {
-        expect(params.initialValue).toBe("ws://127.0.0.1:18789");
+        expect(params.initialValue).toBe("ws://127.0.0.1:18420");
         return String(params.initialValue);
       }
       return "";
@@ -271,7 +271,7 @@ describe("promptRemoteGatewayConfig", () => {
 
     const next = await promptRemoteGatewayConfig({} as GreenchClawConfig, prompter);
 
-    expect(next.gateway?.remote?.url).toBe("ws://127.0.0.1:18789");
+    expect(next.gateway?.remote?.url).toBe("ws://127.0.0.1:18420");
     expect(vi.mocked(select).mock.calls.map(([params]) => params.message)).not.toContain(
       "Connection method",
     );

@@ -18,6 +18,7 @@ import {
   buildNodeInvokeResultParams,
   handleInvoke,
 } from "./invoke.js";
+import { DEFAULT_GATEWAY_PORT } from "../config/paths.js";
 import {
   ensureNodeHostPluginRegistry,
   listRegisteredNodeHostCapsAndCommands,
@@ -214,7 +215,7 @@ export async function runNodeHost(opts: NodeHostRunOptions): Promise<void> {
   });
 
   const host = gateway.host ?? "127.0.0.1";
-  const port = gateway.port ?? 18789;
+  const port = gateway.port ?? DEFAULT_GATEWAY_PORT;
   const scheme = gateway.tls ? "wss" : "ws";
   const url = `${scheme}://${host}:${port}`;
   const pathEnv = ensureNodePathEnv();
