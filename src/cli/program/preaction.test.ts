@@ -7,19 +7,29 @@ import { applyParentDefaultHelpAction } from "./parent-default-help.js";
 
 const DISCORD_REPO_INSTALL_SPEC = repoInstallSpec("discord");
 
-const setVerboseMock = vi.fn();
-const emitCliBannerMock = vi.fn();
-const ensureConfigReadyMock = vi.fn(async () => {});
-const ensurePluginRegistryLoadedMock = vi.fn();
-const routeLogsToStderrMock = vi.fn();
-
-const runtimeMock = {
-  log: vi.fn(),
-  error: vi.fn(),
-  writeStdout: vi.fn(),
-  writeJson: vi.fn(),
-  exit: vi.fn(),
-};
+// vi.mock factories are hoisted above these declarations, so the fns they close
+// over must be hoisted too or the factory reads them before initialization.
+const {
+  setVerboseMock,
+  emitCliBannerMock,
+  ensureConfigReadyMock,
+  ensurePluginRegistryLoadedMock,
+  routeLogsToStderrMock,
+  runtimeMock,
+} = vi.hoisted(() => ({
+  setVerboseMock: vi.fn(),
+  emitCliBannerMock: vi.fn(),
+  ensureConfigReadyMock: vi.fn(async () => {}),
+  ensurePluginRegistryLoadedMock: vi.fn(),
+  routeLogsToStderrMock: vi.fn(),
+  runtimeMock: {
+    log: vi.fn(),
+    error: vi.fn(),
+    writeStdout: vi.fn(),
+    writeJson: vi.fn(),
+    exit: vi.fn(),
+  },
+}));
 
 vi.mock("../../globals.js", () => ({
   setVerbose: setVerboseMock,
