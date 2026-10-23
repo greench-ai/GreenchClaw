@@ -13,11 +13,11 @@ describe("check-changelog-attributions", () => {
 
     expect(findForbiddenChangelogThanks(content)).toEqual([
       { line: 1, handle: "codex", text: "- Internal cleanup. Thanks @codex." },
-      { line: 2, handle: "GreenchClaw", text: "- Org-owned fix. Thanks @GreenchClaw." },
+      { line: 2, handle: "greenchclaw", text: "- Org-owned fix. Thanks @GreenchClaw." },
       { line: 3, handle: "steipete", text: "- Maintainer-owned fix. Thanks @steipete." },
       {
         line: 4,
-        handle: "GreenchClaw",
+        handle: "greenchclaw",
         text: "- Mixed credit. Thanks @contributor and @GreenchClaw.",
       },
     ]);
