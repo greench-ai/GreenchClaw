@@ -17,6 +17,15 @@ export function resolvePluginRouteRuntimeOperatorScopes(
     if (!requestAuth.trustDeclaredOperatorScopes) {
       return [...CLI_DEFAULT_OPERATOR_SCOPES];
     }
+    // A trusted-proxy route that opted into the operator surface and declared no
+    // scopes header still gets the trusted operator defaults; an explicit header
+    // (including an empty one) stays authoritative.
+    if (
+      requestAuth.authMethod === "trusted-proxy" &&
+      getHeader(req, "x-GreenchClaw-scopes") === undefined
+    ) {
+      return [...CLI_DEFAULT_OPERATOR_SCOPES];
+    }
     return resolveTrustedHttpOperatorScopes(req, requestAuth);
   }
   if (requestAuth.authMethod !== "trusted-proxy") {

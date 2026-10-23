@@ -98,10 +98,11 @@ export const EXPECTED_CODEX_STATUS_COMMAND_TEXT = [
 
 export function isExpectedCodexStatusCommandText(text: string): boolean {
   const normalized = text.toLowerCase();
+  // `normalized` is lowercased, so the brand needles must be lowercase too.
   const mentionsGreenchClawStatus =
-    normalized.includes("GreenchClaw is running on") ||
-    /GreenchClaw\s+\S+\s+is running on/u.test(normalized) ||
-    normalized.includes("GreenchClaw status:") ||
+    normalized.includes("greenchclaw is running on") ||
+    /greenchclaw\s+\S+\s+is running on/u.test(normalized) ||
+    normalized.includes("greenchclaw status:") ||
     normalized.includes("status: running on") ||
     normalized.includes("session status: running on");
   const mentionsHarnessSession =

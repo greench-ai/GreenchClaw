@@ -178,6 +178,17 @@ function wrapLine(text: string, width: number): string[] {
     lines.push(cleaned);
   };
 
+  const isResetAnsi = (token: Token | undefined) =>
+    token?.kind === "ansi" && /^\u001b\[[0-9;]*m$/.test(token.value) && token.value.includes("[0m");
+
+  // Wrapping mid-cell leaves the leading SGR (e.g. "\x1b[2m") on the first line only, and the
+  // cell's trailing reset then lands at the start of the continuation. Capture the cell-level
+  // style so it can be re-applied on every continuation line instead of being dropped.
+  const cellLeadingAnsi = tokens
+    .slice(0, firstCharIndex)
+    .filter((t) => t.kind === "ansi" && !isResetAnsi(t))
+    .map((t) => t.value);
+
   const trimLeadingSpaces = (tokens: Token[]) => {
     while (true) {
       const firstCharIndex = tokens.findIndex((token) => token.kind === "char");
@@ -186,6 +197,14 @@ function wrapLine(text: string, width: number): string[] {
       }
       const firstChar = tokens[firstCharIndex];
       if (!firstChar || !isSpaceChar(firstChar.value)) {
+        // Trailing SGR reset after the break point resets the wrap-around styling,
+        // so re-apply the active leading SGR so continuation lines stay styled.
+        if (firstCharIndex > 0 && isResetAnsi(tokens[0])) {
+          const leading = tokens.slice(0, firstCharIndex).filter((t) => t.kind === "ansi");
+          if (leading.some(isResetAnsi) && !leading.slice(0, -1).some((t) => !isResetAnsi(t))) {
+            tokens.splice(0, firstCharIndex);
+          }
+        }
         return;
       }
       tokens.splice(firstCharIndex, 1);
@@ -205,8 +224,13 @@ function wrapLine(text: string, width: number): string[] {
     }
 
     const left = buf.slice(0, breakAt);
-    const rest = buf.slice(breakAt);
+    let rest = buf.slice(breakAt);
     pushLine(bufToString(left));
+    if (cellLeadingAnsi.length > 0) {
+      const resets = rest.filter(isResetAnsi);
+      rest = rest.filter((t) => !isResetAnsi(t));
+      rest.unshift(...resets, ...cellLeadingAnsi.map((value) => ({ kind: "ansi" as const, value })));
+    }
     trimLeadingSpaces(rest);
 
     buf.length = 0;
