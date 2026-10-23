@@ -66,8 +66,14 @@ describe("Mantis Telegram Desktop proof workflow", () => {
     const liveWorkflow = parse(readFileSync(LIVE_WORKFLOW, "utf8")) as Workflow;
     const pnpmMajor = repositoryPnpmMajor();
 
-    expect(workflow.env?.PNPM_VERSION?.split(".", 1)[0]).toBe(pnpmMajor);
-    expect(liveWorkflow.env?.PNPM_VERSION?.split(".", 1)[0]).toBe(pnpmMajor);
+    // "auto" lets setup-pnpm-store-cache derive the exact version from the
+    // packageManager pin at run time; a literal pin must agree with the major.
+    for (const version of [workflow.env?.PNPM_VERSION, liveWorkflow.env?.PNPM_VERSION]) {
+      if (version === "auto") {
+        continue;
+      }
+      expect(version?.split(".", 1)[0]).toBe(pnpmMajor);
+    }
   });
 
   it("serializes all Mantis Telegram account runs without workflow concurrency cancellation", () => {
