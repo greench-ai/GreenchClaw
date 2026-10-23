@@ -6,8 +6,8 @@ LABEL org.openclaw.sandbox-browser.contract="2026-05-12-cdp-relay-auth"
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN --mount=type=cache,id=openclaw-sandbox-bookworm-apt-cache,target=/var/cache/apt,sharing=locked \
-  --mount=type=cache,id=openclaw-sandbox-bookworm-apt-lists,target=/var/lib/apt,sharing=locked \
+RUN --mount=type=cache,id=GreenchClaw-sandbox-bookworm-apt-cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,id=GreenchClaw-sandbox-bookworm-apt-lists,target=/var/lib/apt,sharing=locked \
   apt-get update \
   && apt-get install -y --no-install-recommends \
     bash \

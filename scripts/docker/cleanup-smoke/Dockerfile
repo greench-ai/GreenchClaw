@@ -4,8 +4,8 @@ FROM node:24-bookworm-slim@sha256:e8e2e91b1378f83c5b2dd15f0247f34110e2fe895f6ca7
 
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
-RUN --mount=type=cache,id=openclaw-cleanup-smoke-apt-cache,target=/var/cache/apt,sharing=locked \
-  --mount=type=cache,id=openclaw-cleanup-smoke-apt-lists,target=/var/lib/apt,sharing=locked \
+RUN --mount=type=cache,id=GreenchClaw-cleanup-smoke-apt-cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,id=GreenchClaw-cleanup-smoke-apt-lists,target=/var/lib/apt,sharing=locked \
   apt-get update \
   && apt-get install -y --no-install-recommends \
     bash \
@@ -21,7 +21,7 @@ COPY extensions ./extensions
 COPY patches ./patches
 COPY scripts/postinstall-bundled-plugins.mjs scripts/setup-hooks.mjs scripts/npm-runner.mjs scripts/windows-cmd-helpers.mjs ./scripts/
 COPY scripts/lib/package-dist-imports.mjs ./scripts/lib/package-dist-imports.mjs
-RUN --mount=type=cache,id=openclaw-pnpm-store,target=/root/.local/share/pnpm/store,sharing=locked \
+RUN --mount=type=cache,id=GreenchClaw-pnpm-store,target=/root/.local/share/pnpm/store,sharing=locked \
   corepack enable \
   && if ! pnpm install --frozen-lockfile >/tmp/openclaw-cleanup-pnpm-install.log 2>&1; then \
     cat /tmp/openclaw-cleanup-pnpm-install.log; \
