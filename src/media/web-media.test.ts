@@ -11,8 +11,11 @@ let LocalMediaAccessError: typeof import("./web-media.js").LocalMediaAccessError
 let loadWebMedia: typeof import("./web-media.js").loadWebMedia;
 let optimizeImageToJpeg: typeof import("./web-media.js").optimizeImageToJpeg;
 
+// 1x1 red PNG. The previous fixture had a corrupt IDAT chunk, so sharp/libpng accepted it
+// for metadata reads but refused to re-encode it ("Failed to optimize PNG image"), which
+// broke every loadWebMedia case that runs the PNG optimizer.
 const TINY_PNG_BASE64 =
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/woAAn8B9FD5fHAAAAAASUVORK5CYII=";
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC";
 const CANVAS_HOST_PATH = "/__GreenchClaw__/canvas";
 
 let fixtureRoot = "";

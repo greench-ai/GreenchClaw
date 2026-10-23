@@ -155,12 +155,37 @@ describe("managed npm root", () => {
   });
 
   it("reads package-level npm overrides for managed plugin installs", async () => {
-    await expect(readGreenchClawManagedNpmRootOverrides()).resolves.toEqual({
+    // Pinned to a fixture manifest rather than the live root package.json: the managed
+    // overrides set changes whenever dependency advisories are bumped, and a test that
+    // re-reads the repo manifest turns every bump into a CI failure.
+    const packageRoot = await makeTempRoot();
+    await fs.writeFile(
+      path.join(packageRoot, "package.json"),
+      `${JSON.stringify(
+        {
+          name: "fixture-host",
+          private: true,
+          dependencies: { "@aws-sdk/client-bedrock-runtime": "3.1045.0" },
+          overrides: {
+            "@aws-sdk/client-bedrock-runtime": "$@aws-sdk/client-bedrock-runtime",
+            axios: "^1.20.0",
+            "fast-uri": "^3.1.8",
+            "follow-redirects": "^1.16.1",
+            "ip-address": "^10.7.4",
+            "node-domexception": "npm:@nolyfill/domexception@1.0.28",
+            uuid: "14.0.0",
+          },
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    await expect(readGreenchClawManagedNpmRootOverrides({ packageRoot })).resolves.toEqual({
       "@aws-sdk/client-bedrock-runtime": "3.1045.0",
-      axios: "1.16.0",
-      "fast-uri": "3.1.2",
-      "follow-redirects": "1.16.0",
-      "ip-address": "10.2.0",
+      axios: "^1.20.0",
+      "fast-uri": "^3.1.8",
+      "follow-redirects": "^1.16.1",
+      "ip-address": "^10.7.4",
       "node-domexception": "npm:@nolyfill/domexception@1.0.28",
       uuid: "14.0.0",
     });

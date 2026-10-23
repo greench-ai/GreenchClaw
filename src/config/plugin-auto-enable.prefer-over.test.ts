@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PluginManifestRegistry } from "../plugins/manifest-registry.js";
 import { cleanupTrackedTempDirs } from "../plugins/test-helpers/fs-fixtures.js";
@@ -16,7 +17,10 @@ vi.mock("../plugins/bundled-dir.js", async (importOriginal) => {
 const tempDirs: string[] = [];
 
 function makeTempDir(): string {
-  const trustedRoot = path.resolve("dist-runtime", "extensions");
+  // Anchor on the repo root derived from this file, not on process.cwd(): the trusted
+  // bundled-plugin boundary requires the fixture to live inside the checkout.
+  const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+  const trustedRoot = path.join(packageRoot, "dist-runtime", "extensions");
   fs.mkdirSync(trustedRoot, { recursive: true });
   const dir = fs.mkdtempSync(path.join(trustedRoot, ".GreenchClaw-plugin-prefer-over-"));
   tempDirs.push(dir);
