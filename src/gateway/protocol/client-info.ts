@@ -54,11 +54,10 @@ export const GATEWAY_CLIENT_CAPS = {
 
 export type GatewayClientCap = (typeof GATEWAY_CLIENT_CAPS)[keyof typeof GATEWAY_CLIENT_CAPS];
 
-// Built from lowercased values so a normalized input can always match. Keep the
-// set derived (never hand-maintained) — a drifted set is exactly how the
-// mixed-case ID bug slipped through.
-const GATEWAY_CLIENT_ID_SET = new Set<string>(
-  Object.values(GATEWAY_CLIENT_IDS).map((id) => id.toLowerCase()),
+// Canonical ids keep the brand's title case (`GreenchClaw-control-ui`), while inbound
+// client names are compared case-insensitively — so the lookup set is lowercased.
+const GATEWAY_CLIENT_ID_BY_LOWERCASE = new Map<string, GatewayClientId>(
+  Object.values(GATEWAY_CLIENT_IDS).map((id) => [id.toLowerCase(), id]),
 );
 const GATEWAY_CLIENT_MODE_SET = new Set<GatewayClientMode>(Object.values(GATEWAY_CLIENT_MODES));
 
@@ -67,15 +66,7 @@ export function normalizeGatewayClientId(raw?: string | null): GatewayClientId |
   if (!normalized) {
     return undefined;
   }
-  if (!GATEWAY_CLIENT_ID_SET.has(normalized)) {
-    return undefined;
-  }
-  // Return the canonical (branded) constant, not the lowercased input: callers
-  // compare against GATEWAY_CLIENT_NAMES.* which keeps the wire casing.
-  const canonical = Object.values(GATEWAY_CLIENT_IDS).find(
-    (id) => id.toLowerCase() === normalized,
-  );
-  return canonical ?? (normalized as GatewayClientId);
+  return GATEWAY_CLIENT_ID_BY_LOWERCASE.get(normalized);
 }
 
 export function normalizeGatewayClientName(raw?: string | null): GatewayClientName | undefined {

@@ -25,7 +25,7 @@ ENV PATH="/home/appuser/.local/bin:${PATH}"
 ENV NODE_OPTIONS="--disable-warning=ExperimentalWarning"
 # Docker E2E lanes start many loopback gateways concurrently; mDNS advertising
 # is unrelated to those checks and can flap under container CPU/network load.
-ENV OPENCLAW_DISABLE_BONJOUR="1"
+ENV GREENCHCLAW_DISABLE_BONJOUR="1"
 
 USER appuser
 WORKDIR /app
@@ -43,7 +43,7 @@ FROM bare AS functional
 # The app under test enters through the named BuildKit context, not by copying
 # checkout sources into the image.
 COPY --from=GreenchClaw_package --chown=appuser:appuser GreenchClaw-current.tgz /tmp/GreenchClaw-current.tgz
-# Preserve package self-reference imports such as openclaw/plugin-sdk/* after
+# Preserve package self-reference imports such as GreenchClaw/plugin-sdk/* after
 # copying the installed package out of npm's global node_modules tree.
 RUN npm install -g --prefix /tmp/GreenchClaw-prefix /tmp/GreenchClaw-current.tgz --no-fund --no-audit \
  && cp -a /tmp/GreenchClaw-prefix/lib/node_modules/GreenchClaw/. /app/ \

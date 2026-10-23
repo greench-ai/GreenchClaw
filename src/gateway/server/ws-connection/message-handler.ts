@@ -58,6 +58,7 @@ import type { AuthRateLimiter } from "../../auth-rate-limit.js";
 import type { GatewayAuthResult, ResolvedGatewayAuth } from "../../auth.js";
 import { hasForwardedRequestHeaders, isLocalDirectRequest } from "../../auth.js";
 import { normalizeDeviceMetadataForAuth } from "../../device-auth.js";
+import { getHeader } from "../../http-auth-utils.js";
 import { ADMIN_SCOPE } from "../../method-scopes.js";
 import {
   isLocalishHost,
@@ -150,17 +151,16 @@ export type WsOriginCheckMetrics = {
   hostHeaderFallbackAccepted: number;
 };
 
-function firstHeaderValue(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
-}
-
 function resolveTrustedProxyControlUiScopes(params: {
   requestedScopes: string[];
   upgradeReq: IncomingMessage;
 }): string[] {
-  // Node lowercases incoming header names, so the lookup key must be lowercase —
-  // the branded `x-GreenchClaw-...` spelling silently returned undefined.
-  const rawHeader = firstHeaderValue(params.upgradeReq.headers["x-greenchclaw-scopes"]);
+  // Header names may arrive in any casing, and proxies fronting a pre-rebrand
+  // install may still send the legacy `x-openclaw-scopes` spelling; resolve both
+  // case-insensitively so a proxy-declared scope set is always honoured.
+  const rawHeader =
+    getHeader(params.upgradeReq, "x-GreenchClaw-scopes") ??
+    getHeader(params.upgradeReq, "x-openclaw-scopes");
   if (rawHeader === undefined) {
     return params.requestedScopes;
   }

@@ -23,7 +23,7 @@ GreenchClaw auto-detects in this order and stops at the first working option:
 
 1. **Active reply model** when its provider supports audio understanding.
 2. **Local CLIs** (if installed)
-   - `sherpa-onnx-offline` (requires `SHERPA_ONGREENCH_MODEL_DIR` with encoder/decoder/joiner/tokens)
+   - `sherpa-onnx-offline` (requires `SHERPA_ONCLAW_MODEL_DIR` with encoder/decoder/joiner/tokens)
    - `whisper-cli` (from `whisper-cpp`; uses `WHISPER_CPP_MODEL` or the bundled tiny model)
    - `whisper` (Python CLI; downloads models automatically)
 3. **Gemini CLI** (`gemini`) using `read_many_files`

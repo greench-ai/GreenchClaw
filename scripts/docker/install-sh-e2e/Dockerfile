@@ -2,8 +2,8 @@
 
 FROM node:24-bookworm-slim@sha256:e8e2e91b1378f83c5b2dd15f0247f34110e2fe895f6ca7719dbb780f929368eb
 
-RUN --mount=type=cache,id=openclaw-install-sh-e2e-apt-cache,target=/var/cache/apt,sharing=locked \
-  --mount=type=cache,id=openclaw-install-sh-e2e-apt-lists,target=/var/lib/apt,sharing=locked \
+RUN --mount=type=cache,id=GreenchClaw-install-sh-e2e-apt-cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,id=GreenchClaw-install-sh-e2e-apt-lists,target=/var/lib/apt,sharing=locked \
   apt-get update \
   && apt-get install -y --no-install-recommends \
     bash \

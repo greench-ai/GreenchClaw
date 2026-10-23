@@ -442,7 +442,7 @@ describe("pairing setup code", () => {
       } satisfies ResolveSetupOptions,
       expected: {
         authLabel: "token",
-        url: "ws://127.0.0.1:18789",
+        url: "ws://127.0.0.1:18420",
         urlSource: "gateway.bind=custom",
       },
     },
@@ -457,7 +457,7 @@ describe("pairing setup code", () => {
       } satisfies ResolveSetupConfig,
       expected: {
         authLabel: "token",
-        url: "ws://10.0.2.2:18789",
+        url: "ws://10.0.2.2:18420",
         urlSource: "gateway.bind=custom",
       },
     },
@@ -472,7 +472,7 @@ describe("pairing setup code", () => {
       } satisfies ResolveSetupConfig,
       expected: {
         authLabel: "token",
-        url: "ws://gateway.local:18789",
+        url: "ws://gateway.local:18420",
         urlSource: "gateway.bind=custom",
       },
     },
@@ -487,7 +487,7 @@ describe("pairing setup code", () => {
       } satisfies ResolveSetupConfig,
       expected: {
         authLabel: "token",
-        url: "ws://192.168.1.20:18789",
+        url: "ws://192.168.1.20:18420",
         urlSource: "gateway.bind=custom",
       },
     },
@@ -545,7 +545,7 @@ describe("pairing setup code", () => {
       } satisfies ResolveSetupOptions,
       expected: {
         authLabel: "password",
-        url: "ws://192.168.1.20:18789",
+        url: "ws://192.168.1.20:18420",
         urlSource: "gateway.bind=lan",
       },
     });

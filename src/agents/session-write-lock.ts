@@ -309,6 +309,7 @@ function isGreenchClawSessionOwnerArgv(args: string[]): boolean {
   if (normalized.length === 0) {
     return false;
   }
+  // Args are lowercased for portability, so the brand literals must be lowercased too.
   const exe = (normalized[0] ?? "").replace(/\.(bat|cmd|exe)$/i, "");
   // `normalized` args are lowercased (normalizeOwnerProcessArg), so compare
   // against lowercase literals - mixed-case here could never match.

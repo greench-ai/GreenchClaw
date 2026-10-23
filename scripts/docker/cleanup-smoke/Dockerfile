@@ -4,8 +4,8 @@ FROM node:24-bookworm-slim@sha256:e8e2e91b1378f83c5b2dd15f0247f34110e2fe895f6ca7
 
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
-RUN --mount=type=cache,id=greenchclaw-cleanup-smoke-apt-cache,target=/var/cache/apt,sharing=locked \
-  --mount=type=cache,id=greenchclaw-cleanup-smoke-apt-lists,target=/var/lib/apt,sharing=locked \
+RUN --mount=type=cache,id=GreenchClaw-cleanup-smoke-apt-cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,id=GreenchClaw-cleanup-smoke-apt-lists,target=/var/lib/apt,sharing=locked \
   apt-get update \
   && apt-get install -y --no-install-recommends \
     bash \
@@ -14,7 +14,7 @@ RUN --mount=type=cache,id=greenchclaw-cleanup-smoke-apt-cache,target=/var/cache/
 
 WORKDIR /repo
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-COPY openclaw.mjs ./
+COPY GreenchClaw.mjs ./
 COPY ui/package.json ./ui/package.json
 COPY packages ./packages
 COPY extensions ./extensions

@@ -54,8 +54,11 @@ function parseRegistryNpmSpecInternal(
   const name = hasSelector ? spec.slice(0, at) : spec;
   const selector = hasSelector ? spec.slice(at + 1) : "";
 
-  const unscopedName = /^[a-z0-9][a-z0-9-._~]*$/;
-  const scopedName = /^@[a-z0-9][a-z0-9-._~]*\/[a-z0-9][a-z0-9-._~]*$/;
+  // npm registry names are conventionally lowercase, but the brand is published
+  // as `@GreenchClaw/*`, so the local parser accepts mixed case here (the
+  // registry itself is case-insensitive for these lookups).
+  const unscopedName = /^[a-zA-Z0-9][a-zA-Z0-9-._~]*$/;
+  const scopedName = /^@[a-zA-Z0-9][a-zA-Z0-9-._~]*\/[a-zA-Z0-9][a-zA-Z0-9-._~]*$/;
   const isValidName = name.startsWith("@") ? scopedName.test(name) : unscopedName.test(name);
   if (!isValidName) {
     return {

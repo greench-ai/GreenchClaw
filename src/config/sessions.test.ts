@@ -158,7 +158,7 @@ describe("sessions", () => {
       buildGroupDisplayName({
         provider: "discord",
         groupChannel: "#general",
-        space: "friends-of-GreenchClaw",
+        space: "friends-of-greenchclaw",
         id: "123",
         key: "discord:group:123",
       }),

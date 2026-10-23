@@ -788,14 +788,16 @@ describe("mention helpers", () => {
   });
 
   it("normalizes zero-width characters", () => {
-    expect(normalizeMentionText("open\u200bclaw")).toBe("GreenchClaw");
+    expect(normalizeMentionText("Greench\u200bClaw")).toBe("greenchclaw");
   });
 
   it("matches patterns case-insensitively", () => {
     const regexes = buildMentionRegexes({
       messages: { groupChat: { mentionPatterns: ["\\bGreenchClaw\\b"] } },
     });
-    expect(matchesMentionPatterns("OPENCLAW: hi", regexes)).toBe(true);
+    // mention text is lowercased before matching, so the configured pattern must
+    // still match a differently-cased mention (regexes compile with the `i` flag).
+    expect(matchesMentionPatterns("GREENCHCLAW: hi", regexes)).toBe(true);
   });
 
   it("uses per-agent mention patterns when configured", () => {

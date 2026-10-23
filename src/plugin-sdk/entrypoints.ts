@@ -58,6 +58,8 @@ export const publicPluginOwnedSdkEntrypoints = [
   "browser-config",
   "image-generation-core",
   "memory-core-host-engine-embeddings",
+  "memory-core-host-engine-extract",
+  "memory-core-host-engine-facts",
   "memory-core-host-engine-foundation",
   "memory-core-host-engine-qmd",
   "memory-core-host-engine-storage",

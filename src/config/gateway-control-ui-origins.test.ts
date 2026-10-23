@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ensureControlUiAllowedOriginsForNonLoopbackBind } from "./gateway-control-ui-origins.js";
+import { DEFAULT_GATEWAY_PORT } from "./paths.js";
 
 describe("ensureControlUiAllowedOriginsForNonLoopbackBind", () => {
   it("seeds Fly-style runtime bind and port when config is empty", () => {
@@ -27,14 +28,9 @@ describe("ensureControlUiAllowedOriginsForNonLoopbackBind", () => {
     );
 
     expect(result.bind).toBe("lan");
-    // Port defaults are not pinned here: buildDefaultControlUiAllowedOrigins uses the
-    // gateway's default port, which tracks the rebrand. Assert shape, not a literal.
-    expect(result.seededOrigins).toHaveLength(2);
-    expect(result.seededOrigins?.[0]).toMatch(/^http:\/\/localhost:\d+$/);
-    expect(result.seededOrigins?.[1]).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
-    expect(result.seededOrigins?.[0]?.split(":").pop()).toBe(
-      result.seededOrigins?.[1]?.split(":").pop(),
-    );
+    // No port is configured here, so seeded origins use DEFAULT_GATEWAY_PORT.
+    expect(result.seededOrigins).toContain(`http://localhost:${DEFAULT_GATEWAY_PORT}`);
+    expect(result.seededOrigins).toContain(`http://127.0.0.1:${DEFAULT_GATEWAY_PORT}`);
   });
 
   it("uses runtime loopback before config non-loopback and avoids seeding", () => {
@@ -69,13 +65,10 @@ describe("ensureControlUiAllowedOriginsForNonLoopbackBind", () => {
     );
 
     expect(result.bind).toBe("auto");
-    // Container fallback seeds loopback origins on the default port (shape, not literal).
-    expect(result.seededOrigins).toHaveLength(2);
-    expect(result.seededOrigins?.[0]).toMatch(/^http:\/\/localhost:\d+$/);
-    expect(result.seededOrigins?.[1]).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
-    expect(result.seededOrigins?.[0]?.split(":").pop()).toBe(
-      result.seededOrigins?.[1]?.split(":").pop(),
-    );
+    expect(result.seededOrigins).toEqual([
+      `http://localhost:${DEFAULT_GATEWAY_PORT}`,
+      `http://127.0.0.1:${DEFAULT_GATEWAY_PORT}`,
+    ]);
   });
 
   it("does not overwrite explicit allowed origins", () => {

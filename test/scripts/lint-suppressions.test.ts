@@ -84,6 +84,7 @@ describe("production lint suppressions", () => {
       "extensions/discord/src/outbound-adapter.test-harness.ts|typescript/no-unnecessary-type-parameters|1",
       "extensions/discord/src/test-support/provider.test-support.ts|typescript/no-unnecessary-type-parameters|1",
       "extensions/feishu/src/bitable.ts|typescript/no-unnecessary-type-parameters|1",
+      "extensions/greench-agent/src/plugin.ts|typescript/no-implied-eval|1",
       "extensions/matrix/src/onboarding.test-harness.ts|typescript/no-unnecessary-type-parameters|1",
       "extensions/slack/src/monitor/provider-support.ts|typescript/no-unnecessary-type-parameters|1",
       "scripts/e2e/mcp-channels-harness.ts|unicorn/prefer-add-event-listener|1",

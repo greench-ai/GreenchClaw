@@ -50,13 +50,16 @@ type SupportedAnthropicMessagesCompatFields = Pick<
   "supportsEagerToolInputStreaming" | "supportsLongCacheRetention"
 >;
 
-// Union of the pi-ai thinking formats plus the two GreenchClaw-only aliases.
-// pi-ai adds formats over time (e.g. "ant-ling" in 0.75+); the union keeps the
-// config type assignable from pi-ai's own provider compat types.
+// Formats the runtime normalizes in model-catalog/normalize.ts; the upstream compat
+// type only declares a subset, so extend it here instead of tightening the schema.
 type SupportedThinkingFormat =
   | NonNullable<OpenAICompletionsCompat["thinkingFormat"]>
   | "deepseek"
-  | "openrouter";
+  | "openrouter"
+  | "zai"
+  | "together"
+  | "string-thinking"
+  | "ant-ling";
 
 export type ModelCompatConfig = SupportedOpenAICompatFields &
   SupportedOpenAIResponsesCompatFields &

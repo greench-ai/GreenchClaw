@@ -86,12 +86,21 @@ export function shouldAllowSilentLocalPairing(params: {
   if (params.hasBrowserOriginHeader && !params.isControlUi && !params.isWebchat) {
     return false;
   }
-  if (
-    params.reason === "not-paired" ||
-    params.reason === "scope-upgrade" ||
-    params.reason === "role-upgrade"
-  ) {
+  if (params.reason === "not-paired" || params.reason === "role-upgrade") {
     return true;
+  }
+  if (params.reason === "scope-upgrade") {
+    // Non-remote locality alone is not enough to widen an already-paired device:
+    // any local process able to reach loopback (or presenting a browser Origin)
+    // could otherwise self-upgrade a read-scoped pairing to admin. Scope upgrades
+    // auto-approve only for the two credential classes that prove first-party
+    // local tooling: CLI in a container-local shell, and a shared-secret client on
+    // loopback with no proxy/origin headers. Everything else queues an explicit
+    // approval request.
+    return (
+      params.locality === "cli_container_local" ||
+      params.locality === "shared_secret_loopback_local"
+    );
   }
   // metadata-upgrade auto-approves only for non-browser local reconnects that
   // already proved possession of local/shared credentials. Direct-local

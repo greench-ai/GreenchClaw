@@ -22,9 +22,9 @@ COPY --chown=appuser:appuser patches ./patches
 # workspace resolution so unrelated extension edits do not bust the layer.
 ARG GREENCHCLAW_QR_INSTALL_CACHE_BUSTER=stable
 RUN --mount=type=cache,id=GreenchClaw-pnpm-store,target=/home/appuser/.local/share/pnpm/store,sharing=locked \
-    printf '%s\n' "$GREENCHCLAW_QR_INSTALL_CACHE_BUSTER" >/tmp/greenchclaw-qr-install-cache-buster && \
-    if ! pnpm install --frozen-lockfile --ignore-scripts >/tmp/greenchclaw-qr-pnpm-install.log 2>&1; then \
-      cat /tmp/greenchclaw-qr-pnpm-install.log; \
+    printf '%s\n' "$GREENCHCLAW_QR_INSTALL_CACHE_BUSTER" >/tmp/GreenchClaw-qr-install-cache-buster && \
+    if ! pnpm install --frozen-lockfile --ignore-scripts >/tmp/GreenchClaw-qr-pnpm-install.log 2>&1; then \
+      cat /tmp/GreenchClaw-qr-pnpm-install.log; \
       exit 1; \
     fi
 

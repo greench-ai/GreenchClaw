@@ -25,7 +25,13 @@ export type FindExtraGatewayServicesOptions = {
   deep?: boolean;
 };
 
-const EXTRA_MARKERS = ["GreenchClaw", "clawdbot"] as const;
+// Matched against a lowercased copy of the unit file, so markers are lowercase
+// needles that map back to the canonical display marker.
+const MARKER_DISPLAY: Readonly<Record<string, Marker>> = {
+  greenchclaw: "GreenchClaw",
+  clawdbot: "clawdbot",
+};
+const EXTRA_MARKERS: readonly string[] = Object.keys(MARKER_DISPLAY);
 const SYSTEMD_REFERENCE_ONLY_KEYS = new Set([
   "after",
   "before",
@@ -65,15 +71,14 @@ export function renderGatewayServiceCleanupHints(
   }
 }
 
-type Marker = (typeof EXTRA_MARKERS)[number];
+type Marker = "GreenchClaw" | "clawdbot";
 
 function detectMarker(content: string): Marker | null {
   const lower = normalizeLowercaseStringOrEmpty(content);
   for (const marker of EXTRA_MARKERS) {
-    // `lower` is lowercased; markers keep brand casing. Compare both sides
-    // lowercased or this can never match (same class as the client-ID bug).
-    if (lower.includes(normalizeLowercaseStringOrEmpty(marker))) {
-      return marker;
+    // The haystack is lowercased, so compare against lowercase needles.
+    if (lower.includes(marker)) {
+      return MARKER_DISPLAY[marker];
     }
   }
   return null;
@@ -114,10 +119,8 @@ export function detectMarkerLineWithGateway(contents: string): Marker | null {
       continue;
     }
     for (const marker of EXTRA_MARKERS) {
-      // `trimmed` is lowercased; the markers keep their brand casing, so a raw
-      // `includes(marker)` can never match. Compare both sides lowercased.
-      if (trimmed.includes(normalizeLowercaseStringOrEmpty(marker))) {
-        return marker;
+      if (trimmed.includes(marker)) {
+        return MARKER_DISPLAY[marker];
       }
     }
   }
@@ -181,9 +184,8 @@ function detectLaunchdGatewayExecutionMarker(contents: string): Marker | null {
     [...program, ...programArguments].filter(Boolean).join("\n"),
   );
   for (const marker of EXTRA_MARKERS) {
-    // `launchCommand` is lowercased; markers keep brand casing.
-    if (launchCommand.includes(normalizeLowercaseStringOrEmpty(marker))) {
-      return marker;
+    if (launchCommand.includes(marker)) {
+      return MARKER_DISPLAY[marker];
     }
   }
   return null;
@@ -537,7 +539,7 @@ export async function findExtraGatewayServices(
       let marker: Marker | null = null;
       for (const candidate of EXTRA_MARKERS) {
         if (lowerName.includes(candidate) || lowerCommand.includes(candidate)) {
-          marker = candidate;
+          marker = MARKER_DISPLAY[candidate] ?? null;
           break;
         }
       }

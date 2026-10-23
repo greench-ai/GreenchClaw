@@ -469,8 +469,8 @@ describe("AcpSessionManager", () => {
         "by",
         "kim",
         "0119/",
-        ".open",
-        "claw/",
+        ".Gree",
+        "nchClaw/",
         "workspace",
         "\n\t",
         "입니다",
@@ -1714,17 +1714,17 @@ describe("AcpSessionManager", () => {
       runtime: runtimeState.runtime,
     });
     hoisted.readAcpSessionEntryMock.mockReturnValue({
-      sessionKey: "agent:GreenchClaw:acp:session-1",
-      storeSessionKey: "agent:GreenchClaw:acp:session-1",
+      sessionKey: "agent:greenchclaw:acp:session-1",
+      storeSessionKey: "agent:greenchclaw:acp:session-1",
       acp: readySessionMeta({
-        agent: "GreenchClaw",
+        agent: "greenchclaw",
       }),
     });
 
     const manager = new AcpSessionManager();
     const closeResult = await manager.closeSession({
       cfg: baseCfg,
-      sessionKey: "agent:GreenchClaw:acp:session-1",
+      sessionKey: "agent:greenchclaw:acp:session-1",
       reason: "terminal-task-cleanup",
       allowBackendUnavailable: true,
       discardPersistentState: true,
@@ -1735,7 +1735,7 @@ describe("AcpSessionManager", () => {
     expect(closeResult.runtimeNotice).toContain("does not support session/close");
     expect(closeResult.metaCleared).toBe(true);
     expect(runtimeState.prepareFreshSession).toHaveBeenCalledWith({
-      sessionKey: "agent:GreenchClaw:acp:session-1",
+      sessionKey: "agent:greenchclaw:acp:session-1",
     });
   });
 

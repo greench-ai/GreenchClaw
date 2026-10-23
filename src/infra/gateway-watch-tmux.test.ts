@@ -56,7 +56,7 @@ describe("gateway-watch tmux wrapper", () => {
         args: ["--dev", "gateway", "--port=18789"],
         env: {},
       }),
-    ).toBe("GreenchClaw-gateway-watch-dev");
+    ).toBe("GreenchClaw-gateway-watch-dev-18789");
   });
 
   it("builds a login-shell command that runs the raw watcher in the repo", () => {

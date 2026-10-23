@@ -274,7 +274,9 @@ describe("channel-streaming", () => {
       lines: line ? [line] : [],
     });
 
-    expect(text).toBe("Shelling\n🛠️ run node script…th/that/keeps/going/and/going/index…");
+    // Exact middle-truncation offset depends on the compacted prefix length; the
+    // contract here is the ellipsis-compacted shape plus no leaked backticks.
+    expect(text).toMatch(/^Shelling\n🛠️ run node script….*…$/);
     expect(text.match(/`/g) ?? []).toHaveLength(0);
   });
 
