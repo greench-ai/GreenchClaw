@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ensureControlUiAllowedOriginsForNonLoopbackBind } from "./gateway-control-ui-origins.js";
+import { DEFAULT_GATEWAY_PORT } from "./paths.js";
 
 describe("ensureControlUiAllowedOriginsForNonLoopbackBind", () => {
   it("seeds Fly-style runtime bind and port when config is empty", () => {
@@ -27,8 +28,9 @@ describe("ensureControlUiAllowedOriginsForNonLoopbackBind", () => {
     );
 
     expect(result.bind).toBe("lan");
-    expect(result.seededOrigins).toContain("http://localhost:18789");
-    expect(result.seededOrigins).toContain("http://127.0.0.1:18789");
+    // No port is configured here, so seeded origins use DEFAULT_GATEWAY_PORT.
+    expect(result.seededOrigins).toContain(`http://localhost:${DEFAULT_GATEWAY_PORT}`);
+    expect(result.seededOrigins).toContain(`http://127.0.0.1:${DEFAULT_GATEWAY_PORT}`);
   });
 
   it("uses runtime loopback before config non-loopback and avoids seeding", () => {
@@ -63,7 +65,10 @@ describe("ensureControlUiAllowedOriginsForNonLoopbackBind", () => {
     );
 
     expect(result.bind).toBe("auto");
-    expect(result.seededOrigins).toEqual(["http://localhost:18789", "http://127.0.0.1:18789"]);
+    expect(result.seededOrigins).toEqual([
+      `http://localhost:${DEFAULT_GATEWAY_PORT}`,
+      `http://127.0.0.1:${DEFAULT_GATEWAY_PORT}`,
+    ]);
   });
 
   it("does not overwrite explicit allowed origins", () => {

@@ -187,7 +187,7 @@ async function withMediaAutoDetectEnv<T>(
 ): Promise<T> {
   return await withEnvAsync(
     {
-      SHERPA_ONGREENCH_MODEL_DIR: undefined,
+      SHERPA_ONCLAW_MODEL_DIR: undefined,
       WHISPER_CPP_MODEL: undefined,
       OPENAI_API_KEY: undefined,
       GROQ_API_KEY: undefined,
@@ -750,7 +750,7 @@ describe("applyMediaUnderstanding", () => {
     await withMediaAutoDetectEnv(
       {
         PATH: binDir,
-        SHERPA_ONGREENCH_MODEL_DIR: modelDir,
+        SHERPA_ONCLAW_MODEL_DIR: modelDir,
       },
       async () => {
         const result = await applyMediaUnderstanding({ ctx, cfg });

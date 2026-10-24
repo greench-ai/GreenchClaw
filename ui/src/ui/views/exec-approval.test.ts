@@ -49,10 +49,10 @@ function restoreDescriptor(name: "showModal" | "close", descriptor?: PropertyDes
 }
 
 async function getRenderedDialog() {
-  const modal = container.querySelector<GreenchClawModalDialog>("GreenchClaw-modal-dialog");
+  const modal = container.querySelector<GreenchClawModalDialog>("greench-claw-modal-dialog");
   expect(modal).toBeInstanceOf(HTMLElement);
   if (!modal) {
-    throw new Error("Expected GreenchClaw-modal-dialog");
+    throw new Error("Expected greench-claw-modal-dialog");
   }
   await modal.updateComplete;
   await nextFrame();
@@ -137,13 +137,13 @@ describe("approval and confirmation modals", () => {
     const { modal, dialog } = await getRenderedDialog();
 
     expect(dialog.getAttribute("aria-modal")).toBe("true");
-    expect(dialog.getAttribute("aria-labelledby")).toBe("GreenchClaw-modal-dialog-label");
-    expect(dialog.getAttribute("aria-describedby")).toBe("GreenchClaw-modal-dialog-description");
-    expect(modal.shadowRoot?.querySelector("#GreenchClaw-modal-dialog-label")?.textContent).toBe(
+    expect(dialog.getAttribute("aria-labelledby")).toBe("greench-claw-modal-dialog-label");
+    expect(dialog.getAttribute("aria-describedby")).toBe("greench-claw-modal-dialog-description");
+    expect(modal.shadowRoot?.querySelector("#greench-claw-modal-dialog-label")?.textContent).toBe(
       "Exec approval needed",
     );
     expect(
-      modal.shadowRoot?.querySelector("#GreenchClaw-modal-dialog-description")?.textContent?.trim(),
+      modal.shadowRoot?.querySelector("#greench-claw-modal-dialog-description")?.textContent?.trim(),
     ).toBe("expires in 1m");
     expect(container.querySelector("#exec-approval-title")?.textContent?.trim()).toBe(
       "Exec approval needed",

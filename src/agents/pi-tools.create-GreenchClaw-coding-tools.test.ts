@@ -21,7 +21,7 @@ import { buildEmptyExplicitToolAllowlistError } from "./tool-allowlist-guard.js"
 import { DEFAULT_PLUGIN_TOOLS_ALLOWLIST_ENTRY, normalizeToolName } from "./tool-policy.js";
 
 const tinyPngBuffer = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO2f7z8AAAAASUVORK5CYII=",
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC",
   "base64",
 );
 const XAI_UNSUPPORTED_SCHEMA_KEYWORDS = new Set([

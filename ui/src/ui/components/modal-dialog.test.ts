@@ -45,7 +45,7 @@ function restoreDescriptor(name: "showModal" | "close", descriptor?: PropertyDes
 async function renderModal() {
   render(
     html`
-      <GreenchClaw-modal-dialog
+      <greench-claw-modal-dialog
         label="Confirm action"
         description="Review the operation before continuing."
       >
@@ -55,14 +55,14 @@ async function renderModal() {
           <button id="first-action">First</button>
           <button id="last-action">Last</button>
         </section>
-      </GreenchClaw-modal-dialog>
+      </greench-claw-modal-dialog>
     `,
     container,
   );
-  const modal = container.querySelector<GreenchClawModalDialog>("GreenchClaw-modal-dialog");
+  const modal = container.querySelector<GreenchClawModalDialog>("greench-claw-modal-dialog");
   expect(modal).toBeInstanceOf(HTMLElement);
   if (!modal) {
-    throw new Error("Expected GreenchClaw-modal-dialog");
+    throw new Error("Expected greench-claw-modal-dialog");
   }
   await modal.updateComplete;
   await nextFrame();
@@ -82,7 +82,7 @@ function expectShadowElement(modal: GreenchClawModalDialog, id: string): HTMLEle
   return element;
 }
 
-describe("GreenchClaw-modal-dialog", () => {
+describe("greench-claw-modal-dialog", () => {
   beforeEach(() => {
     installDialogPolyfill();
     container = document.createElement("div");
@@ -105,14 +105,14 @@ describe("GreenchClaw-modal-dialog", () => {
     expect(dialog.getAttribute("aria-modal")).toBe("true");
     const labelId = dialog.getAttribute("aria-labelledby");
     const descriptionId = dialog.getAttribute("aria-describedby");
-    expect(labelId).toBe("GreenchClaw-modal-dialog-label");
-    expect(descriptionId).toBe("GreenchClaw-modal-dialog-description");
+    expect(labelId).toBe("greench-claw-modal-dialog-label");
+    expect(descriptionId).toBe("greench-claw-modal-dialog-description");
     expect(dialog.getRootNode()).toBe(modal.shadowRoot);
     expect(dialog.ownerDocument.querySelector(`#${labelId}`)).toBeNull();
-    expect(expectShadowElement(modal, "GreenchClaw-modal-dialog-label").textContent).toBe(
+    expect(expectShadowElement(modal, "greench-claw-modal-dialog-label").textContent).toBe(
       "Confirm action",
     );
-    expect(expectShadowElement(modal, "GreenchClaw-modal-dialog-description").textContent).toBe(
+    expect(expectShadowElement(modal, "greench-claw-modal-dialog-description").textContent).toBe(
       "Review the operation before continuing.",
     );
   });

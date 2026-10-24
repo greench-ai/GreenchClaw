@@ -342,6 +342,8 @@ focused channel/runtime subpaths, `config-contracts`, `string-coerce-runtime`,
     | `plugin-sdk/memory-core-engine-runtime` | Memory index/search runtime facade |
     | `plugin-sdk/memory-core-host-engine-foundation` | Memory host foundation engine exports |
     | `plugin-sdk/memory-core-host-engine-embeddings` | Memory host embedding contracts, registry access, local provider, and generic batch/remote helpers |
+    | `plugin-sdk/memory-core-host-engine-extract` | Memory host text extraction engine exports |
+    | `plugin-sdk/memory-core-host-engine-facts` | Memory host facts extraction and storage engine exports |
     | `plugin-sdk/memory-core-host-engine-qmd` | Memory host QMD engine exports |
     | `plugin-sdk/memory-core-host-engine-storage` | Memory host storage engine exports |
     | `plugin-sdk/memory-core-host-multimodal` | Memory host multimodal helpers |

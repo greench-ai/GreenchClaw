@@ -306,7 +306,9 @@ describe("resolveNpmCommandInvocation", () => {
   });
 
   it("uses the platform npm command when npm_execpath is missing", () => {
-    expect(resolveNpmCommandInvocation({ platform: "win32" })).toEqual({
+    // Process env is inherited; under a pnpm-launched test runner npm_execpath
+    // points at pnpm, which is a valid npm exec path, so pin the input.
+    expect(resolveNpmCommandInvocation({ platform: "win32", npmExecPath: "" })).toEqual({
       command: "npm.cmd",
       args: [],
     });

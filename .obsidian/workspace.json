@@ -1,0 +1,237 @@
+{
+  "main": {
+    "id": "1d5ded30d3d81fe3",
+    "type": "split",
+    "children": [
+      {
+        "id": "cdd7b3b68025f139",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "94dc54accfb910b8",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "file:/home/greench/.GreenchClaw/workspace/TRACK-PROMPTS.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "TRACK-PROMPTS"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "f8fe7223d5816b0c",
+    "type": "split",
+    "children": [
+      {
+        "id": "04ccc078216c1cb3",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "227fef7a7f9565d1",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "a4b3938cebb4b8c4",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "432731c51e939c5b",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "aca78d9c96d16fe2",
+    "type": "split",
+    "children": [
+      {
+        "id": "08bbce27c0b414c5",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "bfbaa736de7fbf8b",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks"
+            }
+          },
+          {
+            "id": "45cc63cb50e3e95d",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links"
+            }
+          },
+          {
+            "id": "f6180c45e0e99810",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "fe69d0c903481446",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "6db842bd39e30b29",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "94dc54accfb910b8",
+  "lastOpenFiles": [
+    "src/agents/pi-embedded-runner/run/AGENTS.md",
+    "docs/start/hubs.md",
+    "dist/control-ui/index.html",
+    "dist/control-ui/assets/zh-TW-ZmgXc_ic.js.map",
+    "dist/control-ui/assets/zh-TW-ZmgXc_ic.js",
+    "dist/control-ui/assets/zh-CN-HmbU1wyM.js.map",
+    "dist/control-ui/assets/zh-CN-HmbU1wyM.js",
+    "dist/control-ui/assets/vi-Bda-XKvL.js.map",
+    "dist/control-ui/assets/vi-Bda-XKvL.js",
+    "dist/control-ui/assets/uk-BTyGmRjB.js.map",
+    "dist/control-ui/assets/uk-BTyGmRjB.js",
+    "dist/control-ui/assets/tr-HrwUsVNa.js.map",
+    "dist/control-ui/favicon.svg",
+    "dist/control-ui/favicon-32.png",
+    "dist/control-ui/favicon-256.png",
+    "dist/control-ui/apple-touch-icon.png",
+    "extensions/greench-rag/node_modules/pdfjs-dist/legacy/web/images/toolbarButton-menuArrow.svg",
+    "extensions/greench-rag/node_modules/pdfjs-dist/legacy/web/images/toolbarButton-editorHighlight.svg",
+    "extensions/greench-rag/node_modules/pdfjs-dist/legacy/web/images/secondaryToolbarButton-documentProperties.svg",
+    "extensions/greench-rag/node_modules/pdfjs-dist/legacy/web/images/messageBar_warning.svg",
+    "extensions/greench-rag/node_modules/pdfjs-dist/legacy/web/images/messageBar_closingButton.svg",
+    "extensions/greench-rag/node_modules/pdfjs-dist/legacy/web/images/loading-icon.gif",
+    "extensions/greench-rag/node_modules/pdfjs-dist/README.md",
+    "extensions/greench-rag/node_modules/pdfjs-dist/CODE_OF_CONDUCT.md",
+    "extensions/msteams/node_modules/lru-memoizer/README.md",
+    "extensions/msteams/node_modules/jwks-rsa/README.md",
+    "extensions/diffs/node_modules/@pierre/theme/README.md",
+    "extensions/diffs/node_modules/@pierre/theme/LICENSE.md",
+    "extensions/googlechat/node_modules/node-fetch/README.md",
+    "extensions/googlechat/node_modules/node-fetch/LICENSE.md",
+    "extensions/googlechat/node_modules/https-proxy-agent/README.md",
+    "extensions/googlechat/node_modules/gaxios/README.md",
+    "dist/extensions/tlon/bundled-skills/@tloncorp/tlon-skill/references/urbit-api.md",
+    "dist/extensions/tlon/bundled-skills/@tloncorp/tlon-skill/references/hooks.md",
+    "dist/extensions/open-prose/skills/prose/examples/roadmap/README.md",
+    "dist/extensions/tlon/bundled-skills/@tloncorp/tlon-skill/SKILL.md",
+    "dist/extensions/tlon/bundled-skills/@tloncorp/tlon-skill/README.md",
+    "dist/extensions/open-prose/skills/prose/state/sqlite.md",
+    "dist/extensions/open-prose/skills/prose/state/postgres.md",
+    "dist/extensions/open-prose/skills/prose/state/in-context.md",
+    "dist/extensions/open-prose/skills/prose/state/filesystem.md",
+    "dist/extensions/open-prose/skills/prose/primitives/session.md",
+    "dist/extensions/open-prose/skills/prose/lib/README.md",
+    "dist/extensions/open-prose/skills/prose/examples/README.md",
+    "dist/extensions/open-prose/skills/prose/guidance/system-prompt.md",
+    "dist/extensions/open-prose/skills/prose/guidance/patterns.md"
+  ]
+}

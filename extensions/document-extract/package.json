@@ -5,7 +5,7 @@
   "description": "GreenchClaw local document extraction plugin",
   "type": "module",
   "dependencies": {
-    "pdfjs-dist": "5.7.284"
+    "pdfjs-dist": "6.4.299"
   },
   "devDependencies": {
     "@GreenchClaw/plugin-sdk": "workspace:*"

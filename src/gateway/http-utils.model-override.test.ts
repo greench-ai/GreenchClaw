@@ -51,4 +51,26 @@ describe("resolveOpenAiCompatModelOverride", () => {
       errorMessage: "Model 'claude-cli/opus' is not allowed for agent 'main'.",
     });
   });
+
+  it("rejects a provider model ref in the request `model` field", async () => {
+    await expect(
+      resolveOpenAiCompatModelOverride({
+        req: createReq({ "x-GreenchClaw-model": "claude-cli/opus" }),
+        agentId: "main",
+        model: "claude-cli/opus",
+      }),
+    ).resolves.toEqual({
+      errorMessage: "Invalid `model`. Use `GreenchClaw` or `GreenchClaw/<agentId>`.",
+    });
+  });
+
+  it("validates the override against the agent selected by `model`", async () => {
+    await expect(
+      resolveOpenAiCompatModelOverride({
+        req: createReq({ "x-GreenchClaw-model": "openai/gpt-5.4" }),
+        agentId: "main",
+        model: "GreenchClaw/main",
+      }),
+    ).resolves.toEqual({ modelOverride: "openai/gpt-5.4" });
+  });
 });

@@ -10,6 +10,7 @@ import {
 } from "./facade-loader.js";
 import { listImportedBundledPluginFacadeIds as listImportedFacadeRuntimeIds } from "./facade-runtime.js";
 import { createPluginSdkTestHarness } from "./test-helpers.js";
+import { resolveExistingBundledPluginRoot } from "../../test/helpers/existing-bundled-plugin-root.js";
 
 const { createTempDirSync } = createPluginSdkTestHarness();
 const originalBundledPluginsDir = process.env.GREENCHCLAW_BUNDLED_PLUGINS_DIR;
@@ -51,7 +52,11 @@ function nextTrustedPluginId(prefix: string): string {
 }
 
 function createTrustedBundledPluginsRoot(kind: "dist" | "dist-runtime" = "dist"): string {
-  const rootDir = path.join(packageRoot, kind, "extensions");
+  // Both roots are trusted, but a checkout only has one of them (CI builds `dist` only,
+  // release builds also produce `dist-runtime`). Probing keeps the fixture inside a
+  // trusted tree; the per-plugin fixture id keeps `dist`/`dist-runtime` cases distinct
+  // even when they collapse onto the same root.
+  const rootDir = resolveExistingBundledPluginRoot({ packageRoot, preferredKind: kind });
   fs.mkdirSync(rootDir, { recursive: true });
   return rootDir;
 }
@@ -184,30 +189,31 @@ afterEach(() => {
 
 describe("plugin-sdk facade loader", () => {
   it("honors trusted bundled plugin dir overrides under the package root", () => {
-    const pluginId = nextTrustedPluginId("GreenchClaw-facade-loader-override-");
     const overrideA = createBundledPluginFixture({
-      pluginId,
       kind: "dist",
       prefix: "GreenchClaw-facade-loader-a-",
       marker: "override-a",
     });
     const overrideB = createBundledPluginFixture({
-      pluginId,
       kind: "dist-runtime",
       prefix: "GreenchClaw-facade-loader-b-",
       marker: "override-b",
     });
+    // Each root gets its own plugin id: a checkout has only one of `dist` and
+    // `dist-runtime`, so both fixtures often land in the same trusted root and a shared
+    // id would make the second fixture overwrite the first.
+    expect(overrideA.pluginId).not.toBe(overrideB.pluginId);
 
     process.env.GREENCHCLAW_BUNDLED_PLUGINS_DIR = overrideA.bundledPluginsDir;
     const fromA = loadBundledPluginPublicSurfaceModuleSync<{ marker: string }>({
-      dirName: pluginId,
+      dirName: overrideA.pluginId,
       artifactBasename: "api.js",
     });
     expect(fromA.marker).toBe("override-a");
 
     process.env.GREENCHCLAW_BUNDLED_PLUGINS_DIR = overrideB.bundledPluginsDir;
     const fromB = loadBundledPluginPublicSurfaceModuleSync<{ marker: string }>({
-      dirName: pluginId,
+      dirName: overrideB.pluginId,
       artifactBasename: "api.js",
     });
     expect(fromB.marker).toBe("override-b");

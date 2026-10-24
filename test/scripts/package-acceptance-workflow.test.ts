@@ -268,11 +268,17 @@ describe("package artifact reuse", () => {
     expect(scheduler).toContain(
       "published_upgrade_survivor_baselines=${shellQuote(process.env.GREENCHCLAW_UPGRADE_SURVIVOR_BASELINE_SPECS)}",
     );
-    expect(scheduler).toContain(
-      '["GREENCHCLAW_UPGRADE_SURVIVOR_BASELINE_SPEC", baseEnv.GREENCHCLAW_UPGRADE_SURVIVOR_BASELINE_SPEC]',
-    );
-    expect(scheduler).toContain('["GREENCHCLAW_UPGRADE_SURVIVOR_BASELINE_SPECS",');
-    expect(scheduler).toContain('["GREENCHCLAW_UPGRADE_SURVIVOR_SCENARIOS",');
+    // Prettier rewraps these pairs once the line grows, so assert the forwarded
+    // env pair rather than its exact layout.
+    const forwardedEnv = (name: string): boolean =>
+      new RegExp(`\\[\\s*"${name}",\\s*baseEnv\\.${name},?\\s*\\]`).test(scheduler);
+    for (const name of [
+      "GREENCHCLAW_UPGRADE_SURVIVOR_BASELINE_SPEC",
+      "GREENCHCLAW_UPGRADE_SURVIVOR_BASELINE_SPECS",
+      "GREENCHCLAW_UPGRADE_SURVIVOR_SCENARIOS",
+    ]) {
+      expect(forwardedEnv(name), name).toBe(true);
+    }
     expect(packageJson).toContain("GREENCHCLAW_UPGRADE_SURVIVOR_PUBLISHED_BASELINE=1");
     expect(packageJson).toContain("test:docker:update-restart-auth");
     expect(packageJson).toContain("GREENCHCLAW_UPGRADE_SURVIVOR_UPDATE_RESTART_MODE=auto-auth");
@@ -325,13 +331,14 @@ describe("package artifact reuse", () => {
     );
   });
 
-  it("uses Blacksmith Docker build caching for prepared E2E images", () => {
+  it("prepares E2E images on standard GitHub runners, not Blacksmith", () => {
     const workflow = readFileSync(LIVE_E2E_WORKFLOW, "utf8");
 
-    expect(workflow).toContain("uses: useblacksmith/setup-docker-builder@");
-    expect(workflow).toContain("uses: useblacksmith/build-push-action@");
-    expect(workflow).not.toContain("cache-from: type=gha,scope=docker-e2e");
-    expect(workflow).not.toContain("cache-to: type=gha,mode=max,scope=docker-e2e");
+    // 6ca9d574 moved the live/E2E lane to GitHub-hosted runners; the Blacksmith
+    // docker-builder action must not come back silently.
+    expect(workflow).not.toContain("uses: useblacksmith/setup-docker-builder@");
+    expect(workflow).not.toContain("uses: useblacksmith/build-push-action@");
+    expect(workflow).not.toContain("blacksmith-8vcpu-ubuntu-2404");
   });
 
   it("shards broad native live tests instead of one serial live-all job", () => {
@@ -391,11 +398,9 @@ describe("package artifact reuse", () => {
       'GREENCHCLAW_LIVE_CLI_BACKEND_ARGS=["exec","--json","--color","never","--sandbox","danger-full-access","--skip-git-repo-check"]',
     );
     expect(workflow).toContain("bash .release-harness/scripts/ci-live-command-retry.sh");
-    expect(workflow).toMatch(/validate_repo_e2e:[\s\S]*?runs-on: blacksmith-8vcpu-ubuntu-2404/u);
-    expect(workflow).toMatch(/validate_special_e2e:[\s\S]*?runs-on: blacksmith-8vcpu-ubuntu-2404/u);
-    expect(workflow).toMatch(
-      /validate_live_provider_suites:[\s\S]*?runs-on: blacksmith-8vcpu-ubuntu-2404/u,
-    );
+    expect(workflow).toMatch(/validate_repo_e2e:[\s\S]*?runs-on: ubuntu-24\.04/u);
+    expect(workflow).toMatch(/validate_special_e2e:[\s\S]*?runs-on: ubuntu-24\.04/u);
+    expect(workflow).toMatch(/validate_live_provider_suites:[\s\S]*?runs-on: ubuntu-24\.04/u);
     expect(workflow).toContain("suite_id: native-live-src-gateway-core");
     expect(workflow).toContain("suite_id: native-live-src-gateway-backends");
     expect(workflow).toContain("suite_id: native-live-src-infra");
@@ -446,9 +451,7 @@ describe("package artifact reuse", () => {
     expect(workflow).toContain("suite_id: native-live-extensions-openai");
     expect(workflow).toContain("suite_id: native-live-extensions-o-z-other");
     expect(workflow).toContain("validate_live_media_provider_suites:");
-    expect(workflow).toMatch(
-      /validate_live_media_provider_suites:[\s\S]*?runs-on: blacksmith-8vcpu-ubuntu-2404/u,
-    );
+    expect(workflow).toMatch(/validate_live_media_provider_suites:[\s\S]*?runs-on: ubuntu-24\.04/u);
     expect(workflow).toContain(
       "image: ghcr.io/GreenchClaw/GreenchClaw-live-media-runner:ubuntu-24.04",
     );
@@ -928,7 +931,9 @@ describe("package artifact reuse", () => {
       const workflow = readWorkflow(workflowPath);
       expect(workflow.env?.NODE_VERSION, workflowPath).toBe("24.15.0");
       if (workflow.env?.PNPM_VERSION !== undefined) {
-        expect(workflow.env.PNPM_VERSION, workflowPath).toBe("11.0.8");
+        // "auto" derives the exact version from the packageManager pin at run time
+        // (af59f515); a literal pin still has to be exact.
+        expect(["auto", "11.0.8"], workflowPath).toContain(workflow.env.PNPM_VERSION);
       }
     }
 

@@ -67,16 +67,16 @@ describe("channel registry helpers", () => {
   });
 
   it("prefers the pinned channel registry when resolving registered plugin channels", () => {
-    const startupRegistry = createRegistryWithRegisteredChannel("GreenchClaw-weixin", ["weixin"]);
+    const startupRegistry = createRegistryWithRegisteredChannel("weixin", ["weixin"]);
     setActivePluginRegistry(startupRegistry);
     pinActivePluginChannelRegistry(startupRegistry);
 
     const replacementRegistry = createRegistryWithRegisteredChannel("qqbot", ["qq"]);
     setActivePluginRegistry(replacementRegistry);
 
-    expect(listRegisteredChannelPluginIds()).toEqual(["GreenchClaw-weixin"]);
-    expect(normalizeAnyChannelId("weixin")).toBe("GreenchClaw-weixin");
-    expect(getRegisteredChannelPluginMeta("OPENCLAW-WEIXIN")?.aliases).toEqual(["weixin"]);
+    expect(listRegisteredChannelPluginIds()).toEqual(["weixin"]);
+    expect(normalizeAnyChannelId("weixin")).toBe("weixin");
+    expect(getRegisteredChannelPluginMeta("WEIXIN")?.aliases).toEqual(["weixin"]);
   });
 
   it("falls back to the active registry when the pinned channel registry has no channels", () => {

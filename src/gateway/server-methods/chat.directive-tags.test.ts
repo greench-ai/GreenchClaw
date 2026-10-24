@@ -2176,7 +2176,7 @@ describe("chat directive tag stripping for non-streaming final payloads", () => 
           {
             mimeType: "image/png",
             content:
-              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aYoYAAAAASUVORK5CYII=",
+              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC",
           },
           {
             mimeType: "image/jpeg",
@@ -2322,7 +2322,7 @@ describe("chat directive tag stripping for non-streaming final payloads", () => 
           {
             mimeType: "image/png",
             content:
-              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aYoYAAAAASUVORK5CYII=",
+              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC",
           },
           {
             mimeType: "image/png",
@@ -2386,7 +2386,7 @@ describe("chat directive tag stripping for non-streaming final payloads", () => 
           {
             mimeType: "image/png",
             content:
-              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aYoYAAAAASUVORK5CYII=",
+              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC",
           },
         ],
       },
@@ -2425,7 +2425,7 @@ describe("chat directive tag stripping for non-streaming final payloads", () => 
           {
             mimeType: "image/png",
             content:
-              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aYoYAAAAASUVORK5CYII=",
+              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC",
           },
         ],
       },
@@ -2616,7 +2616,7 @@ describe("chat directive tag stripping for non-streaming final payloads", () => 
           {
             mimeType: "image/png",
             content:
-              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/woAAn8B9FD5fHAAAAAASUVORK5CYII=",
+              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC",
           },
         ],
       },
@@ -2670,7 +2670,7 @@ describe("chat directive tag stripping for non-streaming final payloads", () => 
           {
             mimeType: "image/png",
             content:
-              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/woAAn8B9FD5fHAAAAAASUVORK5CYII=",
+              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC",
           },
         ],
       },
@@ -2725,7 +2725,7 @@ describe("chat directive tag stripping for non-streaming final payloads", () => 
           {
             mimeType: "image/png",
             content:
-              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/woAAn8B9FD5fHAAAAAASUVORK5CYII=",
+              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC",
           },
         ],
       },
@@ -2787,7 +2787,7 @@ describe("chat directive tag stripping for non-streaming final payloads", () => 
           {
             mimeType: "image/png",
             content:
-              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/woAAn8B9FD5fHAAAAAASUVORK5CYII=",
+              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC",
           },
         ],
       },
@@ -3189,7 +3189,7 @@ describe("chat directive tag stripping for non-streaming final payloads", () => 
           {
             mimeType: "image/png",
             content:
-              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/woAAn8B9FD5fHAAAAAASUVORK5CYII=",
+              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC",
           },
           {
             mimeType: "image/png",
@@ -3270,7 +3270,7 @@ describe("chat directive tag stripping for non-streaming final payloads", () => 
           {
             mimeType: "image/png",
             content:
-              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aYoYAAAAASUVORK5CYII=",
+              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC",
           },
           {
             mimeType: "image/jpeg",
@@ -3317,7 +3317,7 @@ describe("chat directive tag stripping for non-streaming final payloads", () => 
           {
             mimeType: "image/png",
             content:
-              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/woAAn8B9FD5fHAAAAAASUVORK5CYII=",
+              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC",
           },
         ],
       },

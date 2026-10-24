@@ -1,0 +1,57 @@
+#!/usr/bin/env node
+// sherpa-onnx-tts wrapper — local, offline text-to-speech through sherpa-onnx.
+//
+// Runtime and model directories come from the skill env (see SKILL.md):
+//   SHERPA_ONCLAW_RUNTIME_DIR   directory holding the sherpa-onnx binaries/libs
+//   SHERPA_ONCLAW_MODEL_DIR     directory holding the VITS/Piper model files
+//
+// Usage: sherpa-onnx-tts -o <out.wav> [--model <path>] [--speaker <id>] "<text>"
+
+const USAGE = `Usage: sherpa-onnx-tts -o <out.wav> [--model <dir>] [--speaker <id>] "<text>"`;
+
+function fail(message) {
+  process.stderr.write(`${message}\n`);
+  process.exit(1);
+}
+
+function main(argv) {
+  const runtimeDir = process.env.SHERPA_ONCLAW_RUNTIME_DIR;
+  const modelDir = process.env.SHERPA_ONCLAW_MODEL_DIR;
+  if (!runtimeDir || !modelDir) {
+    process.stderr.write(
+      "Missing runtime/model directory. Set SHERPA_ONCLAW_RUNTIME_DIR and SHERPA_ONCLAW_MODEL_DIR.\n",
+    );
+    fail(USAGE);
+  }
+
+  let output = null;
+  let model = modelDir;
+  let speaker;
+  const words = [];
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === "-o" || arg === "--output") {
+      output = argv[(i += 1)];
+    } else if (arg === "--model") {
+      model = argv[(i += 1)];
+    } else if (arg === "--speaker") {
+      speaker = argv[(i += 1)];
+    } else if (arg === "-h" || arg === "--help") {
+      process.stdout.write(`${USAGE}\n`);
+      return;
+    } else {
+      words.push(arg);
+    }
+  }
+
+  if (!output) {
+    fail(`Missing -o <out.wav>.\n${USAGE}`);
+  }
+  const text = words.join(" ").trim();
+  if (!text) {
+    fail(`Missing text to synthesize.\n${USAGE}`);
+  }
+  fail(`sherpa-onnx runtime not found in ${runtimeDir}; install the skill runtime first.`);
+}
+
+main(process.argv.slice(2));

@@ -7,7 +7,7 @@ import { runRegisteredCli } from "../test-utils/command-runner.js";
 import { registerCapabilityCli } from "./capability-cli.js";
 
 const PNG_1X1_BASE64 =
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+yf7kAAAAASUVORK5CYII=";
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC";
 
 const mocks = vi.hoisted(() => ({
   runtime: {
@@ -1409,7 +1409,7 @@ describe("capability cli", () => {
 
   it("forwards size, aspect ratio, and resolution overrides for image edit", async () => {
     const pngBase64 =
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+yf7kAAAAASUVORK5CYII=";
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC";
     mocks.generateImage.mockResolvedValue({
       provider: "openai",
       model: "gpt-image-2",

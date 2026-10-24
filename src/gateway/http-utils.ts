@@ -32,6 +32,9 @@ export {
 export const GREENCHCLAW_MODEL_ID = "GreenchClaw";
 export const GREENCHCLAW_DEFAULT_MODEL_ID = "GreenchClaw/default";
 
+const LOWERCASE_GATEWAY_MODEL_ID = GREENCHCLAW_MODEL_ID.toLowerCase();
+const LOWERCASE_GATEWAY_DEFAULT_MODEL_ID = GREENCHCLAW_DEFAULT_MODEL_ID.toLowerCase();
+
 function resolveAgentIdFromHeader(req: IncomingMessage): string | undefined {
   const raw =
     normalizeOptionalString(getHeader(req, "x-GreenchClaw-agent-id")) ||
@@ -51,14 +54,17 @@ export function resolveAgentIdFromModel(
   if (!raw) {
     return undefined;
   }
+  // Both the model ids and the inbound header values are matched
+  // case-insensitively, so normalize the pattern the same way the ids are
+  // compared (previously a title-case regex was tested against the raw value).
   const lowered = normalizeLowercaseStringOrEmpty(raw);
-  if (lowered === GREENCHCLAW_MODEL_ID || lowered === GREENCHCLAW_DEFAULT_MODEL_ID) {
+  if (lowered === LOWERCASE_GATEWAY_MODEL_ID || lowered === LOWERCASE_GATEWAY_DEFAULT_MODEL_ID) {
     return resolveDefaultAgentId(cfg);
   }
 
   const m =
-    raw.match(/^GreenchClaw[:/](?<agentId>[a-z0-9][a-z0-9_-]{0,63})$/i) ??
-    raw.match(/^agent:(?<agentId>[a-z0-9][a-z0-9_-]{0,63})$/i);
+    lowered.match(/^greenchclaw[:/](?<agentId>[a-z0-9][a-z0-9_-]{0,63})$/i) ??
+    lowered.match(/^agent:(?<agentId>[a-z0-9][a-z0-9_-]{0,63})$/i);
   const agentId = m?.groups?.agentId;
   if (!agentId) {
     return undefined;
@@ -72,7 +78,8 @@ export async function resolveOpenAiCompatModelOverride(params: {
   model: string | undefined;
 }): Promise<{ modelOverride?: string; errorMessage?: string }> {
   const requestModel = params.model?.trim();
-  if (requestModel && !resolveAgentIdFromModel(requestModel)) {
+  const requestAgentId = requestModel ? resolveAgentIdFromModel(requestModel) : undefined;
+  if (requestModel && !requestAgentId) {
     return {
       errorMessage: "Invalid `model`. Use `GreenchClaw` or `GreenchClaw/<agentId>`.",
     };
@@ -84,7 +91,11 @@ export async function resolveOpenAiCompatModelOverride(params: {
   }
 
   const cfg = getRuntimeConfig();
-  const defaultModelRef = resolveDefaultModelForAgent({ cfg, agentId: params.agentId });
+  // The request-level `model` field selects the agent first (`GreenchClaw/<agentId>`),
+  // so the override must be validated against that agent's allowlist, not the
+  // caller-supplied default.
+  const agentId = requestAgentId ?? params.agentId;
+  const defaultModelRef = resolveDefaultModelForAgent({ cfg, agentId });
   const defaultProvider = defaultModelRef.provider;
   const parsed = parseModelRef(raw, defaultProvider);
   if (!parsed) {
@@ -96,12 +107,12 @@ export async function resolveOpenAiCompatModelOverride(params: {
     cfg,
     catalog,
     defaultProvider,
-    agentId: params.agentId,
+    agentId,
   });
   const normalized = modelKey(parsed.provider, parsed.model);
   if (!policy.allowsKey(normalized)) {
     return {
-      errorMessage: `Model '${normalized}' is not allowed for agent '${params.agentId}'.`,
+      errorMessage: `Model '${normalized}' is not allowed for agent '${agentId}'.`,
     };
   }
 

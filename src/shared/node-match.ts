@@ -4,6 +4,9 @@ import {
   normalizeOptionalString,
 } from "./string-coerce.js";
 
+// Lowercase on purpose: compared against an already-lowercased client id.
+const GREENCHCLAW_CLIENT_ID_PREFIX = "greenchclaw-";
+
 export type NodeMatchCandidate = {
   nodeId: string;
   displayName?: string;
@@ -44,7 +47,9 @@ function formatNodeCandidateLabel(node: NodeMatchCandidate): string {
 
 function isCurrentGreenchClawClient(clientId: string | undefined): boolean {
   const normalized = normalizeOptionalLowercaseString(clientId) ?? "";
-  return normalized.startsWith("GreenchClaw-");
+  // Must be lowercase: `normalized` is already lowercased, so a mixed-case
+  // prefix could never match (same class of bug as the client-ID set).
+  return normalized.startsWith(GREENCHCLAW_CLIENT_ID_PREFIX);
 }
 
 function isLegacyClawdbotClient(clientId: string | undefined): boolean {

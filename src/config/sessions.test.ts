@@ -158,11 +158,11 @@ describe("sessions", () => {
       buildGroupDisplayName({
         provider: "discord",
         groupChannel: "#general",
-        space: "friends-of-GreenchClaw",
+        space: "friends-of-greenchclaw",
         id: "123",
         key: "discord:group:123",
       }),
-    ).toBe("discord:friends-of-GreenchClaw#general");
+    ).toBe("discord:friends-of-greenchclaw#general");
   });
 
   const resolveSessionKeyCases = [

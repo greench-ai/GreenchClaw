@@ -165,7 +165,7 @@ describe("runCapability auto audio entries", () => {
       const result = await withEnvAsync(
         {
           PATH: binDir,
-          SHERPA_ONGREENCH_MODEL_DIR: undefined,
+          SHERPA_ONCLAW_MODEL_DIR: undefined,
           WHISPER_CPP_MODEL: undefined,
           GEMINI_API_KEY: undefined,
         },

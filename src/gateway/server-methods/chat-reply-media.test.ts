@@ -7,8 +7,10 @@ import { getAgentScopedMediaLocalRoots } from "../../media/local-roots.js";
 import { createManagedOutgoingImageBlocks } from "../managed-image-attachments.js";
 import { normalizeWebchatReplyMediaPathsForDisplay } from "./chat-reply-media.js";
 
+// 1x1 red PNG. The previous fixture had a corrupt IDAT CRC, so sharp refused to
+// re-encode it ("Failed to optimize PNG image") and staging could never succeed.
 const PNG_BYTES = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC",
   "base64",
 );
 

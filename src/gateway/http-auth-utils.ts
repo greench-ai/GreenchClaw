@@ -15,8 +15,20 @@ import { sendGatewayAuthFailure, sendMissingScopeForbidden } from "./http-common
 import { ADMIN_SCOPE, CLI_DEFAULT_OPERATOR_SCOPES } from "./method-scopes.js";
 import { authorizeOperatorScopesForMethod } from "./method-scopes.js";
 
+// Header carrying proxy-declared operator scopes on trusted-proxy surfaces.
+const OPERATOR_SCOPES_HEADER = "x-GreenchClaw-scopes";
+const OPERATOR_SCOPES_HEADER_LEGACY = "x-openclaw-scopes";
+
+function readOperatorScopesHeader(req: IncomingMessage): string | undefined {
+  // Proxies fronting a pre-rebrand install still stamp the legacy header name;
+  // accept both spellings so declared scopes are not silently dropped.
+  return getHeader(req, OPERATOR_SCOPES_HEADER) ?? getHeader(req, OPERATOR_SCOPES_HEADER_LEGACY);
+}
+
 export function getHeader(req: IncomingMessage, name: string): string | undefined {
-  const raw = req.headers[normalizeLowercaseStringOrEmpty(name)];
+  const headers = req.headers ?? {};
+  const key = normalizeLowercaseStringOrEmpty(name);
+  const raw = headers[key] ?? headers[name];
   if (typeof raw === "string") {
     return raw;
   }
@@ -193,11 +205,15 @@ export function resolveTrustedHttpOperatorScopes(
     return [];
   }
 
-  const headerValue = getHeader(req, "x-GreenchClaw-scopes");
+  const headerValue = readOperatorScopesHeader(req);
   if (headerValue === undefined) {
-    // No scope header present - trusted clients without an explicit header
-    // get the default operator scopes (matching pre-#57783 behavior).
-    return [...CLI_DEFAULT_OPERATOR_SCOPES];
+    // Trusted clients that did not declare any scope header are NOT granted the
+    // full operator scope set. Scope-bearing surfaces (control UI media/avatar,
+    // compat HTTP) must receive an explicit declared scope list; an absent
+    // header resolves to an empty set (deny). Mirrors the WS path
+    // (message-handler.resolveTrustedProxyControlUiScopes) and the documented
+    // trusted-proxy contract covered by control-ui.http.test.ts.
+    return [];
   }
   const raw = headerValue.trim();
   if (!raw) {
@@ -219,6 +235,19 @@ export function resolveOpenAiCompatibleHttpOperatorScopes(
     // token/password auth proves possession of the gateway operator secret, not
     // a narrower per-request scope identity, so restore the normal defaults.
     return [...CLI_DEFAULT_OPERATOR_SCOPES];
+  }
+  if (requestAuth.authMethod === "none") {
+    // The gateway is configured with auth disabled, so every HTTP caller is the
+    // local operator by configuration. Refusing the request outright would
+    // disable compat HTTP entirely on `auth.mode: none` installs. Keep the
+    // documented operator defaults when no scope header is declared, but honour
+    // an explicitly declared scope list so per-request narrowing (including the
+    // empty list) still denies as it does on trusted routes.
+    const headerValue = getHeader(req, OPERATOR_SCOPES_HEADER);
+    if (headerValue === undefined) {
+      return [...CLI_DEFAULT_OPERATOR_SCOPES];
+    }
+    return resolveTrustedHttpOperatorScopes(req, { trustDeclaredOperatorScopes: true });
   }
   return resolveTrustedHttpOperatorScopes(req, requestAuth);
 }

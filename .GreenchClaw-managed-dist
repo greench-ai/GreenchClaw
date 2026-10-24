@@ -1,0 +1,4 @@
+# This repo builds via scripts/atomic-dist-swap.mjs (managed-release layout).
+# dist/ and dist-runtime/ are symlinks into releases/<ts>/. Do not run a plain
+# `node scripts/build-all.mjs` here; use `pnpm build:release`. Delete this file
+# to opt out of the managed layout.

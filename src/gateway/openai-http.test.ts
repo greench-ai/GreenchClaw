@@ -180,7 +180,6 @@ describe("OpenAI-compatible HTTP API (e2e)", () => {
       {
         const res = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
           method: "GET",
-          headers: { authorization: "Bearer secret" },
         });
         expect(res.status).toBe(405);
         await res.text();
@@ -365,7 +364,7 @@ describe("OpenAI-compatible HTTP API (e2e)", () => {
       }
 
       {
-        const imageData = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAA";
+        const imageData = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC";
         mockAgentOnce([{ text: "looks good" }]);
         const res = await postChatCompletions(port, {
           model: "GreenchClaw",
@@ -1736,6 +1735,7 @@ describe("OpenAI-compatible HTTP API (e2e)", () => {
             headers: {
               "content-type": "application/json",
               authorization: "Bearer secret",
+              "x-GreenchClaw-scopes": "operator.write",
             },
           },
           (res) => {
@@ -1946,6 +1946,7 @@ describe("OpenAI-compatible HTTP API (e2e)", () => {
         headers: {
           "content-type": "application/json",
           authorization: "Bearer secret",
+          "x-GreenchClaw-scopes": "operator.write",
         },
       });
       clientReq.on("error", () => {});
@@ -2017,7 +2018,7 @@ describe("OpenAI-compatible HTTP API (e2e)", () => {
         headers: {
           authorization: "Bearer secret",
           "content-type": "application/json",
-          "x-GreenchClaw-scopes": "operator.approvals",
+          "x-GreenchClaw-scopes": "operator.write",
         },
         body: JSON.stringify({
           model: "GreenchClaw",
@@ -2059,6 +2060,7 @@ describe("OpenAI-compatible HTTP API (e2e)", () => {
       headers: {
         "content-type": "application/json",
         authorization: "Bearer secret",
+        "x-GreenchClaw-scopes": "operator.write",
       },
     });
     clientReq.on("error", () => {});
@@ -2113,6 +2115,7 @@ describe("OpenAI-compatible HTTP API (e2e)", () => {
         headers: {
           "content-type": "application/json",
           authorization: "Bearer secret",
+          "x-GreenchClaw-scopes": "operator.write",
         },
       });
       clientReq.on("error", () => {});

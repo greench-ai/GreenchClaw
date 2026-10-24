@@ -10,8 +10,8 @@ const portFile = process.argv[3];
 const requireFromApp = createRequire(path.join(process.cwd(), "package.json"));
 const JSZip = requireFromApp("jszip");
 const tar = requireFromApp("tar");
-const packageName = "@openclaw/kitchen-sink";
-const pluginId = "openclaw-kitchen-sink-fixture";
+const packageName = "@GreenchClaw/kitchen-sink";
+const pluginId = "GreenchClaw-kitchen-sink-fixture";
 
 const buildArtifactSummary = ({
   clawpackSha256,
@@ -46,7 +46,9 @@ const buildClawPackSummary = ({
 });
 
 async function buildNpmPackArtifact(fixture) {
-  const packRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), "openclaw-clawhub-fixture-"));
+  const packRoot = await fs.promises.mkdtemp(
+    path.join(os.tmpdir(), "GreenchClaw-clawhub-fixture-"),
+  );
   try {
     const packageDir = path.join(packRoot, "package");
     await fs.promises.mkdir(packageDir, { recursive: true });
@@ -56,7 +58,7 @@ async function buildNpmPackArtifact(fixture) {
     );
     await fs.promises.writeFile(path.join(packageDir, "index.js"), fixture.indexJs);
     await fs.promises.writeFile(
-      path.join(packageDir, "openclaw.plugin.json"),
+      path.join(packageDir, "GreenchClaw.plugin.json"),
       `${JSON.stringify(fixture.manifest, null, 2)}\n`,
     );
     const npmTarballName = `${packageName.replace(/^@/, "").replace("/", "-")}-${fixture.version}.tgz`;
@@ -96,17 +98,17 @@ const profiles = {
         "is-number": "7.0.0",
       },
       peerDependencies: {
-        openclaw: ">=2026.4.11",
+        GreenchClaw: ">=2026.4.11",
       },
       peerDependenciesMeta: {
-        openclaw: {
+        GreenchClaw: {
           optional: true,
         },
       },
-      openclaw: { extensions: ["./index.js"] },
+      GreenchClaw: { extensions: ["./index.js"] },
     },
     indexJs: `import isNumber from "is-number";
-import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
+import { definePluginEntry } from "GreenchClaw/plugin-sdk/plugin-entry";
 
 const dependencyUrl = import.meta.resolve("is-number");
 const expectedDependencyBaseUrl = new URL("./node_modules/is-number/", import.meta.url).href;
@@ -259,14 +261,14 @@ export default definePluginEntry({
         "is-number": "7.0.0",
       },
       peerDependencies: {
-        openclaw: ">=2026.4.11",
+        GreenchClaw: ">=2026.4.11",
       },
       peerDependenciesMeta: {
-        openclaw: {
+        GreenchClaw: {
           optional: true,
         },
       },
-      openclaw: { extensions: ["./index.js"] },
+      GreenchClaw: { extensions: ["./index.js"] },
     },
     indexJs: `module.exports = {
   id: "${pluginId}",
@@ -348,7 +350,7 @@ async function main() {
   });
   zip.file("package/index.js", fixture.indexJs, { date: new Date(0) });
   const manifestJson = `${JSON.stringify(fixture.manifest, null, 2)}\n`;
-  zip.file("package/openclaw.plugin.json", manifestJson, { date: new Date(0) });
+  zip.file("package/GreenchClaw.plugin.json", manifestJson, { date: new Date(0) });
 
   const archive = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
   const sha256hash = crypto.createHash("sha256").update(archive).digest("hex");
