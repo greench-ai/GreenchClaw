@@ -17,6 +17,9 @@ const oxfmtPath = path.resolve(
   process.platform === "win32" ? "oxfmt.cmd" : "oxfmt",
 );
 const execFileAsync = promisify(execFile);
+// Generous enough for a cold runner, small enough that a stuck spawn fails with a real message
+// instead of consuming the caller's whole hook timeout.
+const OXFMT_TIMEOUT_MS = Number(process.env.GREENCHCLAW_OXFMT_TIMEOUT_MS ?? 90_000);
 
 type PromptSnapshotFile = ReturnType<typeof createHappyPathPromptSnapshotFiles>[number];
 
@@ -45,9 +48,38 @@ async function formatSnapshotFiles(root: string, files: PromptSnapshotFile[]) {
   if (filePaths.length === 0) {
     return;
   }
-  await execFileAsync(oxfmtPath, ["--write", "--threads=1", ...filePaths], {
-    cwd: repoRoot,
-  });
+  // Bound the child process ourselves and surface its stderr: when oxfmt stalls or crashes the
+  // failure used to show up as an opaque "Hook timed out in 120000ms" from the caller's
+  // beforeAll, with no hint that a spawned formatter binary was the problem.
+  try {
+    await execFileAsync(oxfmtPath, ["--write", "--threads=1", ...filePaths], {
+      cwd: repoRoot,
+      timeout: OXFMT_TIMEOUT_MS,
+      killSignal: "SIGKILL",
+      maxBuffer: 16 * 1024 * 1024,
+    });
+  } catch (error) {
+    const details = error as {
+      code?: unknown;
+      signal?: unknown;
+      killed?: unknown;
+      stderr?: unknown;
+    };
+    const stderr =
+      typeof details.stderr === "string" && details.stderr.trim()
+        ? details.stderr.trim()
+        : "(none)";
+    throw new Error(
+      [
+        `oxfmt failed to format ${filePaths.length} prompt snapshot file(s) in ${root}.`,
+        `binary: ${oxfmtPath}`,
+        `code: ${String(details.code)} signal: ${String(details.signal)} killed: ${String(details.killed)}`,
+        `timeout: ${OXFMT_TIMEOUT_MS}ms`,
+        `stderr: ${stderr}`,
+      ].join("\n"),
+      { cause: error },
+    );
+  }
 }
 
 async function readSnapshotFiles(root: string, files: PromptSnapshotFile[]) {
