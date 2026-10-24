@@ -6,7 +6,7 @@
     "onStartup": false
   },
   "contracts": {
-    "tools": ["rag_search", "rag_list", "rag_delete"]
+    "tools": ["rag_index", "rag_search", "rag_list", "rag_delete"]
   },
   "configSchema": {
     "type": "object",

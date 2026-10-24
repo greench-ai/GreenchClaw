@@ -21,6 +21,29 @@ const GREENCHCLAW_PACKAGE_ROOT =
 
 type BundledPluginPublicSurfaceMetadata = Pick<BundledPluginMetadata, "dirName">;
 
+/**
+ * Pick the trusted bundled-plugin root that actually exists in this checkout.
+ *
+ * `dist/extensions` and `dist-runtime/extensions` are both trusted roots, but plain
+ * checkouts and CI shards only contain `dist` (only `build-artifacts` produces
+ * `dist-runtime`), so a hardcoded `dist-runtime` fixture root makes `mkdir` fail with
+ * ENOENT on every job that does not build the runtime bundle.
+ */
+export function resolveExistingBundledPluginRoot(params: {
+  packageRoot: string;
+  preferredKind?: "dist-runtime" | "dist";
+}): string {
+  const kinds =
+    params.preferredKind === "dist" ? (["dist", "dist-runtime"] as const) : (["dist-runtime", "dist"] as const);
+  for (const kind of kinds) {
+    const candidate = path.join(params.packageRoot, kind, "extensions");
+    if (fs.existsSync(path.dirname(candidate))) {
+      return candidate;
+    }
+  }
+  return path.join(params.packageRoot, "extensions");
+}
+
 function isSafeBundledPluginDirName(pluginId: string): boolean {
   return /^[a-z0-9][a-z0-9._-]*$/u.test(pluginId);
 }

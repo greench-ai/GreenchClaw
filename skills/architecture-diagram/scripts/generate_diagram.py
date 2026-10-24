@@ -8,13 +8,14 @@ Usage:
     python generate_diagram.py "cloud aws" --output cloud.png --type cloud
 """
 
-import urllib.request
-import urllib.parse
-import base64
-import zlib
-import sys
 import argparse
+import base64
 import os
+import sys
+import urllib.parse
+import urllib.request
+import zlib
+
 
 def encode_mermaid(mermaid_code: str) -> str:
     """Encode mermaid code for Kroki URL"""

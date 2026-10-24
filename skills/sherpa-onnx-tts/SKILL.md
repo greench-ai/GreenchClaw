@@ -7,7 +7,7 @@ metadata:
       {
         "emoji": "🔉",
         "os": ["darwin", "linux", "win32"],
-        "requires": { "env": ["SHERPA_ONGREENCH_RUNTIME_DIR", "SHERPA_ONGREENCH_MODEL_DIR"] },
+        "requires": { "env": ["SHERPA_ONCLAW_RUNTIME_DIR", "SHERPA_ONCLAW_MODEL_DIR"] },
         "install":
           [
             {
@@ -80,8 +80,8 @@ Then write those resolved paths into the active GreenchClaw config file (`$GREEN
     entries: {
       "sherpa-onnx-tts": {
         env: {
-          SHERPA_ONGREENCH_RUNTIME_DIR: "/path/to/your/state-dir/tools/sherpa-onnx-tts/runtime",
-          SHERPA_ONGREENCH_MODEL_DIR: "/path/to/your/state-dir/tools/sherpa-onnx-tts/models/vits-piper-en_US-lessac-high",
+          SHERPA_ONCLAW_RUNTIME_DIR: "/path/to/your/state-dir/tools/sherpa-onnx-tts/runtime",
+          SHERPA_ONCLAW_MODEL_DIR: "/path/to/your/state-dir/tools/sherpa-onnx-tts/models/vits-piper-en_US-lessac-high",
         },
       },
     },
@@ -104,6 +104,6 @@ export PATH="{baseDir}/bin:$PATH"
 Notes:
 
 - Pick a different model from the sherpa-onnx `tts-models` release if you want another voice.
-- If the model dir has multiple `.onnx` files, set `SHERPA_ONGREENCH_MODEL_FILE` or pass `--model-file`.
+- If the model dir has multiple `.onnx` files, set `SHERPA_ONCLAW_MODEL_FILE` or pass `--model-file`.
 - You can also pass `--tokens-file` or `--data-dir` to override the defaults.
 - Windows: run `node {baseDir}\\bin\\sherpa-onnx-tts -o tts.wav "Hello from local TTS."`

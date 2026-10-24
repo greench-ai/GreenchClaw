@@ -126,14 +126,16 @@ function createTimeoutHttpInstance(defaultTimeoutMs: number): Lark.HttpInstance 
   }
 
   return {
-    request: (opts) => base.request(injectTimeout(opts)),
-    get: (url, opts) => base.get(url, injectTimeout(opts)),
-    post: (url, data, opts) => base.post(url, data, injectTimeout(opts)),
-    put: (url, data, opts) => base.put(url, data, injectTimeout(opts)),
-    patch: (url, data, opts) => base.patch(url, data, injectTimeout(opts)),
-    delete: (url, opts) => base.delete(url, injectTimeout(opts)),
-    head: (url, opts) => base.head(url, injectTimeout(opts)),
-    options: (url, opts) => base.options(url, injectTimeout(opts)),
+    // The Lark SDK's HttpInstance methods are generic over the response generic;
+    // the timeout shim only forwards options, so re-assert the method signatures.
+    request: ((opts) => base.request(injectTimeout(opts))) as Lark.HttpInstance["request"],
+    get: ((url, opts) => base.get(url, injectTimeout(opts))) as Lark.HttpInstance["get"],
+    post: ((url, data, opts) => base.post(url, data, injectTimeout(opts))) as Lark.HttpInstance["post"],
+    put: ((url, data, opts) => base.put(url, data, injectTimeout(opts))) as Lark.HttpInstance["put"],
+    patch: ((url, data, opts) => base.patch(url, data, injectTimeout(opts))) as Lark.HttpInstance["patch"],
+    delete: ((url, opts) => base.delete(url, injectTimeout(opts))) as Lark.HttpInstance["delete"],
+    head: ((url, opts) => base.head(url, injectTimeout(opts))) as Lark.HttpInstance["head"],
+    options: ((url, opts) => base.options(url, injectTimeout(opts))) as Lark.HttpInstance["options"],
   };
 }
 

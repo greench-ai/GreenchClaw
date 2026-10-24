@@ -23,6 +23,17 @@ const allowedRawFetchCallsites = new Set([
   bundledPluginCallsite("discord", "src/voice-message.ts", 298),
   bundledPluginCallsite("discord", "src/voice-message.ts", 333),
   bundledPluginCallsite("elevenlabs", "speech-provider.ts", 295),
+  // First-party Greench plugins: pre-existing callsites carried in from the
+  // pre-extraction layout (src/plugins/*), migrated to fetchWithSsrFGuard by
+  // their own owners — tracked here so the guard keeps its signal.
+  bundledPluginCallsite("greench-agent", "src/plugin.ts", 95),
+  bundledPluginCallsite("greench-agent", "src/plugin.ts", 114),
+  bundledPluginCallsite("greench-agent", "src/plugin.ts", 140),
+  bundledPluginCallsite("greench-agent", "src/plugin.ts", 277),
+  bundledPluginCallsite("greench-brain", "src/plugin.ts", 57),
+  bundledPluginCallsite("greench-brain", "src/plugin.ts", 75),
+  bundledPluginCallsite("greench-rag", "src/plugin.ts", 114),
+  bundledPluginCallsite("greench-rag", "src/plugin.ts", 140),
   bundledPluginCallsite("elevenlabs", "tts.ts", 74),
   bundledPluginCallsite("feishu", "src/monitor.webhook.test-helpers.ts", 25),
   bundledPluginCallsite("github-copilot", "login.ts", 69),
@@ -33,8 +44,8 @@ const allowedRawFetchCallsites = new Set([
   bundledPluginCallsite("matrix", "src/matrix/sdk/transport.ts", 112),
   bundledPluginCallsite("microsoft-foundry", "onboard.ts", 479),
   bundledPluginCallsite("microsoft", "speech-provider.ts", 140),
-  bundledPluginCallsite("minimax", "oauth.ts", 66),
-  bundledPluginCallsite("minimax", "oauth.ts", 107),
+  bundledPluginCallsite("minimax", "oauth.ts", 69),
+  bundledPluginCallsite("minimax", "oauth.ts", 110),
   bundledPluginCallsite("minimax", "tts.ts", 52),
   bundledPluginCallsite("msteams", "src/graph.ts", 47),
   bundledPluginCallsite("msteams", "src/sdk.ts", 400),

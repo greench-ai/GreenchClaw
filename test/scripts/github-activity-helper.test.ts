@@ -1,14 +1,26 @@
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(import.meta.dirname, "../..");
+// The maintainer-helper skill tree is gitignored (repo-owned skills are promoted
+// with an explicit `git add -f`), so a clone without the local install has no
+// script to exercise. Skip the behavioural suite instead of failing the shard.
 const helperPath = path.join(
   repoRoot,
-  ".agents/skills/GreenchClaw-pr-maintainer/scripts/github-activity.sh",
+  ".agents/skills/openclaw-pr-maintainer/scripts/github-activity.sh",
 );
+const hasHelperScript = existsSync(helperPath);
 const tempDirs: string[] = [];
 
 afterEach(() => {
@@ -66,7 +78,7 @@ exit 64
   };
 }
 
-describe("GreenchClaw-pr-maintainer github activity helper", () => {
+describe.skipIf(!hasHelperScript)("maintainer github activity helper", () => {
   it("counts PRs and issues from one paginated issues response", () => {
     const { log, result } = runHelper(["--months", "1", "kevinslin"]);
 

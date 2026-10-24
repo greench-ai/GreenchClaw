@@ -46,6 +46,12 @@ const ABORT_TRIGGERS = new Set([
   "please stop",
   "stop please",
 ]);
+// Trigger phrases are matched after lowercasing, so store and compare the
+// lowercase form (the phrases are written naturally in mixed case above).
+const LOWERCASE_ABORT_TRIGGERS = new Set(
+  Array.from(ABORT_TRIGGERS, (trigger) => normalizeLowercaseStringOrEmpty(trigger)),
+);
+
 const ABORT_MEMORY = new Map<string, boolean>();
 const ABORT_MEMORY_MAX = 2000;
 const TRAILING_ABORT_PUNCTUATION_RE = /[.!?…,，。;；:：'"’”)\]}]+$/u;
@@ -63,7 +69,7 @@ export function isAbortTrigger(text?: string): boolean {
     return false;
   }
   const normalized = normalizeAbortTriggerText(text);
-  return ABORT_TRIGGERS.has(normalized);
+  return LOWERCASE_ABORT_TRIGGERS.has(normalized);
 }
 
 export function isAbortRequestText(text?: string, options?: CommandNormalizeOptions): boolean {
@@ -74,6 +80,9 @@ export function isAbortRequestText(text?: string, options?: CommandNormalizeOpti
   if (!normalized) {
     return false;
   }
+  // `normalizeCommandBody` preserves the caller's casing (its alias lookups are
+  // already case-insensitive), so trigger matching must normalize here —
+  // otherwise `/STOP` never reaches the abort path.
   const normalizedLower = normalizeLowercaseStringOrEmpty(normalized);
   return (
     normalizedLower === "/stop" ||

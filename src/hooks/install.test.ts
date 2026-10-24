@@ -42,6 +42,14 @@ const zipHooksBuffer = await createZipHookPackBuffer({
 });
 const zipTraversalBuffer = await createZipBuffer([{ path: "../pwned.txt", contents: "pwned" }]);
 const tarHooksBuffer = fs.readFileSync(path.join(fixturesDir, "tar-hooks.tar"));
+// Legacy coverage fixture: same pack, but the manifest is keyed with the pre-rebrand
+// `openclaw` name. Built here rather than shipped as a tarball so the compat path keeps
+// one explicit, greppable fixture after the checked-in archives were rebranded.
+const tarLegacyKeyHooksBuffer = await createTarHookPackBuffer({
+  packageName: "@GreenchClaw/legacy-hooks",
+  hookName: "legacy-hook",
+  manifestKey: "openclaw",
+});
 const tarTraversalBuffer = fs.readFileSync(path.join(fixturesDir, "tar-traversal.tar"));
 const tarEvilIdBuffer = fs.readFileSync(path.join(fixturesDir, "tar-evil-id.tar"));
 const tarReservedIdBuffer = fs.readFileSync(path.join(fixturesDir, "tar-reserved-id.tar"));
@@ -196,6 +204,42 @@ async function createZipHookPackBuffer(params: {
   ]);
 }
 
+async function createTarHookPackBuffer(params: {
+  packageName: string;
+  hookName: string;
+  /** Manifest key to write the hook list under; defaults to the current name. */
+  manifestKey?: string;
+}) {
+  const workDir = path.join(fixtureRoot, "_generated", `pack-${randomUUID()}`);
+  const packageDir = path.join(workDir, "package");
+  const hookDir = path.join(packageDir, "hooks", params.hookName);
+  fs.mkdirSync(hookDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(packageDir, "package.json"),
+    JSON.stringify({
+      name: params.packageName,
+      version: "0.0.1",
+      [params.manifestKey ?? "GreenchClaw"]: { hooks: [`./hooks/${params.hookName}`] },
+    }),
+  );
+  fs.writeFileSync(
+    path.join(hookDir, "HOOK.md"),
+    [
+      "---",
+      `name: ${params.hookName}`,
+      "description: Legacy key fixture",
+      'metadata: {"GreenchClaw":{"events":["command:new"]}}',
+      "---",
+      "",
+      "# Legacy Hook",
+    ].join("\n"),
+  );
+  fs.writeFileSync(path.join(hookDir, "handler.ts"), "export default async () => {};\n");
+  const archivePath = path.join(workDir, "pack.tar");
+  await tar.c({ cwd: workDir, file: archivePath }, ["package"]);
+  return fs.readFileSync(archivePath);
+}
+
 async function createTarGzHookPackBuffer(params: {
   packageName: string;
   hookName: string;
@@ -232,6 +276,25 @@ function expectPathInstallFailureContains(
 }
 
 describe("installHooksFromArchive", () => {
+  it("warns when a pack uses a pre-rebrand manifest key", async () => {
+    const warnings: string[] = [];
+    const { result } = await (async () => {
+      const fixture = writeArchiveFixture({
+        fileName: "legacy-hooks.tar",
+        contents: tarLegacyKeyHooksBuffer,
+      });
+      const res = await installHooksFromArchive({
+        archivePath: fixture.archivePath,
+        hooksDir: fixture.hooksDir,
+        logger: { info: () => {}, warn: (m: string) => warnings.push(m) },
+      });
+      return { fixture, result: res };
+    })();
+    // The fixture pack is keyed "openclaw" (pre-rebrand), so it installs AND warns.
+    expect(result.ok).toBe(true);
+    expect(warnings.some((w) => w.includes("openclaw") && w.includes("GreenchClaw"))).toBe(true);
+  });
+
   it.each([
     {
       name: "zip",

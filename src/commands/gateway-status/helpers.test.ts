@@ -310,10 +310,10 @@ describe("gateway-status local target scheme", () => {
 
     const targets = resolveTargets(cfg as never);
     const localLoopbackTarget = targets.find((target) => target.id === "localLoopback");
-    expect(localLoopbackTarget?.url).toBe("wss://127.0.0.1:18789");
+    expect(localLoopbackTarget?.url).toBe("wss://127.0.0.1:18420");
 
     const hints = buildNetworkHints(cfg as never);
-    expect(hints.localLoopbackUrl).toBe("wss://127.0.0.1:18789");
+    expect(hints.localLoopbackUrl).toBe("wss://127.0.0.1:18420");
   });
 });
 

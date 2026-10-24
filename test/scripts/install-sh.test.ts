@@ -268,7 +268,7 @@ describe("install.sh", () => {
     expect(noSudoWarningIndex).toBeGreaterThan(npmSetIndex);
     expect(result?.stdout).toContain("npm global prefix is not writable");
     expect(result?.stdout).toContain("npm normally writes that setting to ~/.npmrc");
-    expect(result?.stdout).toContain("npm i -g GreenchClaw@latest");
+    expect(result?.stdout).toContain("npm i -g greenchclaw@latest");
     expect(result?.stdout).toContain("using this user prefix");
     expect(result?.stdout).not.toContain("has been saved");
   });
@@ -527,5 +527,55 @@ describe("install.sh duplicate GreenchClaw install detection", () => {
 
     expect(result.status).toBe(0);
     expect(result.stdout).not.toContain("Multiple GreenchClaw global installs detected");
+  });
+});
+
+describe("install.sh npm package name", () => {
+  const script = readFileSync(SCRIPT_PATH, "utf8");
+
+  it("installs the lowercase npm package (uppercase names are rejected by the registry)", () => {
+    // npm refuses capital letters, so the published package is `greenchclaw`; the
+    // user-facing command stays `GreenchClaw` via the bin link.
+    const source = `
+      export GREENCHCLAW_INSTALL_SH_NO_RUN=1
+      eval "$(sed -n '/^to_lowercase_ascii()/,/^}/p' ${SCRIPT_PATH})"
+      eval "$(sed -n '/^install_GreenchClaw_npm()/,/^}/p' ${SCRIPT_PATH})"
+      GREENCHCLAW_NPM_PACKAGE="\${GREENCHCLAW_NPM_PACKAGE:-greenchclaw}"
+      install_GreenchClaw_npm() { echo "spec:\$1"; }
+      eval "$(sed -n '/^resolve_package_install_spec()/,/^}/p' ${SCRIPT_PATH})"
+      eval "$(sed -n '/^is_explicit_package_install_spec()/,/^}/p' ${SCRIPT_PATH})"
+      resolve_package_install_spec "\${GREENCHCLAW_NPM_PACKAGE}" latest
+      resolve_package_install_spec "\${GREENCHCLAW_NPM_PACKAGE}" 2026.3.28
+    `;
+    const result = runInstallShell(source);
+    expect(result.status).toBe(0);
+    const lines = (result.stdout ?? "").trim().split("\n");
+    expect(lines).toEqual(["greenchclaw@latest", "greenchclaw@2026.3.28"]);
+  });
+
+  it("links the uppercase command at whichever entry point the package ships", () => {
+    const home = mkdtempSync(join(tmpdir(), "GreenchClaw-install-bin-link-"));
+    try {
+      const npmRoot = join(home, "lib", "node_modules");
+      const npmBin = join(home, "bin");
+      mkdirSync(join(npmRoot, "greenchclaw"), { recursive: true });
+      writeFileSync(join(npmRoot, "greenchclaw", "greenchclaw.mjs"), "#!/usr/bin/env node\n", "utf8");
+      mkdirSync(npmBin, { recursive: true });
+
+      const source = `
+        eval "$(sed -n '/^ui_info()/,/^}/p' ${SCRIPT_PATH})"
+        npm() { if [ "$1" = "root" ]; then echo "${npmRoot}"; fi; }
+        npm_global_bin_dir() { echo "${npmBin}"; }
+        eval "$(sed -n '/^ensure_GreenchClaw_bin_link()/,/^}/p' ${SCRIPT_PATH})"
+        ensure_GreenchClaw_bin_link && echo "linked"
+        readlink "${npmBin}/GreenchClaw"
+      `;
+      const result = runInstallShell(source);
+      expect(result.status).toBe(0);
+      const lines = (result.stdout ?? "").trim().split("\n");
+      expect(lines.at(-1)).toBe(join(npmRoot, "greenchclaw", "greenchclaw.mjs"));
+    } finally {
+      rmSync(home, { force: true, recursive: true });
+    }
   });
 });

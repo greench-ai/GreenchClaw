@@ -1606,7 +1606,7 @@ describe("image tool implicit imageModel config", () => {
 describe("image tool data URL support", () => {
   it("decodes base64 image data URLs", () => {
     const pngB64 =
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/woAAn8B9FD5fHAAAAAASUVORK5CYII=";
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC";
     const out = __testing.decodeDataUrl(`data:image/png;base64,${pngB64}`);
     expect(out.kind).toBe("image");
     expect(out.mimeType).toBe("image/png");
@@ -1635,7 +1635,7 @@ describe("image tool data URL support", () => {
 
 describe("image tool MiniMax VLM routing", () => {
   const pngB64 =
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/woAAn8B9FD5fHAAAAAASUVORK5CYII=";
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC";
   const priorFetch = global.fetch;
   registerImageToolEnvReset(priorFetch, [
     "MINIMAX_API_KEY",

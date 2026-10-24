@@ -452,7 +452,7 @@ async function resolveSherpaOnnxEntry(): Promise<MediaUnderstandingModelConfig |
   if (!(await hasBinary("sherpa-onnx-offline"))) {
     return null;
   }
-  const modelDir = process.env.SHERPA_ONGREENCH_MODEL_DIR?.trim();
+  const modelDir = process.env.SHERPA_ONCLAW_MODEL_DIR?.trim();
   if (!modelDir) {
     return null;
   }

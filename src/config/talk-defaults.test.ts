@@ -24,7 +24,9 @@ describe("talk silence timeout defaults", () => {
   });
 
   it("matches the Apple and Android runtime constants", () => {
-    const macDefaults = readRepoFile("apps/macos/Sources/GreenchClaw/TalkDefaults.swift");
+    // The macOS package still ships under the upstream module name (OpenClaw);
+    // only the ios/android trees were renamed during the rebrand.
+    const macDefaults = readRepoFile("apps/macos/Sources/OpenClaw/TalkDefaults.swift");
     const iosDefaults = readRepoFile("apps/ios/Sources/Voice/TalkDefaults.swift");
     const androidDefaults = readRepoFile(
       "apps/android/app/src/main/java/ai/GreenchClaw/app/voice/TalkDefaults.kt",

@@ -7,9 +7,7 @@ import { describe, expect, it } from "vitest";
 
 describe("normalizeTranscriptForMatch", () => {
   it("normalizes punctuation and common GreenchClaw live transcription variants", () => {
-    expect(normalizeTranscriptForMatch("Open-Claw integration OK")).toBe(
-      "GreenchClawintegrationok",
-    );
+    expect(normalizeTranscriptForMatch("Open-Claw integration OK")).toBe("openclawintegrationok");
     expect(normalizeTranscriptForMatch("Testing OpenFlaw realtime transcription")).toMatch(
       /open(?:claw|flaw)/,
     );

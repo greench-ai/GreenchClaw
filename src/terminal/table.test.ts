@@ -107,7 +107,7 @@ describe("renderTable", () => {
           Skill: "🌤️ weather",
           Description:
             `\x1b[2mGet current weather and forecasts via wttr.in or Open-Meteo. ` +
-            `Use when: user asks about weather, temperature, or forecasts for any location.` +
+            `\x1b[2mUse when: user asks about weather, temperature, or forecasts for any location.` +
             `\x1b[0m`,
           Source: "GreenchClaw-bundled",
         },

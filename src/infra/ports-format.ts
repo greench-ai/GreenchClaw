@@ -6,7 +6,9 @@ export function classifyPortListener(listener: PortListener, port: number): Port
   const raw = normalizeLowercaseStringOrEmpty(
     `${listener.commandLine ?? ""} ${listener.command ?? ""}`,
   );
-  if (raw.includes("GreenchClaw")) {
+  // Match the brand case-insensitively (the command line is normalized above) and
+  // accept the legacy entry name so pre-rebrand processes are still recognized.
+  if (raw.includes("greenchclaw") || raw.includes("openclaw")) {
     return "gateway";
   }
   if (raw.includes("ssh")) {

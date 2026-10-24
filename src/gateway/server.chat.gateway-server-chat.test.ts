@@ -524,7 +524,7 @@ describe("gateway server chat", () => {
       testState.sessionConfig = undefined;
 
       const pngB64 =
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/woAAn8B9FD5fHAAAAAASUVORK5CYII=";
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC";
 
       const reqId = "chat-img";
       ws.send(
@@ -917,7 +917,7 @@ describe("gateway server chat", () => {
       const previousStateDir = process.env.GREENCHCLAW_STATE_DIR;
       process.env.GREENCHCLAW_STATE_DIR = dir;
       const pngB64 =
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=";
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4z8AAAAMBAQD3A0FDAAAAAElFTkSuQmCC";
       dispatchInboundMessageMock.mockImplementationOnce(async (...args: unknown[]) => {
         const [params] = args as [
           {

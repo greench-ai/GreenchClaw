@@ -71,8 +71,12 @@ const createReplyEngineThatNoops = (params: ReplyEngineMockParams) =>
     return params.reply;
   });
 
+type HeartbeatReplyEngineMock = NonNullable<
+  NonNullable<Parameters<typeof runHeartbeatOnce>[0]["deps"]>["getReplyFromConfig"]
+>;
+
 const runWakeHeartbeatCase = async (params: {
-  getReplyFromConfig: ReturnType<typeof vi.fn>;
+  getReplyFromConfig: HeartbeatReplyEngineMock;
 }): Promise<{
   result: Awaited<ReturnType<typeof runHeartbeatOnce>>;
   sendTelegram: ReturnType<typeof vi.fn>;
@@ -104,7 +108,10 @@ const runWakeHeartbeatCase = async (params: {
         agentId: "main",
         reason: "hook:wake",
         deps: {
-          getReplyFromConfig: params.getReplyFromConfig,
+          // vi.fn() is untyped here; the runner only needs the callable contract.
+          getReplyFromConfig: params.getReplyFromConfig as NonNullable<
+            Parameters<typeof runHeartbeatOnce>[0]["deps"]
+          >["getReplyFromConfig"],
           telegram: sendTelegram,
         },
       });

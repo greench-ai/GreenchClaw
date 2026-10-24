@@ -344,7 +344,7 @@ describe("loadImageFromRef", () => {
       await fs.mkdir(sandboxRoot, { recursive: true });
       const imagePath = path.join(sandboxRoot, "photo.png");
       const pngB64 =
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/woAAn8B9FD5fHAAAAAASUVORK5CYII=";
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADUlEQVQI12P4z8DwHwAFAAH/cpxSZwAAAABJRU5ErkJggg==";
       await fs.writeFile(imagePath, Buffer.from(pngB64, "base64"));
 
       const image = await loadImageFromRef(
@@ -365,7 +365,7 @@ describe("loadImageFromRef", () => {
       expect(image?.type).toBe("image");
       expect(image?.mimeType).toBe("image/png");
       expect(image?.data).toBe(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACXBIWXMAAAsTAAALEwEAmpwYAAAADUlEQVR4nGP4////KwAJ5gPoxLp9owAAAABJRU5ErkJggg==",
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADUlEQVQImWP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==",
       );
     } finally {
       await fs.rm(sandboxParent, { recursive: true, force: true });
@@ -455,7 +455,7 @@ describe("detectAndLoadPromptImages", () => {
     await fs.mkdir(sandboxRoot, { recursive: true });
     await fs.mkdir(agentRoot, { recursive: true });
     const pngB64 =
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/woAAn8B9FD5fHAAAAAASUVORK5CYII=";
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADUlEQVQI12P4z8DwHwAFAAH/cpxSZwAAAABJRU5ErkJggg==";
     await fs.writeFile(path.join(agentRoot, "secret.png"), Buffer.from(pngB64, "base64"));
     const sandbox = createUnsafeMountedSandbox({ sandboxRoot, agentRoot });
     const bridge = sandbox.fsBridge;
@@ -489,7 +489,7 @@ describe("detectAndLoadPromptImages", () => {
     await fs.mkdir(inboundDir, { recursive: true });
     const imagePath = path.join(inboundDir, "signal-replay.png");
     const pngB64 =
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/woAAn8B9FD5fHAAAAAASUVORK5CYII=";
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADUlEQVQI12P4z8DwHwAFAAH/cpxSZwAAAABJRU5ErkJggg==";
     await fs.writeFile(imagePath, Buffer.from(pngB64, "base64"));
     vi.stubEnv("GREENCHCLAW_STATE_DIR", stateDir);
 
