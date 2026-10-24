@@ -504,7 +504,7 @@ cleanup_npm_GreenchClaw_paths() {
     if [[ -z "$npm_root" || "$npm_root" != *node_modules* ]]; then
         return 1
     fi
-    rm -rf "$npm_root"/.GreenchClaw-* "$npm_root"/GreenchClaw 2>/dev/null || true
+    rm -rf "$npm_root"/.GreenchClaw-* "$npm_root"/GreenchClaw "$npm_root"/greenchclaw 2>/dev/null || true
 }
 
 extract_GreenchClaw_conflict_path() {
@@ -1007,6 +1007,11 @@ GIT_DIR_DEFAULT="${HOME}/GreenchClaw"
 GIT_DIR=${GREENCHCLAW_GIT_DIR:-$GIT_DIR_DEFAULT}
 GIT_UPDATE=${GREENCHCLAW_GIT_UPDATE:-1}
 SHARP_IGNORE_GLOBAL_LIBVIPS="${SHARP_IGNORE_GLOBAL_LIBVIPS:-1}"
+# npm package names must be lowercase and the uppercase name is rejected at publish time,
+# so the published package is `greenchclaw`. The user-facing command stays `GreenchClaw`
+# (see ensure_GreenchClaw_bin_link).
+GREENCHCLAW_NPM_PACKAGE="${GREENCHCLAW_NPM_PACKAGE:-greenchclaw}"
+GREENCHCLAW_LEGACY_NPM_PACKAGE="${GREENCHCLAW_LEGACY_NPM_PACKAGE:-GreenchClaw}"
 NPM_LOGLEVEL="${GREENCHCLAW_NPM_LOGLEVEL:-error}"
 NPM_SILENT_FLAG="--silent"
 VERBOSE="${GREENCHCLAW_VERBOSE:-0}"
@@ -1760,7 +1765,7 @@ fix_npm_permissions() {
     ui_info "Configuring npm for user-local installs"
     mkdir -p "$HOME/.npm-global"
     npm config set prefix "$HOME/.npm-global"
-    ui_warn "Avoid sudo npm i -g for future GreenchClaw updates; use npm i -g GreenchClaw@latest so npm keeps using this user prefix instead of a different global prefix."
+    ui_warn "Avoid sudo npm i -g for future GreenchClaw updates; use npm i -g ${GREENCHCLAW_NPM_PACKAGE}@latest so npm keeps using this user prefix instead of a different global prefix."
 
     persist_shell_path_prepend "$HOME/.npm-global/bin" "\$HOME/.npm-global/bin" || true
 
@@ -1769,9 +1774,33 @@ fix_npm_permissions() {
 }
 
 ensure_GreenchClaw_bin_link() {
+    # The published npm package is lowercase (`greenchclaw`, bin `greenchclaw`), while the
+    # user-facing command stays `GreenchClaw`. Accept either install root, and link the
+    # uppercase command at whatever entry point the package actually shipped.
     local npm_root=""
     npm_root="$(npm root -g 2>/dev/null || true)"
-    if [[ -z "$npm_root" || ! -d "$npm_root/GreenchClaw" ]]; then
+    if [[ -z "$npm_root" ]]; then
+        return 1
+    fi
+    local package_dir=""
+    local candidate=""
+    for candidate in "GreenchClaw" "greenchclaw"; do
+        if [[ -d "$npm_root/$candidate" ]]; then
+            package_dir="$npm_root/$candidate"
+            break
+        fi
+    done
+    if [[ -z "$package_dir" ]]; then
+        return 1
+    fi
+    local entry=""
+    for candidate in "dist/entry.js" "GreenchClaw.mjs" "greenchclaw.mjs"; do
+        if [[ -f "$package_dir/$candidate" ]]; then
+            entry="$package_dir/$candidate"
+            break
+        fi
+    done
+    if [[ -z "$entry" ]]; then
         return 1
     fi
     local npm_bin=""
@@ -1780,8 +1809,8 @@ ensure_GreenchClaw_bin_link() {
         return 1
     fi
     mkdir -p "$npm_bin"
-    if [[ ! -x "${npm_bin}/GreenchClaw" ]]; then
-        ln -sf "$npm_root/GreenchClaw/dist/entry.js" "${npm_bin}/GreenchClaw"
+    if [[ ! -e "${npm_bin}/GreenchClaw" ]]; then
+        ln -sf "$entry" "${npm_bin}/GreenchClaw"
         ui_info "Created GreenchClaw bin link at ${npm_bin}/GreenchClaw"
     fi
     return 0
@@ -2272,7 +2301,7 @@ EOF
 # Install GreenchClaw
 resolve_beta_version() {
     local beta=""
-    beta="$(npm view GreenchClaw dist-tags.beta 2>/dev/null || true)"
+    beta="$(npm view "${GREENCHCLAW_NPM_PACKAGE}" dist-tags.beta 2>/dev/null || true)"
     if [[ -z "$beta" || "$beta" == "undefined" || "$beta" == "null" ]]; then
         return 1
     fi
@@ -2326,14 +2355,16 @@ resolve_package_install_spec() {
 }
 
 install_GreenchClaw() {
-    local package_name="GreenchClaw"
+    # npm forbids uppercase package names, so the published package is `greenchclaw`.
+    # Keep the user-facing command name (GreenchClaw) via ensure_GreenchClaw_bin_link.
+    local package_name="${GREENCHCLAW_NPM_PACKAGE}"
     if [[ "$USE_BETA" == "1" ]]; then
         local beta_version=""
         beta_version="$(resolve_beta_version || true)"
         if [[ -n "$beta_version" ]]; then
             GREENCHCLAW_VERSION="$beta_version"
             ui_info "Beta tag detected (${beta_version})"
-            package_name="GreenchClaw"
+            package_name="${GREENCHCLAW_NPM_PACKAGE}"
         else
             GREENCHCLAW_VERSION="latest"
             ui_info "No beta tag found; using latest"
@@ -2362,11 +2393,15 @@ install_GreenchClaw() {
         install_GreenchClaw_npm "${install_spec}"
     fi
 
-    if [[ "${GREENCHCLAW_VERSION}" == "latest" && "${package_name}" == "GreenchClaw" ]]; then
+    if [[ "${GREENCHCLAW_VERSION}" == "latest" && "${package_name}" == "${GREENCHCLAW_NPM_PACKAGE}" ]]; then
         if ! resolve_GreenchClaw_bin &> /dev/null; then
-            ui_warn "npm install GreenchClaw@latest failed; retrying GreenchClaw@next"
+            ui_warn "npm install ${package_name}@latest failed; retrying ${package_name}@next"
             cleanup_npm_GreenchClaw_paths
-            install_GreenchClaw_npm "GreenchClaw@next"
+            if ! install_GreenchClaw_npm "${package_name}@next"; then
+                ui_warn "npm install ${package_name}@next failed; retrying the legacy ${GREENCHCLAW_LEGACY_NPM_PACKAGE}@latest spec"
+                cleanup_npm_GreenchClaw_paths
+                install_GreenchClaw_npm "${GREENCHCLAW_LEGACY_NPM_PACKAGE}@latest"
+            fi
         fi
     fi
 
