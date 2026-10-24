@@ -1,3 +1,7 @@
+# Verifies install.sh / install-cli.sh / install.ps1 on Linux (Docker), macOS and Windows.
+# The old OpenClaw-era step that mirrored the scripts into the upstream site/docs repositories was
+# removed: those repositories do not exist under this account, so the job could only ever fail
+# with "Input required and not supplied: token". Verification is the whole job now.
 name: Website Installer Sync
 
 on:
@@ -15,12 +19,6 @@ on:
       - scripts/install.ps1
       - .github/workflows/website-installer-sync.yml
   workflow_dispatch:
-    inputs:
-      sync_website:
-        description: Sync GreenchClaw.ai after verification
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -127,76 +125,3 @@ jobs:
       - name: install.ps1 dry run
         shell: pwsh
         run: .\scripts\install.ps1 -DryRun -NoOnboard -InstallMethod npm
-
-  sync-website:
-    needs: [static, linux-docker, macos-installer, windows-installer]
-    if: >
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_dispatch' && inputs.sync_website)
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout GreenchClaw
-        uses: actions/checkout@v6
-        with:
-          path: GreenchClaw
-
-      - name: Checkout GreenchClaw.ai
-        uses: actions/checkout@v6
-        with:
-          repository: GreenchClaw/GreenchClaw.ai
-          token: ${{ secrets.GREENCHCLAW_GH_TOKEN }}
-          path: GreenchClaw.ai
-
-      - name: Sync installer scripts
-        run: |
-          cp GreenchClaw/scripts/install.sh GreenchClaw.ai/public/install.sh
-          cp GreenchClaw/scripts/install-cli.sh GreenchClaw.ai/public/install-cli.sh
-          cp GreenchClaw/scripts/install.ps1 GreenchClaw.ai/public/install.ps1
-          rm -f GreenchClaw.ai/public/install.cmd
-          chmod +x GreenchClaw.ai/public/install.sh GreenchClaw.ai/public/install-cli.sh
-
-      - name: Check for changes
-        id: changes
-        working-directory: GreenchClaw.ai
-        run: |
-          if git diff --quiet -- public/install.sh public/install-cli.sh public/install.ps1 public/install.cmd; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Setup Bun
-        if: steps.changes.outputs.changed == 'true'
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Setup Node.js
-        if: steps.changes.outputs.changed == 'true'
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-
-      - name: Install ShellCheck
-        if: steps.changes.outputs.changed == 'true'
-        run: sudo apt-get update -y && sudo apt-get install -y shellcheck
-
-      - name: Verify website with synced installers
-        if: steps.changes.outputs.changed == 'true'
-        working-directory: GreenchClaw.ai
-        run: |
-          bash -n public/install.sh public/install-cli.sh
-          shellcheck -e SC1091 public/install.sh public/install-cli.sh
-          bun install --frozen-lockfile
-          bun run build
-
-      - name: Commit and push website sync
-        if: steps.changes.outputs.changed == 'true'
-        working-directory: GreenchClaw.ai
-        run: |
-          git config user.name "GreenchClaw-installer-sync[bot]"
-          git config user.email "GreenchClaw-installer-sync[bot]@users.noreply.github.com"
-          git add public/install.sh public/install-cli.sh public/install.ps1 public/install.cmd
-          git commit -m "chore: sync installers from GreenchClaw ${GITHUB_SHA::12}"
-          git pull --rebase origin main
-          git push origin HEAD:main

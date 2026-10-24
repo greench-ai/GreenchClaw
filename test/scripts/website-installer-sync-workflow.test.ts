@@ -39,21 +39,15 @@ describe("website installer sync workflow", () => {
     expect(workflow).not.toContain(".\\scripts\\install.cmd");
   });
 
-  it("syncs verified scripts to GreenchClaw.ai only after all installer checks pass", () => {
-    expect(workflow).toContain("needs: [static, linux-docker, macos-installer, windows-installer]");
-    expect(workflow).toContain("repository: GreenchClaw/GreenchClaw.ai");
-    expect(workflow).toContain("token: ${{ secrets.GREENCHCLAW_GH_TOKEN }}");
-    expect(workflow).toContain(
-      "cp GreenchClaw/scripts/install.sh GreenchClaw.ai/public/install.sh",
-    );
-    expect(workflow).toContain(
-      "cp GreenchClaw/scripts/install-cli.sh GreenchClaw.ai/public/install-cli.sh",
-    );
-    expect(workflow).toContain(
-      "cp GreenchClaw/scripts/install.ps1 GreenchClaw.ai/public/install.ps1",
-    );
-    expect(workflow).toContain("rm -f GreenchClaw.ai/public/install.cmd");
-    expect(workflow).toContain("bun run build");
-    expect(workflow).toContain("git push origin HEAD:main");
+  it("does not push installers into the retired OpenClaw-era site repos", () => {
+    // GreenchClaw/GreenchClaw.ai, GreenchClaw/clawhub and GreenchClaw/docs do not exist under
+    // this account; the job that copied scripts into them could only fail with
+    // "Input required and not supplied: token". Verification is the whole workflow now.
+    expect(workflow).not.toContain("GreenchClaw.ai");
+    expect(workflow).not.toContain("GreenchClaw/clawhub");
+    expect(workflow).not.toContain("GREENCHCLAW_GH_TOKEN");
+    expect(workflow).not.toContain("sync-website:");
+    expect(workflow).not.toContain("bun run build");
+    expect(workflow).not.toContain("git push origin HEAD:main");
   });
 });
