@@ -486,8 +486,34 @@ fix_npm_prefix_if_needed() {
   log "Configured npm prefix to ${target}"
 }
 
+resolve_GreenchClaw_installed_entry() {
+  # The published npm package is lowercase (`greenchclaw`); a local/legacy install may
+  # still use the uppercase directory and entry file.
+  local package_dir=""
+  local candidate=""
+  for candidate in "greenchclaw" "GreenchClaw"; do
+    if [[ -d "$(node_dir)/lib/node_modules/$candidate" ]]; then
+      package_dir="$(node_dir)/lib/node_modules/$candidate"
+      break
+    fi
+  done
+  if [[ -z "$package_dir" ]]; then
+    return 1
+  fi
+  for candidate in "dist/entry.js" "greenchclaw.mjs" "GreenchClaw.mjs"; do
+    if [[ -f "$package_dir/$candidate" ]]; then
+      echo "$package_dir/$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
 install_GreenchClaw() {
   local requested="${GREENCHCLAW_VERSION:-latest}"
+  # npm package names must be lowercase, so the published package is `greenchclaw`.
+  # The user-facing command stays `GreenchClaw` (wrapped below).
+  local package_name="${GREENCHCLAW_NPM_PACKAGE:-greenchclaw}"
   local npm_args=(
     --loglevel "$NPM_LOGLEVEL"
     --no-fund
@@ -500,14 +526,24 @@ install_GreenchClaw() {
   fi
 
   if [[ "${requested}" == "latest" ]]; then
-    if ! SHARP_IGNORE_GLOBAL_LIBVIPS="$SHARP_IGNORE_GLOBAL_LIBVIPS" "$(npm_bin)" install -g --prefix "$(node_dir)" "${npm_args[@]}" "GreenchClaw@latest"; then
-      log "npm install GreenchClaw@latest failed; retrying GreenchClaw@next"
+    if ! SHARP_IGNORE_GLOBAL_LIBVIPS="$SHARP_IGNORE_GLOBAL_LIBVIPS" "$(npm_bin)" install -g --prefix "$(node_dir)" "${npm_args[@]}" "${package_name}@latest"; then
+      log "npm install ${package_name}@latest failed; retrying ${package_name}@next"
       emit_json "{\"event\":\"step\",\"name\":\"GreenchClaw\",\"status\":\"retry\",\"version\":\"next\"}"
-      SHARP_IGNORE_GLOBAL_LIBVIPS="$SHARP_IGNORE_GLOBAL_LIBVIPS" "$(npm_bin)" install -g --prefix "$(node_dir)" "${npm_args[@]}" "GreenchClaw@next"
+      if ! SHARP_IGNORE_GLOBAL_LIBVIPS="$SHARP_IGNORE_GLOBAL_LIBVIPS" "$(npm_bin)" install -g --prefix "$(node_dir)" "${npm_args[@]}" "${package_name}@next"; then
+        log "npm install ${package_name}@next failed; retrying the legacy uppercase spec"
+        SHARP_IGNORE_GLOBAL_LIBVIPS="$SHARP_IGNORE_GLOBAL_LIBVIPS" "$(npm_bin)" install -g --prefix "$(node_dir)" "${npm_args[@]}" "GreenchClaw@latest"
+      fi
       requested="next"
     fi
   else
-    SHARP_IGNORE_GLOBAL_LIBVIPS="$SHARP_IGNORE_GLOBAL_LIBVIPS" "$(npm_bin)" install -g --prefix "$(node_dir)" "${npm_args[@]}" "GreenchClaw@${requested}"
+    SHARP_IGNORE_GLOBAL_LIBVIPS="$SHARP_IGNORE_GLOBAL_LIBVIPS" "$(npm_bin)" install -g --prefix "$(node_dir)" "${npm_args[@]}" "${package_name}@${requested}"
+  fi
+
+  local entry=""
+  entry="$(resolve_GreenchClaw_installed_entry)" || true
+  if [[ -z "$entry" ]]; then
+    log "Installed package entry point not found under $(node_dir)/lib/node_modules"
+    return 1
   fi
 
   mkdir -p "${PREFIX}/bin"
@@ -515,7 +551,7 @@ install_GreenchClaw() {
   cat > "${PREFIX}/bin/GreenchClaw" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-exec "${PREFIX}/tools/node/bin/node" "$(node_dir)/lib/node_modules/GreenchClaw/dist/entry.js" "\$@"
+exec "${PREFIX}/tools/node/bin/node" "${entry}" "\$@"
 EOF
   chmod +x "${PREFIX}/bin/GreenchClaw"
   emit_json "{\"event\":\"step\",\"name\":\"GreenchClaw\",\"status\":\"ok\",\"version\":\"${requested}\"}"
