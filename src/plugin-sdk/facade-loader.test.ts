@@ -10,7 +10,7 @@ import {
 } from "./facade-loader.js";
 import { listImportedBundledPluginFacadeIds as listImportedFacadeRuntimeIds } from "./facade-runtime.js";
 import { createPluginSdkTestHarness } from "./test-helpers.js";
-import { resolveExistingBundledPluginRoot } from "../test-utils/bundled-plugin-public-surface.js";
+import { resolveExistingBundledPluginRoot } from "../../test/helpers/existing-bundled-plugin-root.js";
 
 const { createTempDirSync } = createPluginSdkTestHarness();
 const originalBundledPluginsDir = process.env.GREENCHCLAW_BUNDLED_PLUGINS_DIR;

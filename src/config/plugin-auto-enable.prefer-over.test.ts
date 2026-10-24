@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PluginManifestRegistry } from "../plugins/manifest-registry.js";
 import { cleanupTrackedTempDirs } from "../plugins/test-helpers/fs-fixtures.js";
-import { resolveExistingBundledPluginRoot } from "../test-utils/bundled-plugin-public-surface.js";
+import { resolveExistingBundledPluginRoot } from "../../test/helpers/existing-bundled-plugin-root.js";
 
 vi.mock("../plugins/bundled-dir.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../plugins/bundled-dir.js")>();
