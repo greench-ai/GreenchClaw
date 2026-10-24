@@ -1,26 +1,21 @@
-import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { promisify } from "node:util";
+import { format as formatWithOxfmt } from "oxfmt";
 import {
   CODEX_RUNTIME_HAPPY_PATH_PROMPT_SNAPSHOT_DIR,
   createHappyPathPromptSnapshotFiles,
 } from "../test/helpers/agents/happy-path-prompt-snapshots.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const oxfmtPath = path.resolve(
-  repoRoot,
-  "node_modules",
-  ".bin",
-  process.platform === "win32" ? "oxfmt.cmd" : "oxfmt",
-);
-const execFileAsync = promisify(execFile);
-// Deliberately far below the caller's 120s hook budget: a 90s cap still let the shard-level
-// beforeAll win the race on a loaded 2-worker runner, so the diagnostic never rendered and we
-// got the opaque hook timeout again. 25s is ~20x a healthy local format (<1.5s for 7 files).
-const OXFMT_TIMEOUT_MS = Number(process.env.GREENCHCLAW_OXFMT_TIMEOUT_MS ?? 25_000);
+// Formatting happens IN-PROCESS through the oxfmt Node binding.
+//
+// It used to spawn `node_modules/.bin/oxfmt` as a child process. On CI runners that spawn prints
+// its first line and then never returns — the shard-level beforeAll burned 154s and died with an
+// opaque "Hook timed out in 120000ms" (three runs in a row). The binding removes the child
+// process from the equation entirely and turns a silent hang into a normal awaited call.
+const FORMAT_TIMEOUT_MS = Number(process.env.GREENCHCLAW_OXFMT_TIMEOUT_MS ?? 25_000);
 
 type PromptSnapshotFile = ReturnType<typeof createHappyPathPromptSnapshotFiles>[number];
 
@@ -43,48 +38,47 @@ async function writeSnapshotFiles(root: string, files: PromptSnapshotFile[]) {
 }
 
 async function formatSnapshotFiles(root: string, files: PromptSnapshotFile[]) {
-  const filePaths = files
-    .filter((file) => file.path.endsWith(".md") || file.path.endsWith(".json"))
-    .map((file) => path.resolve(root, file.path));
-  if (filePaths.length === 0) {
+  const targets = files.filter((file) => file.path.endsWith(".md") || file.path.endsWith(".json"));
+  if (targets.length === 0) {
     return;
   }
-  // Phase logging: if this spawn starves the event loop or the process dies, the last line on
-  // stdout names the stage we were in, even when no formatted error ever gets thrown.
-  console.log(`[prompt-snapshots] formatting ${filePaths.length} file(s) with oxfmt`);
+  console.log(`[prompt-snapshots] formatting ${targets.length} file(s) with oxfmt (in-process)`);
   const startedAt = Date.now();
-  // Bound the child process ourselves and surface its stderr: when oxfmt stalls or crashes the
-  // failure used to show up as an opaque "Hook timed out in 120000ms" from the caller's
-  // beforeAll, with no hint that a spawned formatter binary was the problem.
-  try {
-    await execFileAsync(oxfmtPath, ["--write", "--threads=1", ...filePaths], {
-      cwd: repoRoot,
-      timeout: OXFMT_TIMEOUT_MS,
-      killSignal: "SIGKILL",
-      maxBuffer: 16 * 1024 * 1024,
-    });
-    console.log(`[prompt-snapshots] oxfmt finished in ${Date.now() - startedAt}ms`);
-  } catch (error) {
-    const details = error as {
-      code?: unknown;
-      signal?: unknown;
-      killed?: unknown;
-      stderr?: unknown;
-    };
-    const stderr =
-      typeof details.stderr === "string" && details.stderr.trim()
-        ? details.stderr.trim()
-        : "(none)";
-    throw new Error(
-      [
-        `oxfmt failed to format ${filePaths.length} prompt snapshot file(s) in ${root}.`,
-        `binary: ${oxfmtPath}`,
-        `code: ${String(details.code)} signal: ${String(details.signal)} killed: ${String(details.killed)}`,
-        `timeout: ${OXFMT_TIMEOUT_MS}ms`,
-        `stderr: ${stderr}`,
-      ].join("\n"),
-      { cause: error },
+  for (const file of targets) {
+    const filePath = path.resolve(root, file.path);
+    const source = await fs.readFile(filePath, "utf8");
+    const result = await withTimeout(
+      formatWithOxfmt(filePath, source),
+      FORMAT_TIMEOUT_MS,
+      `oxfmt format of ${file.path}`,
     );
+    const errors = result.errors.map((error) => error.message).filter(Boolean);
+    if (errors.length > 0) {
+      throw new Error(`oxfmt reported errors for ${file.path}:\n${errors.join("\n")}`);
+    }
+    if (result.code !== source) {
+      await fs.writeFile(filePath, result.code);
+    }
+  }
+  console.log(`[prompt-snapshots] oxfmt finished in ${Date.now() - startedAt}ms`);
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`${label} timed out after ${timeoutMs}ms`)),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
   }
 }
 
