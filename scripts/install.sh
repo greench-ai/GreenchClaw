@@ -2394,6 +2394,10 @@ install_GreenchClaw() {
     fi
 
     if [[ "${GREENCHCLAW_VERSION}" == "latest" && "${package_name}" == "${GREENCHCLAW_NPM_PACKAGE}" ]]; then
+        # Link the uppercase command first: the install may succeed without shipping a
+        # `GreenchClaw` bin, and probing for one before linking would report a failure
+        # and trigger pointless @next / legacy retries.
+        ensure_GreenchClaw_bin_link || true
         if ! resolve_GreenchClaw_bin &> /dev/null; then
             ui_warn "npm install ${package_name}@latest failed; retrying ${package_name}@next"
             cleanup_npm_GreenchClaw_paths
