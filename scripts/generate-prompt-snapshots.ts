@@ -17,9 +17,10 @@ const oxfmtPath = path.resolve(
   process.platform === "win32" ? "oxfmt.cmd" : "oxfmt",
 );
 const execFileAsync = promisify(execFile);
-// Generous enough for a cold runner, small enough that a stuck spawn fails with a real message
-// instead of consuming the caller's whole hook timeout.
-const OXFMT_TIMEOUT_MS = Number(process.env.GREENCHCLAW_OXFMT_TIMEOUT_MS ?? 90_000);
+// Deliberately far below the caller's 120s hook budget: a 90s cap still let the shard-level
+// beforeAll win the race on a loaded 2-worker runner, so the diagnostic never rendered and we
+// got the opaque hook timeout again. 25s is ~20x a healthy local format (<1.5s for 7 files).
+const OXFMT_TIMEOUT_MS = Number(process.env.GREENCHCLAW_OXFMT_TIMEOUT_MS ?? 25_000);
 
 type PromptSnapshotFile = ReturnType<typeof createHappyPathPromptSnapshotFiles>[number];
 
@@ -48,6 +49,10 @@ async function formatSnapshotFiles(root: string, files: PromptSnapshotFile[]) {
   if (filePaths.length === 0) {
     return;
   }
+  // Phase logging: if this spawn starves the event loop or the process dies, the last line on
+  // stdout names the stage we were in, even when no formatted error ever gets thrown.
+  console.log(`[prompt-snapshots] formatting ${filePaths.length} file(s) with oxfmt`);
+  const startedAt = Date.now();
   // Bound the child process ourselves and surface its stderr: when oxfmt stalls or crashes the
   // failure used to show up as an opaque "Hook timed out in 120000ms" from the caller's
   // beforeAll, with no hint that a spawned formatter binary was the problem.
@@ -58,6 +63,7 @@ async function formatSnapshotFiles(root: string, files: PromptSnapshotFile[]) {
       killSignal: "SIGKILL",
       maxBuffer: 16 * 1024 * 1024,
     });
+    console.log(`[prompt-snapshots] oxfmt finished in ${Date.now() - startedAt}ms`);
   } catch (error) {
     const details = error as {
       code?: unknown;
