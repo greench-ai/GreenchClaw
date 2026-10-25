@@ -1,7 +1,24 @@
 // GreenchClaw Control – Service Worker
 // Handles offline caching and push notifications.
 
-const CACHE_NAME = "GreenchClaw-control-v1";
+// Bumped whenever sw.js is edited. Kept as a literal so the browser sees a changed
+// byte sequence and installs the new worker. This is NOT the HTTP cache key — see
+// CACHE_NAME below.
+const SW_VERSION = 2;
+
+// Cache key that carries the build's asset manifest hash.
+//
+// This used to be the hardcoded string "GreenchClaw-control-v1". Because the key
+// never changed between builds, a browser that had already precached "./" kept
+// serving the OLD index.html while the gateway sent the NEW Content-Security-Policy
+// header. The inline <script> hashes in the stale HTML no longer matched the CSP, so
+// the browser blocked them and logged:
+//   "Executing inline script violates the following Content Security Policy..."
+//
+// Deriving the key from the current build makes every rebuild land in a fresh cache,
+// and the activate handler deletes everything that is not the current key.
+const BUILD_ID = self.__GREENCHCLAW_BUILD_ID__ || "dev";
+const CACHE_NAME = `GreenchClaw-control-${BUILD_ID}`;
 
 // Minimal app-shell files to precache.
 const PRECACHE_URLS = ["./"];
@@ -16,7 +33,13 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))),
+        // Drop every previous GreenchClaw cache, including older build-stamped
+        // keys and the legacy hardcoded "GreenchClaw-control-v1".
+        Promise.all(
+          keys
+            .filter((key) => key !== CACHE_NAME && key.startsWith("GreenchClaw-control-"))
+            .map((key) => caches.delete(key)),
+        ),
       ),
   );
   self.clients.claim();
