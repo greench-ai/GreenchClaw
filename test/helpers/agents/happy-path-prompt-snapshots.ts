@@ -798,16 +798,31 @@ function renderReadme(scenarios: PromptScenario[]): string {
 }
 
 export function createHappyPathPromptSnapshotFiles(): PromptSnapshotFile[] {
+  // Stage logs: CI sees this beforeAll starve a 120s hook timeout with no way to tell which
+  // phase stalled. Each console.log flushes through vitest immediately, so the last line
+  // printed names the failing stage even when the process is killed.
+  const logStage = (stage: string) => console.log(`[prompt-snapshots] stage: ${stage}`);
+  logStage("createScenarios:start");
   const scenarios = createScenarios();
+  logStage(`createScenarios:done (${scenarios.length} scenarios)`);
+  const readme = renderReadme(scenarios);
+  logStage("renderReadme:done");
+  const scenarioDocs = scenarios.map((scenario) => {
+    logStage(`renderScenarioSnapshot:start ${scenario.id}`);
+    const content = renderScenarioSnapshot(scenario);
+    logStage(`renderScenarioSnapshot:done ${scenario.id}`);
+    return {
+      path: path.join(CODEX_RUNTIME_HAPPY_PATH_PROMPT_SNAPSHOT_DIR, `${scenario.id}.md`),
+      content,
+    };
+  });
+  logStage("renderScenarioSnapshots:done");
   const files = [
     {
       path: path.join(CODEX_RUNTIME_HAPPY_PATH_PROMPT_SNAPSHOT_DIR, "README.md"),
-      content: renderReadme(scenarios),
+      content: readme,
     },
-    ...scenarios.map((scenario) => ({
-      path: path.join(CODEX_RUNTIME_HAPPY_PATH_PROMPT_SNAPSHOT_DIR, `${scenario.id}.md`),
-      content: renderScenarioSnapshot(scenario),
-    })),
+    ...scenarioDocs,
     ...scenarios.map((scenario) => ({
       path: path.join(CODEX_RUNTIME_HAPPY_PATH_PROMPT_SNAPSHOT_DIR, scenario.toolSnapshotFile),
       content: stableJson(scenario.dynamicTools),

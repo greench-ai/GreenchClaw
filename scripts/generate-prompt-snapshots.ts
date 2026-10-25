@@ -1,22 +1,21 @@
-import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { promisify } from "node:util";
+import { format as formatWithOxfmt } from "oxfmt";
 import {
   CODEX_RUNTIME_HAPPY_PATH_PROMPT_SNAPSHOT_DIR,
   createHappyPathPromptSnapshotFiles,
 } from "../test/helpers/agents/happy-path-prompt-snapshots.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const oxfmtPath = path.resolve(
-  repoRoot,
-  "node_modules",
-  ".bin",
-  process.platform === "win32" ? "oxfmt.cmd" : "oxfmt",
-);
-const execFileAsync = promisify(execFile);
+// Formatting happens IN-PROCESS through the oxfmt Node binding.
+//
+// It used to spawn `node_modules/.bin/oxfmt` as a child process. On CI runners that spawn prints
+// its first line and then never returns — the shard-level beforeAll burned 154s and died with an
+// opaque "Hook timed out in 120000ms" (three runs in a row). The binding removes the child
+// process from the equation entirely and turns a silent hang into a normal awaited call.
+const FORMAT_TIMEOUT_MS = Number(process.env.GREENCHCLAW_OXFMT_TIMEOUT_MS ?? 25_000);
 
 type PromptSnapshotFile = ReturnType<typeof createHappyPathPromptSnapshotFiles>[number];
 
@@ -39,15 +38,48 @@ async function writeSnapshotFiles(root: string, files: PromptSnapshotFile[]) {
 }
 
 async function formatSnapshotFiles(root: string, files: PromptSnapshotFile[]) {
-  const filePaths = files
-    .filter((file) => file.path.endsWith(".md") || file.path.endsWith(".json"))
-    .map((file) => path.resolve(root, file.path));
-  if (filePaths.length === 0) {
+  const targets = files.filter((file) => file.path.endsWith(".md") || file.path.endsWith(".json"));
+  if (targets.length === 0) {
     return;
   }
-  await execFileAsync(oxfmtPath, ["--write", "--threads=1", ...filePaths], {
-    cwd: repoRoot,
-  });
+  console.log(`[prompt-snapshots] formatting ${targets.length} file(s) with oxfmt (in-process)`);
+  const startedAt = Date.now();
+  for (const file of targets) {
+    const filePath = path.resolve(root, file.path);
+    const source = await fs.readFile(filePath, "utf8");
+    const result = await withTimeout(
+      formatWithOxfmt(filePath, source),
+      FORMAT_TIMEOUT_MS,
+      `oxfmt format of ${file.path}`,
+    );
+    const errors = result.errors.map((error) => error.message).filter(Boolean);
+    if (errors.length > 0) {
+      throw new Error(`oxfmt reported errors for ${file.path}:\n${errors.join("\n")}`);
+    }
+    if (result.code !== source) {
+      await fs.writeFile(filePath, result.code);
+    }
+  }
+  console.log(`[prompt-snapshots] oxfmt finished in ${Date.now() - startedAt}ms`);
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`${label} timed out after ${timeoutMs}ms`)),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
 }
 
 async function readSnapshotFiles(root: string, files: PromptSnapshotFile[]) {

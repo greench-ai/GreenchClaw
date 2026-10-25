@@ -84,6 +84,9 @@ overrides:
   yauzl: 3.2.1
   uuid: 14.0.0
 
+  "@azure/msal-node": ^7.1.1
+  "body-parser": ^2.4.0
+  "zod": ^4.6.7
 allowBuilds:
   "@GreenchClaw/fs-safe": true
   "@google/genai": true

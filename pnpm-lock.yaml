@@ -46,6 +46,9 @@ overrides:
   ws: ^8.22.0
   yauzl: 3.2.1
   uuid: 14.0.0
+  '@azure/msal-node': ^7.1.1
+  body-parser: ^2.4.0
+  zod: ^4.6.7
 
 packageExtensionsChecksum: sha256-oc/FAHkBR844HBfph1RZWyRMHHBpIFya25tyv5SGf6s=
 
@@ -59,13 +62,13 @@ importers:
     dependencies:
       '@agentclientprotocol/sdk':
         specifier: 0.21.0
-        version: 0.21.0(zod@4.4.3)
+        version: 0.21.0(zod@4.6.7)
       '@anthropic-ai/sdk':
         specifier: 0.95.1
-        version: 0.95.1(zod@4.4.3)
+        version: 0.95.1(zod@4.6.7)
       '@anthropic-ai/vertex-sdk':
         specifier: 0.16.0
-        version: 0.16.0(zod@4.4.3)
+        version: 0.16.0(zod@4.6.7)
       '@aws-sdk/client-bedrock':
         specifier: 3.1045.0
         version: 3.1045.0
@@ -86,19 +89,19 @@ importers:
         version: 1.3.0
       '@earendil-works/pi-agent-core':
         specifier: 0.78.1
-        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)
+        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)
       '@earendil-works/pi-ai':
         specifier: 0.78.1
-        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)
+        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)
       '@earendil-works/pi-coding-agent':
         specifier: 0.78.1
-        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)
+        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)
       '@earendil-works/pi-tui':
         specifier: 0.74.0
         version: 0.74.0
       '@google/genai':
         specifier: 2.0.1
-        version: 2.0.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))
+        version: 2.0.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))
       '@grammyjs/runner':
         specifier: 2.0.3
         version: 2.0.3(grammy@1.42.0)
@@ -113,7 +116,7 @@ importers:
         version: 1.2.0-beta.12
       '@modelcontextprotocol/sdk':
         specifier: ^1.32.1
-        version: 1.32.1(zod@4.4.3)
+        version: 1.32.1(zod@4.6.7)
       '@mozilla/readability':
         specifier: 0.6.0
         version: 0.6.0
@@ -194,7 +197,7 @@ importers:
         version: 1.2.10
       openai:
         specifier: 6.37.0
-        version: 6.37.0(ws@8.22.0)(zod@4.4.3)
+        version: 6.37.0(ws@8.22.0)(zod@4.6.7)
       openshell:
         specifier: 0.1.0
         version: 0.1.0
@@ -241,8 +244,8 @@ importers:
         specifier: 2.9.0
         version: 2.9.0
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@a2ui/lit':
         specifier: 0.14.0
@@ -333,8 +336,8 @@ importers:
         specifier: 0.7.0
         version: 0.7.0
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -359,7 +362,7 @@ importers:
         version: 3.972.39
       '@earendil-works/pi-ai':
         specifier: 0.78.1
-        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)
+        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)
       '@smithy/shared-ini-file-loader':
         specifier: 4.5.1
         version: 4.5.1
@@ -372,13 +375,13 @@ importers:
     dependencies:
       '@anthropic-ai/sdk':
         specifier: 0.95.1
-        version: 0.95.1(zod@4.4.3)
+        version: 0.95.1(zod@4.6.7)
       '@aws/bedrock-token-generator':
         specifier: 1.1.0
         version: 1.1.0
       '@earendil-works/pi-ai':
         specifier: 0.78.1
-        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)
+        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -388,7 +391,7 @@ importers:
     dependencies:
       '@earendil-works/pi-ai':
         specifier: 0.78.1
-        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)
+        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -398,13 +401,13 @@ importers:
     dependencies:
       '@anthropic-ai/vertex-sdk':
         specifier: 0.16.0
-        version: 0.16.0(zod@4.4.3)
+        version: 0.16.0(zod@4.6.7)
       '@earendil-works/pi-agent-core':
         specifier: 0.78.1
-        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)
+        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)
       '@earendil-works/pi-ai':
         specifier: 0.78.1
-        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)
+        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -442,7 +445,7 @@ importers:
     dependencies:
       '@modelcontextprotocol/sdk':
         specifier: ^1.32.1
-        version: 1.32.1(zod@4.4.3)
+        version: 1.32.1(zod@4.6.7)
       commander:
         specifier: 14.0.3
         version: 14.0.3
@@ -515,8 +518,8 @@ importers:
         specifier: ^8.22.0
         version: 8.22.0
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -535,7 +538,7 @@ importers:
     dependencies:
       '@earendil-works/pi-coding-agent':
         specifier: 0.78.1
-        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)
+        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)
       '@openai/codex':
         specifier: 0.130.0
         version: 0.130.0
@@ -546,8 +549,8 @@ importers:
         specifier: ^8.22.0
         version: 8.22.0
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -644,8 +647,8 @@ importers:
         specifier: 1.1.38
         version: 1.1.38
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -728,8 +731,8 @@ importers:
         specifier: 1.1.38
         version: 1.1.38
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -765,7 +768,7 @@ importers:
     dependencies:
       '@earendil-works/pi-ai':
         specifier: 0.78.1
-        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)
+        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -782,16 +785,16 @@ importers:
         version: link:../../packages/plugin-sdk
       '@earendil-works/pi-ai':
         specifier: 0.78.1
-        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)
+        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)
 
   extensions/google:
     dependencies:
       '@earendil-works/pi-ai':
         specifier: 0.78.1
-        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)
+        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)
       '@google/genai':
         specifier: 2.0.1
-        version: 2.0.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))
+        version: 2.0.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -822,8 +825,8 @@ importers:
         specifier: 10.6.2
         version: 10.6.2
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -890,8 +893,8 @@ importers:
   extensions/irc:
     dependencies:
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -907,7 +910,7 @@ importers:
     dependencies:
       '@earendil-works/pi-ai':
         specifier: 0.78.1
-        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)
+        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -919,8 +922,8 @@ importers:
         specifier: 11.0.0
         version: 11.0.0
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -949,7 +952,7 @@ importers:
     dependencies:
       '@earendil-works/pi-ai':
         specifier: 0.78.1
-        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)
+        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)
 
   extensions/lobster:
     dependencies:
@@ -991,8 +994,8 @@ importers:
         specifier: 1.1.38
         version: 1.1.38
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -1007,8 +1010,8 @@ importers:
         specifier: ^8.22.0
         version: 8.22.0
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -1056,7 +1059,7 @@ importers:
         version: 18.1.0
       openai:
         specifier: 6.37.0
-        version: 6.37.0(ws@8.22.0)(zod@4.4.3)
+        version: 6.37.0(ws@8.22.0)(zod@4.6.7)
       typebox:
         specifier: 1.1.38
         version: 1.1.38
@@ -1074,8 +1077,8 @@ importers:
         specifier: 2.9.0
         version: 2.9.0
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -1177,8 +1180,8 @@ importers:
   extensions/nextcloud-talk:
     dependencies:
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -1193,8 +1196,8 @@ importers:
         specifier: 2.23.3
         version: 2.23.3(typescript@6.0.3)
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -1232,7 +1235,7 @@ importers:
     dependencies:
       '@earendil-works/pi-ai':
         specifier: 0.78.1
-        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)
+        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)
       typebox:
         specifier: 1.1.38
         version: 1.1.38
@@ -1251,7 +1254,7 @@ importers:
     dependencies:
       '@earendil-works/pi-ai':
         specifier: 0.78.1
-        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)
+        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)
       ws:
         specifier: ^8.22.0
         version: 8.22.0
@@ -1284,8 +1287,8 @@ importers:
         specifier: 0.1.0
         version: 0.1.0
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -1303,8 +1306,8 @@ importers:
         specifier: 1.1.38
         version: 1.1.38
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -1320,7 +1323,7 @@ importers:
         version: 1.22.0(vitest@4.1.12)
       '@modelcontextprotocol/sdk':
         specifier: ^1.32.1
-        version: 1.32.1(zod@4.4.3)
+        version: 1.32.1(zod@4.6.7)
       playwright-core:
         specifier: 1.60.0
         version: 1.60.0
@@ -1328,8 +1331,8 @@ importers:
         specifier: 2.9.0
         version: 2.9.0
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/discord':
         specifier: workspace:*
@@ -1384,8 +1387,8 @@ importers:
         specifier: ^8.22.0
         version: 8.22.0
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -1484,8 +1487,8 @@ importers:
   extensions/synology-chat:
     dependencies:
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -1550,8 +1553,8 @@ importers:
         specifier: 3.0.0
         version: 3.0.0
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -1594,8 +1597,8 @@ importers:
         specifier: 8.1.4
         version: 8.1.4(@twurple/auth@8.1.4)
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -1637,8 +1640,8 @@ importers:
         specifier: ^8.22.0
         version: 8.22.0
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -1681,8 +1684,8 @@ importers:
   extensions/webhooks:
     dependencies:
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -1717,7 +1720,7 @@ importers:
     dependencies:
       '@earendil-works/pi-ai':
         specifier: 0.78.1
-        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)
+        version: 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)
       typebox:
         specifier: 1.1.38
         version: 1.1.38
@@ -1744,8 +1747,8 @@ importers:
   extensions/zalo:
     dependencies:
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -1763,8 +1766,8 @@ importers:
         specifier: 2.1.2
         version: 2.1.2
       zod:
-        specifier: 4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@GreenchClaw/plugin-sdk':
         specifier: workspace:*
@@ -1847,7 +1850,7 @@ packages:
   '@agentclientprotocol/sdk@0.21.0':
     resolution: {integrity: sha512-ONj+Q8qOdNQp5XbH5jnMwzT9IKZJsSN0p0lkceS4GtUtNOPVLpNzSS8gqQdGMKfBvA0ESbkL8BTaSN1Rc9miEw==}
     peerDependencies:
-      zod: ^3.25.0 || ^4.0.0
+      zod: ^4.6.7
 
   '@anthropic-ai/claude-agent-sdk-darwin-arm64@0.2.132':
     resolution: {integrity: sha512-wrGxeqsnhw3JSU25v78FSw85guN0FGqLA7LuAzLe+KVZqJElJvhtae1ceCvgF8e8Bc/RUrniNxRrTur+8vIZYQ==}
@@ -1897,13 +1900,13 @@ packages:
     resolution: {integrity: sha512-3hCkfbHi6d73QcNqgrjU9zXGdNs3BrwWnxV90p+DDFARtnwbszkkEm4nz9c80af3nzGBRVvKNZPVCqVaBrkO0g==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
-      zod: ^4.0.0
+      zod: ^4.6.7
 
   '@anthropic-ai/sdk@0.95.1':
     resolution: {integrity: sha512-OO9AF7hmAoU492c/mD7Q2cPqI2WNAj7rAPHlawgBeUgpwiboLRiDs+grsErGWeHHP9ZRWfzq2OVrODTt8aITVg==}
     hasBin: true
     peerDependencies:
-      zod: ^3.25.0 || ^4.0.0
+      zod: ^4.6.7
     peerDependenciesMeta:
       zod:
         optional: true
@@ -2153,24 +2156,16 @@ packages:
     resolution: {integrity: sha512-80OcuXDErmcEDAIH9pBtSqBsed2sPT/IWmbG3xHLoPMl5zc8TINd6SlJAbVSmN5huGa3xGAg5qR7VnpaIEK0Zw==}
     engines: {node: '>=0.8.0'}
 
-  '@azure/msal-common@15.17.0':
-    resolution: {integrity: sha512-VQ5/gTLFADkwue+FohVuCqlzFPUq4xSrX8jeZe+iwZuY6moliNC8xt86qPVNYdtbQfELDf2Nu6LI+demFPHGgw==}
-    engines: {node: '>=0.8.0'}
-
-  '@azure/msal-common@16.13.0':
-    resolution: {integrity: sha512-rOAy0KUcyBbdwVJ+f3uPpthXatFLLZN+/KWAsTLzk1aB23Xl9DRmmXYwSvBFOZyXj4jUQQ5FKxxRkhAFW1fOow==}
-    engines: {node: '>=0.8.0'}
-
   '@azure/msal-common@16.14.0':
     resolution: {integrity: sha512-A4rb55hI86Q9tBl/+jBj7TMz7iX2RFgQs/nExFzcAtoI/BFRVdaH5SL/MivrYD7qvweMpN8AgVvVMHV8UBYxew==}
     engines: {node: '>=0.8.0'}
 
-  '@azure/msal-node@3.8.10':
-    resolution: {integrity: sha512-0Hz7Kx4hs70KZWep/Rd7aw/qOLUF92wUOhn7ZsOuB5xNR/06NL1E2RAI9+UKH1FtvN8nD6mFjH7UKSjv6vOWvQ==}
-    engines: {node: '>=16'}
+  '@azure/msal-common@16.14.3':
+    resolution: {integrity: sha512-tz3GvMrR9V/plb2lDdW8qaO8CPpfZevdExBKjltzzbAtyhK0eB2UIvji1aU+gkyHj3fxQ2ie+LNHyMXdmo8wOg==}
+    engines: {node: '>=0.8.0'}
 
-  '@azure/msal-node@5.6.0':
-    resolution: {integrity: sha512-uFY9NxrWHw8PwZx7gAX6PDn+9vdfS05+levc/kwkx77IkjfaldnQbbcQzzDIZ5Hq5Zdr6/z92oAIoRWKp6MnOA==}
+  '@azure/msal-node@7.1.1':
+    resolution: {integrity: sha512-zHXTJB38XVrsNaXrPBCMqEUjeyQysFfgmKtUHRDsEKTRjNIPckJ/w6fE5wBXrmJXBim1D3C7O7LOag0msPTrgw==}
     engines: {node: '>=20'}
 
   '@babel/generator@8.0.0-rc.6':
@@ -3154,7 +3149,7 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       '@cfworker/json-schema': ^4.1.1
-      zod: ^3.25 || ^4.0
+      zod: ^4.6.7
     peerDependenciesMeta:
       '@cfworker/json-schema':
         optional: true
@@ -5032,8 +5027,8 @@ packages:
   bn.js@4.12.5:
     resolution: {integrity: sha512-3aRg6/JxfffFD+OlOjOFR3Vo79l39ooBTFucxx+MT3dhCtzn3EmiUPQo+6/OZuI2jbXi3YKgmiTFBgChQMwIRQ==}
 
-  body-parser@2.3.0:
-    resolution: {integrity: sha512-2cGmJupaNgg+QUwVLAucDuWuoMZ6EX9iHDRswZ5lsNYEmwPaRknMPCLZz07yTzVq/83p4o/wzbDZbBrTvGGTIw==}
+  body-parser@2.4.0:
+    resolution: {integrity: sha512-Ifk1KcLrxaGt1occQagQNFNNOqRt1LFuehEnHHzB8Z6cRgIxRU1TBaiIsUiCdA+gy5PL7Y1IX31DNKkRmxtXjQ==}
     engines: {node: '>=18'}
 
   boolbase@1.0.0:
@@ -6692,7 +6687,7 @@ packages:
     hasBin: true
     peerDependencies:
       ws: ^8.22.0
-      zod: ^3.25 || ^4.0
+      zod: ^4.6.7
     peerDependenciesMeta:
       ws:
         optional: true
@@ -6704,7 +6699,7 @@ packages:
     hasBin: true
     peerDependencies:
       ws: ^8.22.0
-      zod: ^3.25 || ^4.0
+      zod: ^4.6.7
     peerDependenciesMeta:
       ws:
         optional: true
@@ -7999,13 +7994,10 @@ packages:
   zod-to-json-schema@3.25.2:
     resolution: {integrity: sha512-O/PgfnpT1xKSDeQYSCfRI5Gy3hPf91mKVDuYLUHZJMiDFptvP41MSnWofm8dnCm0256ZNfZIM7DSzuSMAFnjHA==}
     peerDependencies:
-      zod: ^3.25.28 || ^4
+      zod: ^4.6.7
 
-  zod@3.25.76:
-    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
-
-  zod@4.4.3:
-    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
+  zod@4.6.7:
+    resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
 
   zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
@@ -8019,7 +8011,7 @@ snapshots:
       '@lit/context': 1.1.6
       lit: 3.3.3
       signal-utils: 0.21.1(signal-polyfill@0.2.2)
-      zod: 3.25.76
+      zod: 4.6.7
     transitivePeerDependencies:
       - signal-polyfill
 
@@ -8030,21 +8022,21 @@ snapshots:
       lit: 3.3.3
       redos-detector: 6.1.4
       validate-color: 2.2.4
-      zod: 3.25.76
-      zod-to-json-schema: 3.25.2(zod@3.25.76)
+      zod: 4.6.7
+      zod-to-json-schema: 3.25.2(zod@4.6.7)
 
   '@agentclientprotocol/claude-agent-acp@0.33.1(patch_hash=3995624bb834cc60fea1461c7ef33f1fcdd8fb58b8f43f2f1490bc689f6e1be2)':
     dependencies:
-      '@agentclientprotocol/sdk': 0.21.0(zod@4.4.3)
-      '@anthropic-ai/claude-agent-sdk': 0.2.132(zod@4.4.3)
-      zod: 4.4.3
+      '@agentclientprotocol/sdk': 0.21.0(zod@4.6.7)
+      '@anthropic-ai/claude-agent-sdk': 0.2.132(zod@4.6.7)
+      zod: 4.6.7
     transitivePeerDependencies:
       - '@cfworker/json-schema'
       - supports-color
 
-  '@agentclientprotocol/sdk@0.21.0(zod@4.4.3)':
+  '@agentclientprotocol/sdk@0.21.0(zod@4.6.7)':
     dependencies:
-      zod: 4.4.3
+      zod: 4.6.7
 
   '@anthropic-ai/claude-agent-sdk-darwin-arm64@0.2.132':
     optional: true
@@ -8070,11 +8062,11 @@ snapshots:
   '@anthropic-ai/claude-agent-sdk-win32-x64@0.2.132':
     optional: true
 
-  '@anthropic-ai/claude-agent-sdk@0.2.132(zod@4.4.3)':
+  '@anthropic-ai/claude-agent-sdk@0.2.132(zod@4.6.7)':
     dependencies:
-      '@anthropic-ai/sdk': 0.95.1(zod@4.4.3)
-      '@modelcontextprotocol/sdk': 1.32.1(zod@4.4.3)
-      zod: 4.4.3
+      '@anthropic-ai/sdk': 0.95.1(zod@4.6.7)
+      '@modelcontextprotocol/sdk': 1.32.1(zod@4.6.7)
+      zod: 4.6.7
     optionalDependencies:
       '@anthropic-ai/claude-agent-sdk-darwin-arm64': 0.2.132
       '@anthropic-ai/claude-agent-sdk-darwin-x64': 0.2.132
@@ -8088,16 +8080,16 @@ snapshots:
       - '@cfworker/json-schema'
       - supports-color
 
-  '@anthropic-ai/sdk@0.95.1(zod@4.4.3)':
+  '@anthropic-ai/sdk@0.95.1(zod@4.6.7)':
     dependencies:
       json-schema-to-ts: 3.1.1
       standardwebhooks: 1.1.1
     optionalDependencies:
-      zod: 4.4.3
+      zod: 4.6.7
 
-  '@anthropic-ai/vertex-sdk@0.16.0(zod@4.4.3)':
+  '@anthropic-ai/vertex-sdk@0.16.0(zod@4.6.7)':
     dependencies:
-      '@anthropic-ai/sdk': 0.95.1(zod@4.4.3)
+      '@anthropic-ai/sdk': 0.95.1(zod@4.6.7)
       google-auth-library: 9.15.1
     transitivePeerDependencies:
       - encoding
@@ -8693,7 +8685,7 @@ snapshots:
       '@azure/core-util': 1.14.0
       '@azure/logger': 1.4.0
       '@azure/msal-browser': 5.21.0
-      '@azure/msal-node': 5.6.0
+      '@azure/msal-node': 7.1.1
       open: 10.2.0
       tslib: 2.8.1
     transitivePeerDependencies:
@@ -8710,21 +8702,13 @@ snapshots:
     dependencies:
       '@azure/msal-common': 16.14.0
 
-  '@azure/msal-common@15.17.0': {}
-
-  '@azure/msal-common@16.13.0': {}
-
   '@azure/msal-common@16.14.0': {}
 
-  '@azure/msal-node@3.8.10':
-    dependencies:
-      '@azure/msal-common': 15.17.0
-      jsonwebtoken: 9.0.3
-      uuid: 14.0.0
+  '@azure/msal-common@16.14.3': {}
 
-  '@azure/msal-node@5.6.0':
+  '@azure/msal-node@7.1.1':
     dependencies:
-      '@azure/msal-common': 16.13.0
+      '@azure/msal-common': 16.14.3
       jsonwebtoken: 9.0.3
 
   '@babel/generator@8.0.0-rc.6':
@@ -8917,9 +8901,9 @@ snapshots:
       - opusscript
       - utf-8-validate
 
-  '@earendil-works/pi-agent-core@0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)':
+  '@earendil-works/pi-agent-core@0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)':
     dependencies:
-      '@earendil-works/pi-ai': 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)
+      '@earendil-works/pi-ai': 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)
       ignore: 7.0.5
       typebox: 1.1.38
       yaml: 2.9.0
@@ -8931,16 +8915,16 @@ snapshots:
       - ws
       - zod
 
-  '@earendil-works/pi-ai@0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)':
+  '@earendil-works/pi-ai@0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)':
     dependencies:
-      '@anthropic-ai/sdk': 0.95.1(zod@4.4.3)
+      '@anthropic-ai/sdk': 0.95.1(zod@4.6.7)
       '@aws-sdk/client-bedrock-runtime': 3.1045.0
-      '@google/genai': 1.52.0(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))
+      '@google/genai': 1.52.0(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))
       '@mistralai/mistralai': 2.2.1
       '@smithy/node-http-handler': 4.7.3
       http-proxy-agent: 7.0.2
       https-proxy-agent: 7.0.6
-      openai: 6.26.0(ws@8.22.0)(zod@4.4.3)
+      openai: 6.26.0(ws@8.22.0)(zod@4.6.7)
       partial-json: 0.1.7
       typebox: 1.1.38
     transitivePeerDependencies:
@@ -8951,10 +8935,10 @@ snapshots:
       - ws
       - zod
 
-  '@earendil-works/pi-coding-agent@0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)':
+  '@earendil-works/pi-coding-agent@0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)':
     dependencies:
-      '@earendil-works/pi-agent-core': 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)
-      '@earendil-works/pi-ai': 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))(ws@8.22.0)(zod@4.4.3)
+      '@earendil-works/pi-agent-core': 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)
+      '@earendil-works/pi-ai': 0.78.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))(ws@8.22.0)(zod@4.6.7)
       '@earendil-works/pi-tui': 0.78.1
       '@silvia-odwyer/photon-node': 0.3.4
       chalk: 5.6.2
@@ -9096,27 +9080,27 @@ snapshots:
     optionalDependencies:
       '@noble/hashes': 2.0.1
 
-  '@google/genai@1.52.0(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))':
+  '@google/genai@1.52.0(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))':
     dependencies:
       google-auth-library: 10.6.2
       p-retry: 4.6.2
       protobufjs: 7.6.6
       ws: 8.22.0
     optionalDependencies:
-      '@modelcontextprotocol/sdk': 1.32.1(zod@4.4.3)
+      '@modelcontextprotocol/sdk': 1.32.1(zod@4.6.7)
     transitivePeerDependencies:
       - bufferutil
       - supports-color
       - utf-8-validate
 
-  '@google/genai@2.0.1(@modelcontextprotocol/sdk@1.32.1(zod@4.4.3))':
+  '@google/genai@2.0.1(@modelcontextprotocol/sdk@1.32.1(zod@4.6.7))':
     dependencies:
       google-auth-library: 10.6.2
       p-retry: 4.6.2
       protobufjs: 7.6.6
       ws: 8.22.0
     optionalDependencies:
-      '@modelcontextprotocol/sdk': 1.32.1(zod@4.4.3)
+      '@modelcontextprotocol/sdk': 1.32.1(zod@4.6.7)
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -9344,7 +9328,7 @@ snapshots:
     dependencies:
       '@jimp/types': 1.6.1
       '@jimp/utils': 1.6.1
-      zod: 3.25.76
+      zod: 4.6.7
 
   '@jimp/plugin-blur@1.6.1':
     dependencies:
@@ -9356,7 +9340,7 @@ snapshots:
   '@jimp/plugin-circle@1.6.1':
     dependencies:
       '@jimp/types': 1.6.1
-      zod: 3.25.76
+      zod: 4.6.7
 
   '@jimp/plugin-color@1.6.1':
     dependencies:
@@ -9364,7 +9348,7 @@ snapshots:
       '@jimp/types': 1.6.1
       '@jimp/utils': 1.6.1
       tinycolor2: 1.6.0
-      zod: 3.25.76
+      zod: 4.6.7
     transitivePeerDependencies:
       - supports-color
 
@@ -9375,7 +9359,7 @@ snapshots:
       '@jimp/plugin-resize': 1.6.1
       '@jimp/types': 1.6.1
       '@jimp/utils': 1.6.1
-      zod: 3.25.76
+      zod: 4.6.7
     transitivePeerDependencies:
       - supports-color
 
@@ -9385,7 +9369,7 @@ snapshots:
       '@jimp/plugin-crop': 1.6.1
       '@jimp/plugin-resize': 1.6.1
       '@jimp/types': 1.6.1
-      zod: 3.25.76
+      zod: 4.6.7
     transitivePeerDependencies:
       - supports-color
 
@@ -9394,7 +9378,7 @@ snapshots:
       '@jimp/core': 1.6.1
       '@jimp/types': 1.6.1
       '@jimp/utils': 1.6.1
-      zod: 3.25.76
+      zod: 4.6.7
     transitivePeerDependencies:
       - supports-color
 
@@ -9402,7 +9386,7 @@ snapshots:
     dependencies:
       '@jimp/types': 1.6.1
       '@jimp/utils': 1.6.1
-      zod: 3.25.76
+      zod: 4.6.7
 
   '@jimp/plugin-dither@1.6.1':
     dependencies:
@@ -9412,12 +9396,12 @@ snapshots:
     dependencies:
       '@jimp/types': 1.6.1
       '@jimp/utils': 1.6.1
-      zod: 3.25.76
+      zod: 4.6.7
 
   '@jimp/plugin-flip@1.6.1':
     dependencies:
       '@jimp/types': 1.6.1
-      zod: 3.25.76
+      zod: 4.6.7
 
   '@jimp/plugin-hash@1.6.1':
     dependencies:
@@ -9437,7 +9421,7 @@ snapshots:
   '@jimp/plugin-mask@1.6.1':
     dependencies:
       '@jimp/types': 1.6.1
-      zod: 3.25.76
+      zod: 4.6.7
 
   '@jimp/plugin-print@1.6.1':
     dependencies:
@@ -9450,20 +9434,20 @@ snapshots:
       parse-bmfont-binary: 1.0.6
       parse-bmfont-xml: 1.1.6
       simple-xml-to-json: 1.2.7
-      zod: 3.25.76
+      zod: 4.6.7
     transitivePeerDependencies:
       - supports-color
 
   '@jimp/plugin-quantize@1.6.1':
     dependencies:
       image-q: 4.0.0
-      zod: 3.25.76
+      zod: 4.6.7
 
   '@jimp/plugin-resize@1.6.1':
     dependencies:
       '@jimp/core': 1.6.1
       '@jimp/types': 1.6.1
-      zod: 3.25.76
+      zod: 4.6.7
     transitivePeerDependencies:
       - supports-color
 
@@ -9474,7 +9458,7 @@ snapshots:
       '@jimp/plugin-resize': 1.6.1
       '@jimp/types': 1.6.1
       '@jimp/utils': 1.6.1
-      zod: 3.25.76
+      zod: 4.6.7
     transitivePeerDependencies:
       - supports-color
 
@@ -9485,13 +9469,13 @@ snapshots:
       '@jimp/plugin-hash': 1.6.1
       '@jimp/types': 1.6.1
       '@jimp/utils': 1.6.1
-      zod: 3.25.76
+      zod: 4.6.7
     transitivePeerDependencies:
       - supports-color
 
   '@jimp/types@1.6.1':
     dependencies:
-      zod: 3.25.76
+      zod: 4.6.7
 
   '@jimp/utils@1.6.1':
     dependencies:
@@ -9751,7 +9735,7 @@ snapshots:
 
   '@microsoft/teams.apps@2.0.10':
     dependencies:
-      '@azure/msal-node': 3.8.10
+      '@azure/msal-node': 7.1.1
       '@microsoft/teams.api': 2.0.10
       '@microsoft/teams.common': 2.0.10
       '@microsoft/teams.graph': 2.0.10
@@ -9785,13 +9769,13 @@ snapshots:
   '@mistralai/mistralai@2.2.1':
     dependencies:
       ws: 8.22.0
-      zod: 4.4.3
-      zod-to-json-schema: 3.25.2(zod@4.4.3)
+      zod: 4.6.7
+      zod-to-json-schema: 3.25.2(zod@4.6.7)
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
 
-  '@modelcontextprotocol/sdk@1.32.1(zod@4.4.3)':
+  '@modelcontextprotocol/sdk@1.32.1(zod@4.6.7)':
     dependencies:
       '@hono/node-server': 1.19.14(hono@4.13.13)
       ajv: 8.20.0
@@ -9808,8 +9792,8 @@ snapshots:
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
       raw-body: 3.0.2
-      zod: 4.4.3
-      zod-to-json-schema: 3.25.2(zod@4.4.3)
+      zod: 4.6.7
+      zod-to-json-schema: 3.25.2(zod@4.6.7)
     transitivePeerDependencies:
       - supports-color
 
@@ -11305,11 +11289,11 @@ snapshots:
 
   acpx@0.7.0:
     dependencies:
-      '@agentclientprotocol/sdk': 0.21.0(zod@4.4.3)
+      '@agentclientprotocol/sdk': 0.21.0(zod@4.6.7)
       commander: 14.0.3
       skillflag: 0.1.4
       tsx: 4.21.0
-      zod: 4.4.3
+      zod: 4.6.7
     transitivePeerDependencies:
       - bare-abort-controller
       - bare-buffer
@@ -11526,7 +11510,7 @@ snapshots:
 
   bn.js@4.12.5: {}
 
-  body-parser@2.3.0:
+  body-parser@2.4.0:
     dependencies:
       bytes: 3.1.2
       content-type: 2.1.0
@@ -12040,7 +12024,7 @@ snapshots:
   express@5.2.1:
     dependencies:
       accepts: 2.0.0
-      body-parser: 2.3.0
+      body-parser: 2.4.0
       content-disposition: 1.1.0
       content-type: 1.0.5
       cookie: 0.7.2
@@ -13526,15 +13510,15 @@ snapshots:
       is-inside-container: 1.0.0
       wsl-utils: 0.1.0
 
-  openai@6.26.0(ws@8.22.0)(zod@4.4.3):
+  openai@6.26.0(ws@8.22.0)(zod@4.6.7):
     optionalDependencies:
       ws: 8.22.0
-      zod: 4.4.3
+      zod: 4.6.7
 
-  openai@6.37.0(ws@8.22.0)(zod@4.4.3):
+  openai@6.37.0(ws@8.22.0)(zod@4.6.7):
     optionalDependencies:
       ws: 8.22.0
-      zod: 4.4.3
+      zod: 4.6.7
 
   openshell@0.1.0:
     dependencies:
@@ -14926,16 +14910,10 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  zod-to-json-schema@3.25.2(zod@3.25.76):
+  zod-to-json-schema@3.25.2(zod@4.6.7):
     dependencies:
-      zod: 3.25.76
+      zod: 4.6.7
 
-  zod-to-json-schema@3.25.2(zod@4.4.3):
-    dependencies:
-      zod: 4.4.3
-
-  zod@3.25.76: {}
-
-  zod@4.4.3: {}
+  zod@4.6.7: {}
 
   zwitch@2.0.4: {}
