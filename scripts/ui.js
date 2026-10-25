@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -161,6 +162,103 @@ function resolveScriptAction(action) {
   return null;
 }
 
+/**
+ * Stamp the built service worker with a per-build id.
+ *
+ * `ui/public/sw.js` declares CACHE_NAME using a placeholder token. Vite copies it
+ * verbatim into the output, so we have to replace it after the build. Without a
+ * distinct id per build, the browser keeps serving its precached index.html while
+ * the gateway sends a newer CSP, and the stale inline scripts get blocked — the
+ * "Executing inline script violates the following Content Security Policy" loop.
+ *
+ * The id is derived from the hashed asset filenames in the fresh build, so it
+ * changes exactly when the emitted bundle changes.
+ */
+/**
+ * Stamp the built service worker with a per-build id.
+ *
+ * `ui/public/sw.js` declares CACHE_NAME using a placeholder token. Vite copies it
+ * verbatim into the output, so we have to replace it after the build. Without a
+ * distinct id per build, the browser keeps serving its precached index.html while
+ * the gateway sends a newer CSP, and the stale inline scripts get blocked — the
+ * "Executing inline script violates the following Content Security Policy" loop.
+ *
+ * The id is derived from the hashed asset filenames in the fresh build, so it
+ * changes exactly when the emitted bundle changes.
+ *
+ * Public/ assets (including sw.js) are copied by Vite's copy step, which can land
+ * slightly after the build process exits, so retry briefly rather than assuming
+ * the file is already there. Without this, an `npm run ui:build` that races the
+ * copy silently leaves the placeholder in place and reintroduces the stale-cache
+ * bug this stamp exists to prevent.
+ */
+function stampServiceWorkerBuildId(outDir, opts = {}) {
+  const retries = opts.retries ?? 40;
+  const waitMs = opts.waitMs ?? 50;
+  const swPath = path.join(outDir, "sw.js");
+  const placeholder = "self.__GREENCHCLAW_BUILD_ID__";
+
+  const deadline = Date.now() + retries * waitMs;
+  let source = null;
+  while (Date.now() <= deadline) {
+    if (fs.existsSync(swPath)) {
+      const candidate = fs.readFileSync(swPath, "utf8");
+      if (candidate.includes(placeholder)) {
+        source = candidate;
+        break;
+      }
+    }
+    // Busy-wait in small slices: this runs once at the end of a build, and the
+    // copy step is measured in milliseconds.
+    spawnSync(process.execPath, ["-e", `Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,${waitMs})`]);
+  }
+
+  if (!source) {
+    // Distinguish "sw.js never arrived" from "already stamped" so a genuine
+    // regression is visible instead of looking like a no-op.
+    if (fs.existsSync(swPath)) {
+      return null;
+    }
+    process.stderr.write(
+      `[ui:build] WARNING: ${swPath} not found after ${retries * waitMs}ms — ` +
+        "service worker left unstamped (browsers may serve stale HTML).\n",
+    );
+    return null;
+  }
+
+  const assetsDir = path.join(outDir, "assets");
+  // Wait for the asset directory to be populated too: sw.js and assets/ are both
+  // emitted by the build's copy/write phase, and stamping before assets exist
+  // produces the hash of an empty string (e3b0c442…), which is a constant and
+  // therefore defeats the whole point of a per-build cache key.
+  let assetNames = [];
+  const assetsDeadline = Date.now() + retries * waitMs;
+  while (Date.now() <= assetsDeadline) {
+    try {
+      assetNames = fs.readdirSync(assetsDir).toSorted();
+    } catch {
+      assetNames = [];
+    }
+    if (assetNames.length > 0) {
+      break;
+    }
+    spawnSync(process.execPath, ["-e", `Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,${waitMs})`]);
+  }
+  if (assetNames.length === 0) {
+    process.stderr.write(
+      `[ui:build] WARNING: no assets found in ${assetsDir} — service worker cache id ` +
+        "would be constant; leaving the placeholder unstamped.\n",
+    );
+    return null;
+  }
+  const buildId = createHash("sha256")
+    .update(assetNames.join("\n"), "utf8")
+    .digest("hex")
+    .slice(0, 12);
+  fs.writeFileSync(swPath, source.split(placeholder).join(JSON.stringify(buildId)), "utf8");
+  return buildId;
+}
+
 export function main(argv = process.argv.slice(2)) {
   const [action, ...rest] = argv;
   if (!action) {
@@ -192,6 +290,14 @@ export function main(argv = process.argv.slice(2)) {
   }
 
   run(runner.cmd, ["run", script, ...rest]);
+
+  if (action === "build") {
+    const outDir = path.join(uiDir, "..", "dist", "control-ui");
+    const buildId = stampServiceWorkerBuildId(outDir);
+    if (buildId) {
+      process.stdout.write(`[ui:build] service worker cache id: ${buildId}\n`);
+    }
+  }
 }
 
 const isDirectExecution = (() => {

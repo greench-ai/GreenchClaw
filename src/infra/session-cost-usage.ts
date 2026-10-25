@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
@@ -81,7 +82,12 @@ const emptyTotals = (): CostUsageTotals => ({
   missingCostEntries: 0,
 });
 
-const USAGE_COST_CACHE_VERSION = 2;
+// v3: pricingFingerprint is stored once per distinct value in `pricingFingerprints`
+//     and referenced by key from each file entry. v2 stored a full copy of the
+//     serialized pricing table (~42 KB) on every file entry, which made the cache
+//     O(files x fingerprint size) and produced 115 MB of duplication across 2,836
+//     entries sharing just 2 distinct fingerprints.
+const USAGE_COST_CACHE_VERSION = 3;
 const USAGE_COST_CACHE_FILE = ".usage-cost-cache.json";
 const USAGE_COST_CACHE_LOCK_WRITE_GRACE_MS = 10_000;
 const logger = createSubsystemLogger("usage-cost-cache");
@@ -105,7 +111,14 @@ type UsageCostCacheFileEntry = {
   filePath: string;
   size: number;
   mtimeMs: number;
-  pricingFingerprint: string;
+  /**
+   * Reference into `UsageCostCacheFile.pricingFingerprints`.
+   *
+   * This used to be the inline fingerprint string. Duplicating it per entry made
+   * the cache scale with (number of transcripts x pricing-table size) instead of
+   * (number of transcripts) + (number of distinct pricing tables).
+   */
+  pricingFingerprintKey: string;
   scannedAt: number;
   parsedRecords: number;
   countedRecords: number;
@@ -119,6 +132,14 @@ type UsageCostCacheFile = {
   version: number;
   updatedAt: number;
   files: Record<string, UsageCostCacheFileEntry>;
+  /**
+   * Interned pricing fingerprints: key -> serialized fingerprint.
+   *
+   * The key is a short hash of the value so entries stay small even when the
+   * underlying pricing table is large. Values are deduplicated, so N files that
+   * share a pricing config cost one copy instead of N.
+   */
+  pricingFingerprints: Record<string, string>;
 };
 
 type UsageCostTranscriptFile = {
@@ -309,9 +330,46 @@ async function acquireUsageCostCacheRefreshLock(cachePath: string): Promise<{
   }
 }
 
+function emptyUsageCostCache(): UsageCostCacheFile {
+  return { version: USAGE_COST_CACHE_VERSION, updatedAt: 0, files: {}, pricingFingerprints: {} };
+}
+
+/**
+ * Intern a pricing fingerprint and return its stable short key.
+ *
+ * The key is derived from the fingerprint content only, so the same pricing
+ * config always maps to the same key across cache reads/writes.
+ */
+function internPricingFingerprint(cache: UsageCostCacheFile, pricingFingerprint: string): string {
+  const key = createHash("sha256").update(pricingFingerprint, "utf8").digest("hex").slice(0, 16);
+  if (cache.pricingFingerprints[key] !== pricingFingerprint) {
+    cache.pricingFingerprints[key] = pricingFingerprint;
+  }
+  return key;
+}
+
+/**
+ * Drop interned fingerprints no file entry references any more.
+ * Without this, editing pricing config once per day would leave one dead
+ * fingerprint behind per edit, forever.
+ */
+function pruneUnusedPricingFingerprints(cache: UsageCostCacheFile): void {
+  const used = new Set<string>();
+  for (const entry of Object.values(cache.files)) {
+    if (entry.pricingFingerprintKey) {
+      used.add(entry.pricingFingerprintKey);
+    }
+  }
+  for (const key of Object.keys(cache.pricingFingerprints)) {
+    if (!used.has(key)) {
+      delete cache.pricingFingerprints[key];
+    }
+  }
+}
+
 function normalizeUsageCostCache(raw: unknown): UsageCostCacheFile {
   if (!raw || typeof raw !== "object") {
-    return { version: USAGE_COST_CACHE_VERSION, updatedAt: 0, files: {} };
+    return emptyUsageCostCache();
   }
   const record = raw as Record<string, unknown>;
   if (
@@ -319,12 +377,20 @@ function normalizeUsageCostCache(raw: unknown): UsageCostCacheFile {
     !record.files ||
     typeof record.files !== "object"
   ) {
-    return { version: USAGE_COST_CACHE_VERSION, updatedAt: 0, files: {} };
+    // A v2 (or older) cache is discarded rather than migrated: it embeds a full
+    // pricing fingerprint per entry, so re-interning it would require walking
+    // every entry anyway. Rebuilding is cheaper and self-healing.
+    return emptyUsageCostCache();
   }
+  const pricingFingerprints =
+    record.pricingFingerprints && typeof record.pricingFingerprints === "object"
+      ? (record.pricingFingerprints as Record<string, string>)
+      : {};
   return {
     version: USAGE_COST_CACHE_VERSION,
     updatedAt: asFiniteNumber(record.updatedAt) ?? 0,
     files: record.files as Record<string, UsageCostCacheFileEntry>,
+    pricingFingerprints,
   };
 }
 
@@ -333,7 +399,7 @@ async function readUsageCostCache(cachePath: string): Promise<UsageCostCacheFile
     const raw = await fs.promises.readFile(cachePath, "utf-8");
     return normalizeUsageCostCache(JSON.parse(raw));
   } catch {
-    return { version: USAGE_COST_CACHE_VERSION, updatedAt: 0, files: {} };
+    return emptyUsageCostCache();
   }
 }
 
@@ -368,14 +434,14 @@ async function listUsageCountedTranscriptFiles(
 function isUsageCostCacheEntryFresh(params: {
   entry: UsageCostCacheFileEntry | undefined;
   file: UsageCostTranscriptFile;
-  pricingFingerprint: string;
+  pricingFingerprintKey: string;
   requireSessionSummary?: boolean;
 }): boolean {
   return Boolean(
     params.entry &&
     params.entry.size === params.file.size &&
     params.entry.mtimeMs === params.file.mtimeMs &&
-    params.entry.pricingFingerprint === params.pricingFingerprint &&
+    params.entry.pricingFingerprintKey === params.pricingFingerprintKey &&
     (!params.requireSessionSummary || params.entry.sessionSummary),
   );
 }
@@ -383,24 +449,24 @@ function isUsageCostCacheEntryFresh(params: {
 function canUseUsageCostCacheEntryForPartial(params: {
   entry: UsageCostCacheFileEntry | undefined;
   file: UsageCostTranscriptFile;
-  pricingFingerprint: string;
+  pricingFingerprintKey: string;
 }): params is {
   entry: UsageCostCacheFileEntry;
   file: UsageCostTranscriptFile;
-  pricingFingerprint: string;
+  pricingFingerprintKey: string;
 } {
   return Boolean(
     params.entry &&
     params.entry.size <= params.file.size &&
     params.entry.mtimeMs <= params.file.mtimeMs &&
-    params.entry.pricingFingerprint === params.pricingFingerprint,
+    params.entry.pricingFingerprintKey === params.pricingFingerprintKey,
   );
 }
 
 function getUsageCostStaleFiles(params: {
   cache: UsageCostCacheFile;
   files: UsageCostTranscriptFile[];
-  pricingFingerprint: string;
+  pricingFingerprintKey: string;
   sessionSummaryFiles?: Set<string>;
 }): UsageCostTranscriptFile[] {
   const sessionSummaryFiles = params.sessionSummaryFiles ?? new Set<string>();
@@ -409,7 +475,7 @@ function getUsageCostStaleFiles(params: {
       !isUsageCostCacheEntryFresh({
         entry: params.cache.files[file.filePath],
         file,
-        pricingFingerprint: params.pricingFingerprint,
+        pricingFingerprintKey: params.pricingFingerprintKey,
         requireSessionSummary: sessionSummaryFiles.has(file.filePath),
       }),
   );
@@ -418,7 +484,7 @@ function getUsageCostStaleFiles(params: {
 function countUsableUsageCostCacheFiles(params: {
   cache: UsageCostCacheFile;
   files: UsageCostTranscriptFile[];
-  pricingFingerprint: string;
+  pricingFingerprintKey: string;
 }): number {
   const filesByPath = new Map(params.files.map((file) => [file.filePath, file]));
   let cachedFiles = 0;
@@ -429,7 +495,7 @@ function countUsableUsageCostCacheFiles(params: {
       canUseUsageCostCacheEntryForPartial({
         entry,
         file,
-        pricingFingerprint: params.pricingFingerprint,
+        pricingFingerprintKey: params.pricingFingerprintKey,
       })
     ) {
       cachedFiles += 1;
@@ -443,7 +509,7 @@ function buildCostUsageSummaryFromCache(params: {
   files: UsageCostTranscriptFile[];
   startMs: number;
   endMs: number;
-  pricingFingerprint: string;
+  pricingFingerprintKey: string;
   refreshing: boolean;
 }): CostUsageSummary {
   const dailyMap = new Map<string, CostUsageTotals>();
@@ -452,12 +518,12 @@ function buildCostUsageSummaryFromCache(params: {
   const staleFiles = getUsageCostStaleFiles({
     cache: params.cache,
     files: params.files,
-    pricingFingerprint: params.pricingFingerprint,
+    pricingFingerprintKey: params.pricingFingerprintKey,
   });
   const cachedFiles = countUsableUsageCostCacheFiles({
     cache: params.cache,
     files: params.files,
-    pricingFingerprint: params.pricingFingerprint,
+    pricingFingerprintKey: params.pricingFingerprintKey,
   });
 
   for (const [filePath, entry] of Object.entries(params.cache.files)) {
@@ -467,7 +533,7 @@ function buildCostUsageSummaryFromCache(params: {
       !canUseUsageCostCacheEntryForPartial({
         entry,
         file,
-        pricingFingerprint: params.pricingFingerprint,
+        pricingFingerprintKey: params.pricingFingerprintKey,
       })
     ) {
       continue;
@@ -998,14 +1064,16 @@ async function scanUsageFileForCache(params: {
   config?: GreenchClawConfig;
   previous?: UsageCostCacheFileEntry;
   includeSessionSummary?: boolean;
+  /** Interned key for this scan's pricing fingerprint (see internPricingFingerprint). */
+  pricingFingerprintKey: string;
 }): Promise<UsageCostCacheFileEntry> {
-  const pricingFingerprint = resolveUsageCostPricingFingerprint(params.config);
+  const pricingFingerprintKey = params.pricingFingerprintKey;
   const appendOnlyPrevious =
     params.previous &&
     params.previous.filePath === params.file.filePath &&
     params.previous.size > 0 &&
     params.previous.size < params.file.size &&
-    params.previous.pricingFingerprint === pricingFingerprint &&
+    params.previous.pricingFingerprintKey === pricingFingerprintKey &&
     params.previous.mtimeMs <= params.file.mtimeMs
       ? params.previous
       : undefined;
@@ -1061,7 +1129,7 @@ async function scanUsageFileForCache(params: {
       ...appendOnlyPrevious,
       size: params.file.size,
       mtimeMs: params.file.mtimeMs,
-      pricingFingerprint,
+      pricingFingerprintKey,
       scannedAt: Date.now(),
       parsedRecords: appendOnlyPrevious.parsedRecords + parsedRecords,
       countedRecords: appendOnlyPrevious.countedRecords + countedRecords,
@@ -1075,7 +1143,7 @@ async function scanUsageFileForCache(params: {
     filePath: params.file.filePath,
     size: params.file.size,
     mtimeMs: params.file.mtimeMs,
-    pricingFingerprint,
+    pricingFingerprintKey,
     scannedAt: Date.now(),
     parsedRecords,
     countedRecords,
@@ -1101,6 +1169,7 @@ export async function refreshCostUsageCache(params?: {
   try {
     const pricingFingerprint = resolveUsageCostPricingFingerprint(params?.config);
     const cache = await readUsageCostCache(cachePath);
+    const pricingFingerprintKey = internPricingFingerprint(cache, pricingFingerprint);
     const files = await listUsageCountedTranscriptFiles(params?.agentId);
     const sessionSummaryFiles = new Set(params?.sessionFiles ?? []);
     const refreshStartMs = params?.startMs;
@@ -1124,7 +1193,7 @@ export async function refreshCostUsageCache(params?: {
     const staleFiles = getUsageCostStaleFiles({
       cache,
       files: refreshFiles,
-      pricingFingerprint,
+      pricingFingerprintKey,
       sessionSummaryFiles,
     })
       .toSorted((a, b) => {
@@ -1135,17 +1204,31 @@ export async function refreshCostUsageCache(params?: {
       .slice(0, maxFiles);
 
     for (const file of staleFiles) {
-      cache.files[file.filePath] = await scanUsageFileForCache({
-        file,
-        config: params?.config,
-        previous: cache.files[file.filePath],
-        includeSessionSummary: sessionSummaryFiles.has(file.filePath),
-      });
+      try {
+        cache.files[file.filePath] = await scanUsageFileForCache({
+          file,
+          config: params?.config,
+          previous: cache.files[file.filePath],
+          includeSessionSummary: sessionSummaryFiles.has(file.filePath),
+          pricingFingerprintKey,
+        });
+      } catch (error) {
+        // A transcript can be deleted or rotated between listing and scanning
+        // (session pruning, retention). Treat the file as gone rather than
+        // aborting the whole refresh and leaving the cache permanently stale.
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code === "ENOENT" || code === "ENOTDIR") {
+          delete cache.files[file.filePath];
+          continue;
+        }
+        throw error;
+      }
       cache.updatedAt = Date.now();
       await writeUsageCostCache(cachePath, cache);
     }
 
     cache.updatedAt = Date.now();
+    pruneUnusedPricingFingerprints(cache);
     await writeUsageCostCache(cachePath, cache);
     return "refreshed";
   } finally {
@@ -1167,16 +1250,17 @@ export async function loadCostUsageSummaryFromCache(params: {
     readUsageCostCache(cachePath),
     listUsageCountedTranscriptFiles(params.agentId),
   ]);
+  const pricingFingerprintKey = internPricingFingerprint(cache, pricingFingerprint);
   const staleFiles = getUsageCostStaleFiles({
     cache,
     files,
-    pricingFingerprint,
+    pricingFingerprintKey,
   });
   if (params.requestRefresh !== false && staleFiles.length > 0) {
     const cachedFiles = countUsableUsageCostCacheFiles({
       cache,
       files,
-      pricingFingerprint,
+      pricingFingerprintKey,
     });
     if (params.refreshMode === "sync-when-empty" && cachedFiles === 0) {
       const result = await refreshCostUsageCache({
@@ -1192,7 +1276,7 @@ export async function loadCostUsageSummaryFromCache(params: {
         const remainingStaleFiles = getUsageCostStaleFiles({
           cache,
           files,
-          pricingFingerprint,
+          pricingFingerprintKey,
         });
         if (remainingStaleFiles.length > 0) {
           requestCostUsageCacheRefresh({ config: params.config, agentId: params.agentId });
@@ -1208,7 +1292,7 @@ export async function loadCostUsageSummaryFromCache(params: {
     files,
     startMs: params.startMs,
     endMs: params.endMs,
-    pricingFingerprint,
+    pricingFingerprintKey,
     refreshing: usageCostRefreshes.has(params.agentId ?? "main") || refreshRunning,
   });
 }
@@ -1230,6 +1314,7 @@ export async function loadSessionCostSummaryFromCache(params: {
     readUsageCostCache(cachePath),
     fs.promises.stat(params.sessionFile).catch(() => null),
   ]);
+  const pricingFingerprintKey = internPricingFingerprint(cache, pricingFingerprint);
   let file = stats
     ? { filePath: params.sessionFile, size: stats.size, mtimeMs: stats.mtimeMs }
     : undefined;
@@ -1239,7 +1324,7 @@ export async function loadSessionCostSummaryFromCache(params: {
     !isUsageCostCacheEntryFresh({
       entry,
       file,
-      pricingFingerprint,
+      pricingFingerprintKey,
       requireSessionSummary: true,
     });
   if (params.requestRefresh !== false && stale) {
@@ -1263,7 +1348,7 @@ export async function loadSessionCostSummaryFromCache(params: {
           !isUsageCostCacheEntryFresh({
             entry,
             file,
-            pricingFingerprint,
+            pricingFingerprintKey,
             requireSessionSummary: true,
           });
       } else {
