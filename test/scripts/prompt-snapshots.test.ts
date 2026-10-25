@@ -40,9 +40,12 @@ function renderedPromptSection(content: string, heading: string, nextHeading: st
 describe("happy path prompt snapshots", () => {
   let generatedSnapshots: Awaited<ReturnType<typeof createFormattedPromptSnapshotFiles>>;
 
+  // Explicit 300s budget: rendering plus the in-process oxfmt pass measures ~45s locally but hit
+  // ~100s on a loaded 2-worker CI runner — only 15% under the shared 120s hook timeout, which is
+  // how this suite kept dying with "Hook timed out in 120000ms" and reporting 9 tests as skipped.
   beforeAll(async () => {
     generatedSnapshots = await createFormattedPromptSnapshotFiles();
-  });
+  }, 300_000);
 
   it("matches the committed Codex prompt snapshot artifacts", async () => {
     const expectedPaths = new Set(generatedSnapshots.map((file) => file.path));
