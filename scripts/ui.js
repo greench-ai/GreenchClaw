@@ -235,7 +235,7 @@ function stampServiceWorkerBuildId(outDir, opts = {}) {
   const assetsDeadline = Date.now() + retries * waitMs;
   while (Date.now() <= assetsDeadline) {
     try {
-      assetNames = fs.readdirSync(assetsDir).sort();
+      assetNames = fs.readdirSync(assetsDir).toSorted();
     } catch {
       assetNames = [];
     }
