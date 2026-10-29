@@ -52,6 +52,7 @@ import {
 } from "./onboard-helpers.js";
 import { promptRemoteGatewayConfig } from "./onboard-remote.js";
 import { setupSkills } from "./onboard-skills.js";
+import { DEFAULT_GATEWAY_PORT } from "../config/paths.js";
 
 type ConfigureSectionChoice = WizardSection | "__continue";
 type SetupPluginConfigModule = typeof import("../wizard/setup.plugin-config.js");
@@ -406,7 +407,7 @@ export async function runConfigureWizard(
       }
     }
 
-    const localUrl = "ws://127.0.0.1:18789";
+    const localUrl = `ws://127.0.0.1:${DEFAULT_GATEWAY_PORT}`;
     const remoteUrl = normalizeOptionalString(baseConfig.gateway?.remote?.url) ?? "";
     const localProbePromise = (async () => {
       const [baseLocalProbeToken, baseLocalProbePassword] = await Promise.all([

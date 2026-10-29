@@ -52,6 +52,7 @@ import {
   validateResponseFrame,
 } from "./protocol/index.js";
 import { resolveGatewayStartupRetryAfterMs } from "./protocol/startup-unavailable.js";
+import { DEFAULT_GATEWAY_PORT } from "../config/paths.js";
 
 type Pending = {
   resolve: (value: unknown) => void;
@@ -89,7 +90,7 @@ type FingerprintCheckingClientOptions = Omit<ClientOptions, "checkServerIdentity
   checkServerIdentity?: (servername: string, cert: CertMeta) => Error | undefined;
 };
 
-const DEFAULT_GATEWAY_CLIENT_URL = "ws://127.0.0.1:18789";
+const DEFAULT_GATEWAY_CLIENT_URL = `ws://127.0.0.1:${DEFAULT_GATEWAY_PORT}`;
 
 export type GatewayReconnectPausedInfo = {
   code: number;
@@ -114,7 +115,7 @@ export class GatewayClientRequestError extends Error {
 }
 
 export type GatewayClientOptions = {
-  url?: string; // ws://127.0.0.1:18789
+  url?: string; // ws://127.0.0.1:18420
   connectChallengeTimeoutMs?: number;
   /** @deprecated Use connectChallengeTimeoutMs. */
   connectDelayMs?: number;
@@ -274,7 +275,7 @@ export class GatewayClient {
         `SECURITY ERROR: Cannot connect to "${displayHost}" over plaintext ws://. ` +
           "Both credentials and chat data would be exposed to network interception. " +
           "Use wss:// for remote URLs. Safe defaults: keep gateway.bind=loopback and connect via SSH tunnel " +
-          "(ssh -N -L 18789:127.0.0.1:18789 user@gateway-host), or use Tailscale Serve/Funnel. " +
+          `(ssh -N -L ${DEFAULT_GATEWAY_PORT}:127.0.0.1:${DEFAULT_GATEWAY_PORT} user@gateway-host), or use Tailscale Serve/Funnel. ` +
           (allowPrivateWs
             ? ""
             : "Break-glass (trusted private networks only): set GREENCHCLAW_ALLOW_INSECURE_PRIVATE_WS=1. ") +
@@ -747,7 +748,7 @@ export class GatewayClient {
   }
 
   private isTrustedDeviceRetryEndpoint(): boolean {
-    const rawUrl = this.opts.url ?? "ws://127.0.0.1:18789";
+    const rawUrl = this.opts.url ?? `ws://127.0.0.1:${DEFAULT_GATEWAY_PORT}`;
     try {
       const parsed = new URL(rawUrl);
       const protocol =

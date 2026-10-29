@@ -14,6 +14,7 @@ import { collectExecFilesystemPolicyDriftHits } from "../security/exec-filesyste
 import { normalizeOptionalString } from "../shared/string-coerce.js";
 import { note } from "../terminal/note.js";
 import { resolveDefaultChannelAccountContext } from "./channel-account-context.js";
+import { DEFAULT_GATEWAY_PORT } from "../config/paths.js";
 
 function collectImplicitHeartbeatDirectPolicyWarnings(cfg: GreenchClawConfig): string[] {
   const warnings: string[] = [];
@@ -234,7 +235,7 @@ export async function noteSecurityWarnings(cfg: GreenchClawConfig) {
   const bindDescriptor = `"${gatewayBind}" (${resolvedBindHost})`;
   const saferRemoteAccessLines = [
     "  Safer remote access: keep bind loopback and use Tailscale Serve/Funnel or an SSH tunnel.",
-    "  Example tunnel: ssh -N -L 18789:127.0.0.1:18789 user@gateway-host",
+    `  Example tunnel: ssh -N -L ${DEFAULT_GATEWAY_PORT}:127.0.0.1:${DEFAULT_GATEWAY_PORT} user@gateway-host`,
     "  Docs: https://docs.GreenchClaw.ai/gateway/remote",
   ];
 
